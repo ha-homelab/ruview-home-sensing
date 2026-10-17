@@ -20,6 +20,10 @@ class PublicationBoundaryTests(unittest.TestCase):
         for path in ("README.md", "tests/fixtures/example.json"):
             self.assertIn("location-label", boundary.inspect_file(path, data, {}))
 
+    def test_private_location_in_filename_is_rejected(self):
+        name = "docs/" + "kit" + "chen" + ".md"
+        self.assertIn("location-label", boundary.inspect_file(name, b"neutral", {}))
+
     def test_private_material_and_unreviewed_binary_are_rejected(self):
         self.assertIn(
             "private-path", boundary.inspect_file("config/nodes.json", b"{}", {})

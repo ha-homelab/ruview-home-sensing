@@ -69,7 +69,7 @@ def inspect_file(name, data, approved):
             issues.append("unreviewed-binary")
         return issues
     for rule, expression in RULES.items():
-        if expression.search(text):
+        if expression.search(name) or expression.search(text):
             issues.append(rule)
     return issues
 
