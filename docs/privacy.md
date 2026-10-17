@@ -8,4 +8,6 @@ Public pull requests run on GitHub-hosted runners. They do not need installation
 
 Before first publication and each release, inspect the exact source/archive inventory, run the publication-boundary check and secret scan, review all generated archives and metadata, and verify that no private configuration was copied into container layers. The source archive intentionally excludes operational evidence and generated firmware. Scanners supplement human review; an empty report is not proof that arbitrary data is safe.
 
+Use GitHub no-reply identities for both Git authors and committers. Run `python scripts/check-public-history.py` before uploading commits; it checks the complete reachable history without printing email values. A source-content scan does not cover Git author metadata. Public CI repeats this check with full history, and rejects shallow checkouts rather than claiming complete coverage.
+
 Report an accidental disclosure privately using the process in SECURITY.md. Rotate exposed credentials and evaluate affected history/artifacts; deleting the newest file alone does not erase previously published material.
