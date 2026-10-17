@@ -170,7 +170,9 @@ class CaptureTests(CaptureFixture):
         self.assertEqual(result["manifest"]["completion"], "io_or_processing_error")
         self.assertTrue(self.sock.closed)
 
-    def test_unexpected_processing_failure_preserves_error_and_incomplete_evidence(self):
+    def test_unexpected_processing_failure_preserves_error_and_incomplete_evidence(
+        self,
+    ):
         with patch.object(
             capture_module.QualityObserver,
             "ingest",
