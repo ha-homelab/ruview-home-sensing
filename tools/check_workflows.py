@@ -11,7 +11,7 @@ TOOLKIT = "21a366f200f0371a10a6de7ad6ca263af230b842"
 # neither a filename alone nor a privileged event grants an exemption.
 METADATA_CALLERS = {
     "auto-approve.yml": "e3d51c2337953785d13edeaaa8ec3afef9a9be99b5fb319501a2fd61980795dc",
-    "auto-merge.yml": "93b2e9a37de106cab914b73205931bc9a1dd3c9f46f191beaa9741527defd3e7",
+    "auto-merge.yml": "658f9c3c074bc1eb336b97232a10b7e56dff7cfb6da391738d5f767c3e35dcd0",
 }
 
 

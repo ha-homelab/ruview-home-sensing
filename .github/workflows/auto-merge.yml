@@ -33,10 +33,11 @@ jobs:
     uses: victron-venus/venus-os-ci-toolkit/.github/workflows/auto-merge.yml@21a366f200f0371a10a6de7ad6ca263af230b842
     with:
       runner-labels: '["ubuntu-24.04"]'
+      # The reviewer account's merge-author email privacy is not verified.
+      pr-author: 4alvit,dependabot[bot],renovate[bot]
       reviewed-merge: true
       reviewed-single-pass: true
       allow-dependabot-actions-review: true
-      allow-owned-bot-actions-review: true
       required-status-checks: Public CI gate,CodeQL
     secrets:
       BOT_PAT: ${{ secrets.BOT_PAT }}
