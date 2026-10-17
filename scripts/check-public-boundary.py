@@ -33,7 +33,7 @@ FORBIDDEN_FILES = {
 }
 RULES = {
     "location-label": re.compile(
-        r"\b(?:bed[r]oom|kit[c]hen|living[ _-]r[o]om|dining[ _-]r[o]om|micro[w]ave|fri[d]ge|refri[g]erator|lou[n]ge|hall[w]ay)\b",
+        r"(?<![a-zа-яё])(?:bed[r]oom|kit[c]hen|living[ _-]r[o]om|dining[ _-]r[o]om|micro[w]ave|fri[d]ge|refri[g]erator|lou[n]ge|hall[w]ay|ку[х]ня|спа[л]ьня|гос[т]иная|сто[л]овая)(?![a-zа-яё])",
         re.I,
     ),
     "private-repository": re.compile(r"github\.com/[4]alvit/", re.I),
@@ -49,7 +49,12 @@ RULES = {
 def inspect_file(name, data, approved):
     path = PurePosixPath(name)
     issues = []
-    if path.is_absolute() or ".." in path.parts or "\\" in name:
+    if (
+        path.is_absolute()
+        or ".." in path.parts
+        or "\\" in name
+        or any(ord(c) < 32 for c in name)
+    ):
         issues.append("unsafe-path")
     if FORBIDDEN_COMPONENTS.intersection(path.parts) or name in FORBIDDEN_FILES:
         issues.append("private-path")
@@ -59,6 +64,9 @@ def inspect_file(name, data, approved):
         issues.append("private-artifact")
     if len(data) > MAX_FILE:
         return issues + ["oversized-file"]
+    for rule, expression in RULES.items():
+        if expression.search(name):
+            issues.append(rule)
     try:
         text = data.decode("utf-8")
         if "\x00" in text:
@@ -69,7 +77,7 @@ def inspect_file(name, data, approved):
             issues.append("unreviewed-binary")
         return issues
     for rule, expression in RULES.items():
-        if expression.search(name) or expression.search(text):
+        if expression.search(text) and rule not in issues:
             issues.append(rule)
     return issues
 

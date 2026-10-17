@@ -1,5 +1,6 @@
 """Publication checks reject private payloads without echoing their contents."""
 
+import hashlib
 import importlib.util
 import io
 import tarfile
@@ -21,8 +22,14 @@ class PublicationBoundaryTests(unittest.TestCase):
             self.assertIn("location-label", boundary.inspect_file(path, data, {}))
 
     def test_private_location_in_filename_is_rejected(self):
-        name = "docs/" + "kit" + "chen" + ".md"
+        name = "docs/" + "kit" + "chen" + "_settings.md"
         self.assertIn("location-label", boundary.inspect_file(name, b"neutral", {}))
+
+    def test_reviewed_binary_still_requires_neutral_filename(self):
+        name = "assets/" + "bed" + "room" + "_diagram.png"
+        data = b"\x00png"
+        approved = {name: hashlib.sha256(data).hexdigest()}
+        self.assertIn("location-label", boundary.inspect_file(name, data, approved))
 
     def test_private_material_and_unreviewed_binary_are_rejected(self):
         self.assertIn(

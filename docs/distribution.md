@@ -25,3 +25,9 @@ Installation identity v2 requires an independently pinned `policy` object contai
 The coverage producer takes `--package-directory` explicitly and verifies package bytes against its independently approved module manifest. Public archives contain no production-signed module defaults. The UI preparer likewise requires explicit pinned model, profile and site-context inputs and writes its private build context outside the checkout.
 
 A release provides software mechanisms and synthetic test evidence. It does not establish calibrated coordinates, pose accuracy, reliable fall detection or physical enclosure fit for a particular installation.
+
+## Release status and shared CI
+
+CI reuses the pinned shared Python setup and security workflow while the project validates its own runtime, firmware, CAD and distribution contracts on GitHub-hosted runners. The full shared release-promotion engine is not installed. There is no automatic stable publication or promotion.
+
+The initial source candidate is a prerelease: its tools archive and wheel are bound to one reviewed immutable commit and their published SHA-256 inventory. A stable release requires a separate reviewed decision and artifact acceptance. Adopting shared signing, SBOM and promotion automation later must preserve the exact source-archive contract, public-data gate and hosted-runner boundary.
