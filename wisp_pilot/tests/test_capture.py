@@ -170,6 +170,22 @@ class CaptureTests(CaptureFixture):
         self.assertEqual(result["manifest"]["completion"], "io_or_processing_error")
         self.assertTrue(self.sock.closed)
 
+    def test_unexpected_processing_failure_preserves_error_and_incomplete_evidence(self):
+        with patch.object(
+            capture_module.QualityObserver,
+            "ingest",
+            side_effect=RuntimeError("injected processing failure"),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "injected processing failure"):
+                self.run_capture([(raw_packet(), (IP, 47010), 0)])
+        manifest = json.loads((self.output / "manifest.json").read_text())
+        self.assertFalse(manifest["complete"])
+        self.assertEqual(manifest["completion"], "io_or_processing_error")
+        self.assertEqual(manifest["errors"], ["RuntimeError"])
+        self.assertEqual(manifest["records"], 1)
+        self.assertEqual(manifest["ended_monotonic_ns"], self.clock.now)
+        self.assertTrue(self.sock.closed)
+
     def test_existing_destination_refused_before_socket(self):
         output = self.root / "existing"
         output.mkdir()

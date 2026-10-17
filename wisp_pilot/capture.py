@@ -90,6 +90,7 @@ def capture(
     sock = None
     record_file = None
     started, wall_started = monotonic_ns(), wall_ns()
+    ended = started
     deadline = started + seconds * 1_000_000_000
     observer = QualityObserver(
         list(config.receivers.values()), freshness_ns=FRESHNESS_NS
@@ -176,6 +177,12 @@ def capture(
         completion = "io_or_processing_error"
         errors.append(type(error).__name__)
         ended = monotonic_ns()
+    except BaseException as error:
+        # Persist incomplete evidence without replacing the original failure.
+        completion = "io_or_processing_error"
+        errors.append(type(error).__name__)
+        ended = monotonic_ns()
+        raise
     finally:
         if sock is not None:
             try:
