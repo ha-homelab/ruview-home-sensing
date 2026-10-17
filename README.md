@@ -28,6 +28,8 @@ Software tests establish the contracts they exercise. They do not establish reco
 
 Python 3.11+ is required; CI uses pinned dependencies and GitHub-hosted Linux runners. Native module builds pin Rust and upstream sources; CAD uses its separate locked environment.
 
+CI reuses the shared [venus-os-ci-toolkit](https://github.com/ha-homelab/venus-os-ci-toolkit/tree/21a366f200f0371a10a6de7ad6ca263af230b842) at an immutable revision. Checks cover the public-data boundary, Python and UI tests, firmware and native modules, containers, CAD and distribution integrity. Branch protection requires both `Public CI gate` and the separate `CodeQL` analysis result; a successful report upload alone does not satisfy the security requirement. Self-hosted runners are not used by this repository.
+
 ```sh
 python3 -m venv .venv
 . .venv/bin/activate
