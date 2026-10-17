@@ -29,7 +29,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
       - run: python3 scripts/check-public-boundary.py
+      - run: python3 scripts/check-public-history.py --revision HEAD
       - run: python3 tools/check_workflows.py
   bridge-container:
     needs: public-boundary
