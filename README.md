@@ -1,5 +1,9 @@
 # RuView Home Sensing
 
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15634/badge)](https://www.bestpractices.dev/projects/15634)
+
+The OpenSSF assessment is in progress; the badge links to the current evidence and unresolved criteria.
+
 Reusable CSI sensing tools, bounded edge modules, inference experiments and printable ESP32-S3 enclosures.
 
 This repository contains generic software and independently fictional examples. Installation configuration, receiver identities, site geometry, captures, model weights, signing material and operational history belong in separately protected storage.

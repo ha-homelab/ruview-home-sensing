@@ -31,3 +31,7 @@ A release provides software mechanisms and synthetic test evidence. It does not 
 CI reuses the pinned shared Python setup and security workflow while the project validates its own runtime, firmware, CAD and distribution contracts on GitHub-hosted runners. The full shared release-promotion engine is not installed. There is no automatic stable publication or promotion.
 
 The initial source candidate is a prerelease: its tools archive and wheel are bound to one reviewed immutable commit and their published SHA-256 inventory. A stable release requires a separate reviewed decision and artifact acceptance. Adopting shared signing, SBOM and promotion automation later must preserve the exact source-archive contract, public-data gate and hosted-runner boundary.
+
+## Version notes
+
+Each published version includes human-readable release notes covering user-visible changes, compatibility or migration requirements, known limitations and applicable security fixes. Include assigned CVE/GHSA or equivalent identifiers for fixed vulnerabilities when available. Link the notes to the immutable source revision and the published artifact inventory. Release notes do not imply stable promotion or physical-device acceptance.
