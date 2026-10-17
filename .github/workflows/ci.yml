@@ -31,7 +31,14 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
       - run: python3 scripts/check-public-boundary.py
-      - run: python3 scripts/check-public-history.py --revision HEAD
+      - name: Check real contribution and base history identities
+        env:
+          HISTORY_EVENT: ${{ github.event_name }}
+          HISTORY_REVISION: ${{ github.sha }}
+          HISTORY_PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          HISTORY_PR_BASE: ${{ github.event.pull_request.base.sha }}
+        run: python3 tools/check_history_event.py
+      - run: python3 -m unittest discover -s tools/tests -v
       - run: python3 tools/check_workflows.py
   bridge-container:
     needs: public-boundary
