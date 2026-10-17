@@ -1,0 +1,409 @@
+--- a/main/ota_update.c
++++ b/main/ota_update.c
+@@ -8,6 +8,7 @@
+  *   GET /ota/status — current firmware version and partition info
+  */
+ 
++#include "sdkconfig.h"
+ #include "ota_update.h"
+ 
+ #include <string.h>
+@@ -17,6 +18,10 @@
+ #include "home_wifi_policy.h"
+ #include "esp_app_desc.h"
+ #include "esp_timer.h"
++#if defined(CONFIG_HOME_RUNTIME_RECOVERY_V1) && CONFIG_HOME_RUNTIME_RECOVERY_V1
++#include "esp_random.h"
++#include "esp_wifi.h"
++#endif
+ #include "lwip/sockets.h"
+ #include "nvs_flash.h"
+ #include "nvs.h"
+@@ -40,6 +45,81 @@
+ 
+ /** Cached PSK loaded from NVS at init time. Empty = auth disabled. */
+ static char s_ota_psk[OTA_PSK_MAX_LEN] = {0};
++
++#if defined(CONFIG_HOME_RUNTIME_RECOVERY_V1) && CONFIG_HOME_RUNTIME_RECOVERY_V1
++/* Initialized once on main's post-Wi-Fi-connect path, before httpd_start.
++ * RF is enabled at that point, providing entropy to esp_fill_random (IDF5.4).
++ * Do not regenerate when an HTTP server is restarted during the same boot.
++ * No NVS writes; the PSK and the boot identity have independent lifetimes. */
++static bool s_boot_identity_attempted;
++static esp_err_t s_boot_identity_error = ESP_ERR_INVALID_STATE;
++static char s_boot_nonce[OTA_BOOT_NONCE_HEX_LENGTH + 1];
++static char s_boot_station_mac[18];
++static esp_timer_handle_t s_restart_timer;
++static bool s_restart_pending;
++
++static esp_err_t ota_boot_identity_init(void)
++{
++    if (s_boot_identity_attempted) return s_boot_identity_error;
++    s_boot_identity_attempted = true;
++    uint8_t mac[6] = {0};
++    esp_err_t error = esp_wifi_get_mac(WIFI_IF_STA, mac);
++    if (error != ESP_OK) {
++        s_boot_identity_error = error;
++        return error;
++    }
++    uint8_t any_mac = 0;
++    for (size_t i = 0; i < sizeof(mac); ++i) any_mac |= mac[i];
++    if (!any_mac || (mac[0] & 1U)) return s_boot_identity_error;
++
++    uint8_t random_bytes[16];
++    esp_fill_random(random_bytes, sizeof(random_bytes));
++    uint8_t any_random = 0;
++    for (size_t i = 0; i < sizeof(random_bytes); ++i) any_random |= random_bytes[i];
++    if (!any_random) return s_boot_identity_error;  /* no zero/fixed fallback */
++    static const char hex[] = "0123456789abcdef";
++    for (size_t i = 0; i < sizeof(random_bytes); ++i) {
++        s_boot_nonce[2 * i] = hex[random_bytes[i] >> 4];
++        s_boot_nonce[2 * i + 1] = hex[random_bytes[i] & 15U];
++    }
++    s_boot_nonce[OTA_BOOT_NONCE_HEX_LENGTH] = '\0';
++    snprintf(s_boot_station_mac, sizeof(s_boot_station_mac),
++             "%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2],
++             mac[3], mac[4], mac[5]);
++    s_boot_identity_error = ESP_OK;
++    return ESP_OK;
++}
++
++const char *ota_boot_nonce(void)
++{
++    return s_boot_identity_error == ESP_OK ? s_boot_nonce : NULL;
++}
++
++const char *ota_boot_station_mac(void)
++{
++    return s_boot_identity_error == ESP_OK ? s_boot_station_mac : NULL;
++}
++
++esp_err_t ota_boot_require(httpd_req_t *req)
++{
++    char expected[OTA_BOOT_NONCE_HEX_LENGTH + 1] = {0};
++    bool matches = ota_boot_nonce() != NULL &&
++        httpd_req_get_hdr_value_len(req, OTA_BOOT_NONCE_HEADER) == OTA_BOOT_NONCE_HEX_LENGTH &&
++        httpd_req_get_hdr_value_str(req, OTA_BOOT_NONCE_HEADER, expected, sizeof(expected)) == ESP_OK;
++    volatile uint8_t difference = 0;
++    if (matches) {
++        for (size_t i = 0; i < OTA_BOOT_NONCE_HEX_LENGTH; ++i)
++            difference |= (uint8_t)(expected[i] ^ s_boot_nonce[i]);
++        matches = difference == 0;
++    }
++    if (matches) return ESP_OK;
++    httpd_resp_set_status(req, "409 Conflict");
++    httpd_resp_set_type(req, "application/json");
++    httpd_resp_send(req, "{\"error\":\"boot_nonce_mismatch\"}", HTTPD_RESP_USE_STRLEN);
++    return ESP_FAIL;  /* close session without receiving any stale body */
++}
++
++#endif /* CONFIG_HOME_RUNTIME_RECOVERY_V1 */
+ 
+ /**
+  * ADR-050: Verify the Authorization header contains the correct PSK.
+@@ -100,11 +180,19 @@
+     int len = snprintf(response, sizeof(response),
+         "{\"version\":\"%s\",\"date\":\"%s\",\"time\":\"%s\","
+         "\"running_partition\":\"%s\",\"next_partition\":\"%s\","
+-        "\"max_size\":%lu}",
++        "\"max_size\":%lu"
++#if defined(CONFIG_HOME_RUNTIME_RECOVERY_V1) && CONFIG_HOME_RUNTIME_RECOVERY_V1
++        ",\"boot_nonce_schema\":\"%s\",\"boot_nonce\":\"%s\",\"station_mac\":\"%s\""
++#endif
++        "}",
+         app->version, app->date, app->time,
+         running ? running->label : "unknown",
+         update ? update->label : "none",
+-        (unsigned long)(update ? update->size : 0));
++        (unsigned long)(update ? update->size : 0)
++#if defined(CONFIG_HOME_RUNTIME_RECOVERY_V1) && CONFIG_HOME_RUNTIME_RECOVERY_V1
++        , OTA_BOOT_NONCE_SCHEMA, ota_boot_nonce(), ota_boot_station_mac()
++#endif
++        );
+ 
+     httpd_resp_set_type(req, "application/json");
+     httpd_resp_send(req, response, len);
+@@ -248,9 +336,70 @@
+     return ESP_FAIL;
+ }
+ 
++#if defined(CONFIG_HOME_RUNTIME_RECOVERY_V1) && CONFIG_HOME_RUNTIME_RECOVERY_V1
++/* Authenticated, boot-bound, body-free recovery. Scheduling is explicit: a
++ * successful response means a timer was armed, not that a new boot was observed.
++ * The one-second timer is independent of HTTP send completion/failure. Actual
++ * callback dispatch remains subject to scheduling; this is not a real-time SLA.
++ * The caller must GET the new nonce afterwards; it must never retry blindly. */
++static void ota_restart_callback(void *unused)
++{
++    (void)unused;
++    esp_restart();
++}
++
++static esp_err_t ota_restart_handler(httpd_req_t *req)
++{
++    if (!ota_check_auth(req)) {
++        httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Authentication required");
++        return ESP_FAIL;
++    }
++    if (ota_boot_require(req) != ESP_OK) return ESP_FAIL;
++    if (req->content_len != 0) {
++        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Restart requires an empty body");
++        return ESP_FAIL;
++    }
++    if (s_restart_pending) {
++        httpd_resp_set_status(req, "409 Conflict");
++        httpd_resp_send(req, "Restart already scheduled", HTTPD_RESP_USE_STRLEN);
++        return ESP_FAIL;
++    }
++    if (s_restart_timer == NULL) {
++        const esp_timer_create_args_t args = {
++            .callback = ota_restart_callback, .arg = NULL,
++            .dispatch_method = ESP_TIMER_TASK, .name = "home_restart",
++        };
++        if (esp_timer_create(&args, &s_restart_timer) != ESP_OK) {
++            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Cannot create restart timer");
++            return ESP_FAIL;
++        }
++    }
++    if (esp_timer_start_once(s_restart_timer, 1000000ULL) != ESP_OK) {
++        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Cannot schedule restart");
++        return ESP_FAIL;
++    }
++    s_restart_pending = true;
++    char response[192];
++    int len = snprintf(response, sizeof(response),
++        "{\"restart_scheduled\":true,\"delay_ms\":1000,\"boot_nonce_schema\":\"%s\",\"boot_nonce\":\"%s\"}",
++        OTA_BOOT_NONCE_SCHEMA, ota_boot_nonce());
++    httpd_resp_set_type(req, "application/json");
++    return httpd_resp_send(req, response, len);
++}
++
++#endif /* CONFIG_HOME_RUNTIME_RECOVERY_V1 */
++
+ /** Internal: start the HTTP server and register OTA endpoints. */
+ static esp_err_t ota_start_server(httpd_handle_t *out_handle)
+ {
++#if defined(CONFIG_HOME_RUNTIME_RECOVERY_V1) && CONFIG_HOME_RUNTIME_RECOVERY_V1
++    esp_err_t identity_error = ota_boot_identity_init();
++    if (identity_error != ESP_OK) {
++        ESP_LOGE(TAG, "Boot identity unavailable: %s", esp_err_to_name(identity_error));
++        if (out_handle) *out_handle = NULL;
++        return identity_error;
++    }
++#endif
+     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+     config.server_port = OTA_PORT;
+     /* Module lifecycle endpoints register numeric IDs with trailing wildcards. */
+@@ -286,6 +435,18 @@
+         .user_ctx = NULL,
+     };
+     httpd_register_uri_handler(server, &upload_uri);
++#if defined(CONFIG_HOME_RUNTIME_RECOVERY_V1) && CONFIG_HOME_RUNTIME_RECOVERY_V1
++    httpd_uri_t restart_uri = {
++        .uri = "/system/restart", .method = HTTP_POST,
++        .handler = ota_restart_handler, .user_ctx = NULL,
++    };
++    err = httpd_register_uri_handler(server, &restart_uri);
++    if (err != ESP_OK) {
++        httpd_stop(server);
++        if (out_handle) *out_handle = NULL;
++        return err;
++    }
++#endif
+     esp_err_t wifi_status_error = home_wifi_policy_register_http(server);
+     if (wifi_status_error != ESP_OK)
+         ESP_LOGW(TAG, "WiFi status registration failed: %s", esp_err_to_name(wifi_status_error));
+--- a/main/ota_update.h
++++ b/main/ota_update.h
+@@ -10,6 +10,22 @@
+ #define OTA_UPDATE_H
+ 
+ #include "esp_err.h"
++#if defined(CONFIG_HOME_RUNTIME_RECOVERY_V1) && CONFIG_HOME_RUNTIME_RECOVERY_V1
++#include "esp_http_server.h"
++
++/* Protocol change in 0.8.8.10. Public boot identity, NOT authorization.
++ * A nonce is 128 random bits, canonical lower-case hex, immutable until reboot.
++ * Both status endpoints expose this schema and the actual cached STA MAC.
++ * POST /wasm/upload requires this exact header before body allocation/receive.
++ * POST /system/restart also requires the existing OTA Bearer PSK and zero body;
++ * its response reports scheduling only, never successful reboot/flash. */
++#define OTA_BOOT_NONCE_SCHEMA "ruview.boot-nonce.v1"
++#define OTA_BOOT_NONCE_HEADER "X-RuView-Expected-Boot-Nonce"
++#define OTA_BOOT_NONCE_HEX_LENGTH 32
++const char *ota_boot_nonce(void);
++const char *ota_boot_station_mac(void);
++esp_err_t ota_boot_require(httpd_req_t *req);
++#endif /* CONFIG_HOME_RUNTIME_RECOVERY_V1 */
+ 
+ /**
+  * Initialize the OTA update HTTP server.
+--- a/main/wasm_upload.c
++++ b/main/wasm_upload.c
+@@ -18,6 +18,11 @@
+ 
+ #include "sdkconfig.h"
+ #include "wasm_upload.h"
++#if defined(CONFIG_HOME_RUNTIME_RECOVERY_V1) && CONFIG_HOME_RUNTIME_RECOVERY_V1
++#include "ota_update.h"
++#include "home_csi_ping.h"
++#include "esp_timer.h"
++#endif
+ 
+ #if defined(CONFIG_WASM_ENABLE)
+ 
+@@ -86,6 +91,10 @@
+ 
+ static esp_err_t wasm_upload_handler(httpd_req_t *req)
+ {
++#if defined(CONFIG_HOME_RUNTIME_RECOVERY_V1) && CONFIG_HOME_RUNTIME_RECOVERY_V1
++    /* Bind this attempt before allocation, receive, parse or runtime mutation. */
++    if (ota_boot_require(req) != ESP_OK) return ESP_FAIL;
++#endif
+     int total = 0;
+     uint8_t *buf = receive_body(req, &total);
+     if (buf == NULL) return ESP_FAIL;
+@@ -157,17 +166,29 @@
+         /* Auto-start. */
+         err = wasm_runtime_start(module_id);
+ 
++#if defined(CONFIG_HOME_RUNTIME_RECOVERY_V1) && CONFIG_HOME_RUNTIME_RECOVERY_V1
++        char response[384];
++#else
+         char response[256];
++#endif
+         snprintf(response, sizeof(response),
+                  "{\"status\":\"ok\",\"format\":\"rvf\","
+                  "\"module_id\":%u,\"name\":\"%s\","
+                  "\"wasm_size\":%lu,\"caps\":\"0x%04lx\","
+-                 "\"budget_us\":%lu,\"started\":%s}",
++                 "\"budget_us\":%lu,\"started\":%s"
++#if defined(CONFIG_HOME_RUNTIME_RECOVERY_V1) && CONFIG_HOME_RUNTIME_RECOVERY_V1
++                 ",\"boot_nonce_schema\":\"%s\",\"boot_nonce\":\"%s\""
++#endif
++                 "}",
+                  module_id, parsed.manifest->module_name,
+                  (unsigned long)parsed.wasm_len,
+                  (unsigned long)parsed.manifest->capabilities,
+                  (unsigned long)parsed.manifest->max_frame_us,
+-                 (err == ESP_OK) ? "true" : "false");
++                 (err == ESP_OK) ? "true" : "false"
++#if defined(CONFIG_HOME_RUNTIME_RECOVERY_V1) && CONFIG_HOME_RUNTIME_RECOVERY_V1
++                 , OTA_BOOT_NONCE_SCHEMA, ota_boot_nonce()
++#endif
++                 );
+ 
+         free(buf);
+         httpd_resp_set_type(req, "application/json");
+@@ -198,11 +219,23 @@
+ 
+         err = wasm_runtime_start(module_id);
+ 
++#if defined(CONFIG_HOME_RUNTIME_RECOVERY_V1) && CONFIG_HOME_RUNTIME_RECOVERY_V1
++        char response[256];
++#else
+         char response[128];
++#endif
+         snprintf(response, sizeof(response),
+                  "{\"status\":\"ok\",\"format\":\"raw\","
+-                 "\"module_id\":%u,\"size\":%d,\"started\":%s}",
+-                 module_id, total, (err == ESP_OK) ? "true" : "false");
++                 "\"module_id\":%u,\"size\":%d,\"started\":%s"
++#if defined(CONFIG_HOME_RUNTIME_RECOVERY_V1) && CONFIG_HOME_RUNTIME_RECOVERY_V1
++                 ",\"boot_nonce_schema\":\"%s\",\"boot_nonce\":\"%s\""
++#endif
++                 "}",
++                 module_id, total, (err == ESP_OK) ? "true" : "false"
++#if defined(CONFIG_HOME_RUNTIME_RECOVERY_V1) && CONFIG_HOME_RUNTIME_RECOVERY_V1
++                 , OTA_BOOT_NONCE_SCHEMA, ota_boot_nonce()
++#endif
++                 );
+         httpd_resp_set_type(req, "application/json");
+         httpd_resp_send(req, response, strlen(response));
+         return ESP_OK;
+@@ -247,6 +280,54 @@
+     *used += (size_t)written;
+     return true;
+ }
++
++#if defined(CONFIG_HOME_RUNTIME_RECOVERY_V1) && CONFIG_HOME_RUNTIME_RECOVERY_V1
++static const char *self_ping_state_name(csi_self_ping_state_t state)
++{
++    switch (state) {
++    case CSI_PING_WAIT_IP: return "wait_ip";
++    case CSI_PING_BACKOFF: return "backoff";
++    case CSI_PING_RUNNING: return "running";
++    case CSI_PING_STOPPING: return "stopping";
++    case CSI_PING_RETIRING: return "retiring";
++    case CSI_PING_BLOCKED: return "blocked";
++    case CSI_PING_INIT_FAILED: return "init_failed";
++    default: return "unknown";
++    }
++}
++
++static bool append_self_ping_json(char *buffer, size_t capacity, size_t *used)
++{
++    csi_self_ping_status_t ping;
++    csi_self_ping_get_status(&ping);
++    int64_t observed_us = esp_timer_get_time();
++    uint64_t observed_ms = observed_us >= 0 ? (uint64_t)observed_us / 1000U : 0;
++    char age[24] = "null";
++    /* This watchdog anchor is set at session creation and on either success
++     * OR timeout. It is not a CSI observation or proof of an echo reply.
++     * Retired sessions retain the anchor: interpret it together with state.
++     * Same boot uint64 time only; unavailable/future anchors remain null. */
++    if (observed_us >= 0 && ping.last_progress_ms != 0 &&
++        observed_ms >= ping.last_progress_ms) {
++        snprintf(age, sizeof(age), "%llu",
++                 (unsigned long long)(observed_ms - ping.last_progress_ms));
++    }
++    return append_json(buffer, capacity, used,
++        ",\"self_ping\":{\"state\":\"%s\",\"supervisor_started\":%s,"
++        "\"attempts\":%lu,\"starts\":%lu,\"create_failures\":%lu,\"start_failures\":%lu,"
++        "\"stop_failures\":%lu,\"delete_failures\":%lu,\"stalls\":%lu,"
++        "\"successes\":%lu,\"timeouts\":%lu,\"ends\":%lu,\"network_epoch\":%lu,"
++        "\"last_error\":%ld,\"last_progress_age_ms\":%s,"
++        "\"last_progress_age_basis\":\"session_start_or_ping_callback\"}",
++        self_ping_state_name(ping.state), ping.supervisor_started ? "true" : "false",
++        (unsigned long)ping.attempts, (unsigned long)ping.starts,
++        (unsigned long)ping.create_failures, (unsigned long)ping.start_failures,
++        (unsigned long)ping.stop_failures, (unsigned long)ping.delete_failures,
++        (unsigned long)ping.stalls, (unsigned long)ping.successes,
++        (unsigned long)ping.timeouts, (unsigned long)ping.ends,
++        (unsigned long)ping.network_epoch, (long)ping.last_error, age);
++}
++#endif /* CONFIG_HOME_RUNTIME_RECOVERY_V1 */
+ 
+ static esp_err_t wasm_list_handler(httpd_req_t *req)
+ {
+@@ -311,16 +392,27 @@
+ 
+     if (!append_json(response, sizeof(response), &pos,
+                     "],\"loaded\":%u,\"max\":%d,\"runtime\":{"
++
++#if defined(CONFIG_HOME_RUNTIME_RECOVERY_V1) && CONFIG_HOME_RUNTIME_RECOVERY_V1
++                    "\"boot_nonce_schema\":\"%s\",\"boot_nonce\":\"%s\",\"station_mac\":\"%s\","
++#endif
+                     "\"uptime_ms\":%llu,\"worker_stack_bytes\":%lu,\"worker_stack_min_free_bytes\":%lu,"
+-                    "\"internal_min_free_bytes\":%lu,\"internal_free_bytes\":%lu,\"internal_largest_free_block\":%lu},"
+-                    "\"wifi\":%s}",
++                    "\"internal_min_free_bytes\":%lu,\"internal_free_bytes\":%lu,\"internal_largest_free_block\":%lu",
+                     count, WASM_MAX_MODULES,
++#if defined(CONFIG_HOME_RUNTIME_RECOVERY_V1) && CONFIG_HOME_RUNTIME_RECOVERY_V1
++                    OTA_BOOT_NONCE_SCHEMA, ota_boot_nonce(), ota_boot_station_mac(),
++#endif
+                     (unsigned long long)resources.uptime_ms,
+                     (unsigned long)resources.worker_stack_bytes,
+                     (unsigned long)resources.worker_stack_min_free_bytes,
+                     (unsigned long)resources.internal_min_free_bytes,
+                     (unsigned long)resources.internal_free_bytes,
+-                    (unsigned long)resources.internal_largest_free_block, wifi)) goto response_too_large;
++                    (unsigned long)resources.internal_largest_free_block)) goto response_too_large;
++#if defined(CONFIG_HOME_RUNTIME_RECOVERY_V1) && CONFIG_HOME_RUNTIME_RECOVERY_V1
++    if (!append_self_ping_json(response, sizeof(response), &pos)) goto response_too_large;
++#endif
++    if (!append_json(response, sizeof(response), &pos,
++                     "},\"wifi\":%s}", wifi)) goto response_too_large;
+ 
+     httpd_resp_set_type(req, "application/json");
+     httpd_resp_send(req, response, pos);

@@ -1,0 +1,69 @@
+--- a/components/wasm3/CMakeLists.txt
++++ b/components/wasm3/CMakeLists.txt
+@@ -12,40 +12,19 @@
+ 
+ cmake_minimum_required(VERSION 3.16)
+ 
+-set(WASM3_DIR "${CMAKE_CURRENT_SOURCE_DIR}/wasm3-src")
++# ESP-IDF also includes this file in script mode to expand requirements.
++# CMAKE_CURRENT_SOURCE_DIR then points at the build directory, not this component.
++set(WASM3_DIR "${CMAKE_CURRENT_LIST_DIR}/wasm3-src")
+ 
+ if(NOT EXISTS "${WASM3_DIR}/source/wasm3.h")
+-    message(STATUS "WASM3 source not found at ${WASM3_DIR}")
+-    message(STATUS "Attempting to download WASM3...")
+-
+-    # Try downloading inside build environment.
+-    set(WASM3_URL "https://github.com/nicholasgasior/wasm3/archive/refs/heads/main.tar.gz")
+-    set(WASM3_ARCHIVE "${CMAKE_CURRENT_BINARY_DIR}/wasm3.tar.gz")
+-
+-    file(DOWNLOAD "${WASM3_URL}" "${WASM3_ARCHIVE}"
+-         STATUS DOWNLOAD_STATUS TIMEOUT 30)
+-    list(GET DOWNLOAD_STATUS 0 DL_CODE)
+-
+-    if(DL_CODE EQUAL 0)
+-        execute_process(
+-            COMMAND ${CMAKE_COMMAND} -E tar xzf "${WASM3_ARCHIVE}"
+-            WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+-        file(GLOB WASM3_EXTRACTED "${CMAKE_CURRENT_BINARY_DIR}/wasm3-*")
+-        if(WASM3_EXTRACTED)
+-            list(GET WASM3_EXTRACTED 0 WASM3_EXTRACTED_DIR)
+-            file(RENAME "${WASM3_EXTRACTED_DIR}" "${WASM3_DIR}")
+-        endif()
+-        file(REMOVE "${WASM3_ARCHIVE}")
+-    endif()
+-
+-    if(NOT EXISTS "${WASM3_DIR}/source/wasm3.h")
+-        message(WARNING "WASM3 source not available. Building WITHOUT WASM Tier 3 support.\n"
+-                        "To enable: git clone --depth 1 https://github.com/wasm3/wasm3.git "
+-                        "${WASM3_DIR}")
+-        # Register empty component so ESP-IDF doesn't error.
+-        idf_component_register()
+-        return()
+-    endif()
++    message(FATAL_ERROR "Pinned WASM3 source is missing at ${WASM3_DIR}; refusing a stub runtime")
++endif()
++execute_process(COMMAND git -C "${WASM3_DIR}" rev-parse HEAD
++    OUTPUT_VARIABLE WASM3_COMMIT OUTPUT_STRIP_TRAILING_WHITESPACE
++    RESULT_VARIABLE WASM3_GIT_RESULT ERROR_QUIET)
++if(NOT WASM3_GIT_RESULT EQUAL 0 OR
++   NOT WASM3_COMMIT STREQUAL "6b8bcb1e07bf26ebef09a7211b0a37a446eafd52")
++    message(FATAL_ERROR "WASM3 must match the deployment's pinned commit")
+ endif()
+ 
+ # Collect all WASM3 source files.
+--- a/main/CMakeLists.txt
++++ b/main/CMakeLists.txt
+@@ -58,9 +58,9 @@
+     list(APPEND REQUIRES esp_lcd esp_lcd_touch lvgl)
+ endif()
+ 
+-if(CONFIG_WASM_ENABLE)
+-    list(APPEND REQUIRES wasm3)
+-endif()
++# The home profile requires WASM. CONFIG_* is not loaded during ESP-IDF's
++# early requirements pass, so a conditional dependency silently compiles a stub.
++list(APPEND REQUIRES wasm3)
+ 
+ idf_component_register(
+     SRCS ${SRCS}

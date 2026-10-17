@@ -1,0 +1,26 @@
+{
+  "schema": "ruview.server-modules.v1",
+  "fixture": "synthetic, not live evidence",
+  "worker_run_id": "synthetic-run",
+  "clock_id": "synthetic-boot",
+  "configuration_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "generated_at_ns": "1791244801000000000",
+  "recognition_validated": false,
+  "freshness_limit_ms": 2000,
+  "events_per_node_limit": 64,
+  "counters": {"received": 41, "rejected": 1, "queue_dropped": 0},
+  "nodes": [{
+    "node_id": 2, "node_epoch": 1, "epoch_reason": "first_frame", "sequence": 140, "omitted_events": 0,
+    "grid": {"antennas": 1, "subcarriers": 64, "frequency_mhz": 2462, "ppdu_type": 0, "flags": 0},
+    "last_received_at_ns": "1791244800980000000", "age_ms": 20, "fresh": true,
+    "cadence_hz": 31.2, "cadence_qualified_20hz": false, "cadence_qualified_50hz": false,
+    "algorithms": [{"algorithm": "coherence", "algorithm_version": "0.3.0+home-server.1", "source_sha256": "1111111111111111111111111111111111111111111111111111111111111111", "availability": "running", "reason": "raw_csi_experimental", "processed_frames": 20, "emitted_events": 20, "max_execution_us": 18}]
+  }],
+  "events": [{
+    "worker_run_id": "synthetic-run", "node_id": 2, "node_epoch": 1, "occurrence_seq": "20",
+    "algorithm": "coherence", "algorithm_version": "0.3.0+home-server.1", "source_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "event_id": "2", "event_name": "COHERENCE_SCORE", "meaning": "Subcarrier phase coherence; not evidence of a person", "value_type": "metric", "units": "ratio", "value": 0.9,
+    "observed_at_ns": "1791244800950000000", "observed_monotonic_ns": "1234950000000", "source_sequence": 39,
+    "age_ms": 50, "fresh": true, "classification": "experimental", "recognition_validated": false, "source": "esp32", "execution": "server"
+  }]
+}

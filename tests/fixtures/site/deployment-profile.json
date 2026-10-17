@@ -1,0 +1,15 @@
+{
+  "schema": "ruview.deployment-profile.v1",
+  "collector_node": "example-collector",
+  "worker_node": "example-worker",
+  "activity_node": "example-activity",
+  "collector_ipv4": "10.77.1.10",
+  "collector_origin": "http://10.77.1.10:3000",
+  "allowed_hosts": ["example-collector", "collector.example.invalid", "10.77.1.10", "ruview", "ruview.ruview.svc", "ruview.ruview.svc.cluster.local"],
+  "udp_allow": ["10.77.0.120", "10.77.0.121", "10.77.0.122", "10.77.0.128/29", "10.77.0.136/31"],
+  "wireguard_ipv4": "10.77.2.10",
+  "worker_source_cidr": "10.77.3.0/24",
+  "worker_peer_ipv4": "10.77.2.20",
+  "external_selector_prefix": "ruview.example.invalid",
+  "assumed_activity_repository": "registry.example.invalid/ruview-assumed-activity"
+}

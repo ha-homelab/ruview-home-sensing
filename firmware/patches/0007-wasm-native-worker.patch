@@ -1,0 +1,486 @@
+--- a/main/wasm_runtime.c
++++ b/main/wasm_runtime.c
+@@ -4,7 +4,7 @@
+  *
+  * Manages up to WASM_MAX_MODULES concurrent WASM modules, each executing
+  * on_frame() after Tier 2 DSP completes.  Modules are stored in PSRAM and
+- * executed on Core 1 (DSP task context).
++ * executed by a dedicated worker with its own internal-RAM native stack.
+  *
+  * Host API bindings expose Tier 2 DSP results (phase, amplitude, variance,
+  * vitals) to WASM code via imported functions in the "csi" namespace.
+@@ -24,8 +24,11 @@
+ 
+ #include <string.h>
+ #include <math.h>
++#include <stdatomic.h>
+ #include "freertos/FreeRTOS.h"
+ #include "freertos/semphr.h"
++#include "freertos/queue.h"
++#include "freertos/task.h"
+ #include "esp_log.h"
+ #include "esp_timer.h"
+ #include "esp_heap_caps.h"
+@@ -404,6 +407,108 @@
+     slot->n_events = 0;
+ }
+ 
++/* All interpreter work uses one native stack. The 8 KiB WASM value stack
++ * passed to m3_NewRuntime is a different allocation. A cold first frame in
++ * 0.8.8.4 exhausted the DSP task's 8 KiB native stack during lazy compilation. */
++#define WASM_NATIVE_STACK_BYTES (32 * 1024)
++#if CONFIG_FREERTOS_UNICORE
++#define WASM_WORKER_CORE 0
++#else
++#define WASM_WORKER_CORE 1
++#endif
++static QueueHandle_t s_worker_queue;
++static SemaphoreHandle_t s_worker_done;
++static TaskHandle_t s_worker_task;
++static atomic_bool s_worker_ready;
++
++typedef enum { WORK_ENV, WORK_LOAD, WORK_RELEASE, WORK_CALL, WORK_FRAME,
++               WORK_TIMER } wasm_work_op_t;
++typedef struct {
++    wasm_work_op_t op;
++    wasm_slot_t *slot;
++    IM3Function function;
++    int32_t n_sc;
++    uint32_t *execution_us;
++    M3Result result;
++} wasm_work_t;
++
++static void worker_run_timer(void);
++
++/* Caller owns s_mutex. Preserve the reusable arena on every failure path. */
++static void release_slot(wasm_slot_t *slot)
++{
++    uint8_t *arena = slot->arena;
++    /* m3_LoadModule transfers ownership only after a successful load. */
++    if (slot->module && slot->module->runtime == NULL) {
++        m3_FreeModule(slot->module);
++    }
++    if (slot->runtime) m3_FreeRuntime(slot->runtime);
++    if (slot->binary && slot->binary != arena) free(slot->binary);
++    memset(slot, 0, sizeof(*slot));
++    slot->arena = arena;
++    slot->state = WASM_MODULE_EMPTY;
++}
++
++
++static M3Result worker_load(wasm_slot_t *slot)
++{
++    slot->runtime = m3_NewRuntime(s_env, WASM_STACK_SIZE, NULL);
++    if (!slot->runtime) return m3Err_mallocFailed;
++    M3Result result = m3_ParseModule(s_env, &slot->module,
++                                     slot->binary, slot->binary_size);
++    if (!result) result = m3_LoadModule(slot->runtime, slot->module);
++    if (!result) result = link_host_api(slot->module);
++    /* Compile every function now, so a frame/timer never pays lazy compilation
++     * cost halfway through an interpreter call chain. Imports are linked first. */
++    if (!result) result = m3_CompileModule(slot->module);
++    if (result) return result;
++    m3_FindFunction(&slot->fn_on_init, slot->runtime, "on_init");
++    m3_FindFunction(&slot->fn_on_frame, slot->runtime, "on_frame");
++    m3_FindFunction(&slot->fn_on_timer, slot->runtime, "on_timer");
++    return m3Err_none;
++}
++
++static void worker_main(void *arg)
++{
++    (void)arg;
++    for (;;) {
++        wasm_work_t *work = NULL;
++        if (xQueueReceive(s_worker_queue, &work, portMAX_DELAY) != pdTRUE) continue;
++        work->result = m3Err_none;
++        switch (work->op) {
++            case WORK_ENV: s_env = m3_NewEnvironment(); break;
++            case WORK_LOAD: work->result = worker_load(work->slot); break;
++            case WORK_RELEASE: release_slot(work->slot); break;
++            case WORK_CALL: work->result = m3_CallV(work->function); break;
++            case WORK_FRAME: {
++                int64_t started = esp_timer_get_time();
++                work->result = m3_CallV(work->function, work->n_sc);
++                *work->execution_us = (uint32_t)(esp_timer_get_time() - started);
++                break;
++            }
++            case WORK_TIMER: worker_run_timer(); break;
++        }
++        bool failed_init = work->op == WORK_ENV && s_env == NULL;
++        if (work->op != WORK_TIMER) xSemaphoreGive(s_worker_done);
++        /* Never touch the completed job, queue or semaphore after this point
++         * when initialization failed. The creator can release them immediately;
++         * self-deletion avoids deleting a running task on the other CPU. */
++        if (failed_init) vTaskDelete(NULL);
++    }
++}
++
++/* Boot is single-threaded; after boot the caller must own s_mutex. This keeps
++ * the borrowed slot/frame buffers alive until completion. Never time out this
++ * wait and return while the worker could still access the caller's buffers.
++ * A separate semaphore avoids consuming the DSP task's CSI notifications. */
++static M3Result worker_run(wasm_work_t work)
++{
++    wasm_work_t *job = &work;
++    xQueueSend(s_worker_queue, &job, portMAX_DELAY);
++    xSemaphoreTake(s_worker_done, portMAX_DELAY);
++    return work.result;
++}
++
+ /* ======================================================================
+  * Public API
+  * ====================================================================== */
+@@ -416,9 +521,34 @@
+         return ESP_ERR_NO_MEM;
+     }
+ 
+-    s_env = m3_NewEnvironment();
++    s_worker_queue = xQueueCreate(1, sizeof(wasm_work_t *));
++    s_worker_done = xSemaphoreCreateBinary();
++    /* ESP-IDF dynamic task stacks are allocated in internal RAM. */
++    if (!s_worker_queue || !s_worker_done ||
++        xTaskCreatePinnedToCore(worker_main, "wasm_worker", WASM_NATIVE_STACK_BYTES,
++                                NULL, 5, &s_worker_task,
++                                WASM_WORKER_CORE) != pdPASS) {
++        ESP_LOGE(TAG, "Failed to allocate internal WASM worker (stack=%u bytes)",
++                 WASM_NATIVE_STACK_BYTES);
++        if (s_worker_queue) vQueueDelete(s_worker_queue);
++        if (s_worker_done) vSemaphoreDelete(s_worker_done);
++        vSemaphoreDelete(s_mutex);
++        s_worker_queue = NULL;
++        s_worker_done = NULL;
++        s_mutex = NULL;
++        return ESP_ERR_NO_MEM;
++    }
++    worker_run((wasm_work_t){.op = WORK_ENV});
+     if (s_env == NULL) {
+         ESP_LOGE(TAG, "Failed to create WASM3 environment");
++        /* The failed environment job makes the worker self-delete. */
++        vQueueDelete(s_worker_queue);
++        vSemaphoreDelete(s_worker_done);
++        vSemaphoreDelete(s_mutex);
++        s_worker_task = NULL;
++        s_worker_queue = NULL;
++        s_worker_done = NULL;
++        s_mutex = NULL;
+         return ESP_ERR_NO_MEM;
+     }
+ 
+@@ -437,6 +567,9 @@
+         }
+     }
+ 
++    atomic_store(&s_worker_ready, true);
++    ESP_LOGI(TAG, "WASM worker: native_stack=%u min_free=%lu bytes",
++             WASM_NATIVE_STACK_BYTES, (unsigned long)uxTaskGetStackHighWaterMark(s_worker_task));
+     ESP_LOGI(TAG, "WASM runtime initialized (max_modules=%d, arena=%d KB/slot, "
+              "budget=%d us/frame)",
+              WASM_MAX_MODULES, WASM_ARENA_SIZE / 1024, WASM_FRAME_BUDGET_US);
+@@ -444,24 +577,12 @@
+     return ESP_OK;
+ }
+ 
+-/* Caller owns s_mutex. Preserve the reusable arena on every failure path. */
+-static void release_slot(wasm_slot_t *slot)
+-{
+-    uint8_t *arena = slot->arena;
+-    /* m3_LoadModule transfers ownership only after a successful load. */
+-    if (slot->module && slot->module->runtime == NULL) {
+-        m3_FreeModule(slot->module);
+-    }
+-    if (slot->runtime) m3_FreeRuntime(slot->runtime);
+-    if (slot->binary && slot->binary != arena) free(slot->binary);
+-    memset(slot, 0, sizeof(*slot));
+-    slot->arena = arena;
+-    slot->state = WASM_MODULE_EMPTY;
+-}
+ 
+ esp_err_t wasm_runtime_load(const uint8_t *wasm_data, uint32_t wasm_len,
+                             uint8_t *module_id)
+ {
++    if (!atomic_load(&s_worker_ready)) return ESP_ERR_INVALID_STATE;
++
+     if (wasm_data == NULL || wasm_len == 0) {
+         return ESP_ERR_INVALID_ARG;
+     }
+@@ -512,47 +633,13 @@
+     memcpy(slot->binary, wasm_data, wasm_len);
+     slot->binary_size = wasm_len;
+ 
+-    /* Create WASM3 runtime. */
+-    slot->runtime = m3_NewRuntime(s_env, WASM_STACK_SIZE, NULL);
+-    if (slot->runtime == NULL) {
+-        release_slot(slot);
+-        xSemaphoreGive(s_mutex);
+-        ESP_LOGE(TAG, "Failed to create WASM3 runtime for slot %d", slot_id);
+-        return ESP_ERR_NO_MEM;
+-    }
+-
+-    /* Parse module. */
+-    M3Result result = m3_ParseModule(s_env, &slot->module,
+-                                      slot->binary, wasm_len);
++    M3Result result = worker_run((wasm_work_t){.op = WORK_LOAD, .slot = slot});
+     if (result) {
+-        ESP_LOGE(TAG, "WASM parse error (slot %d): %s", slot_id, result);
+-        release_slot(slot);
++        ESP_LOGE(TAG, "WASM prepare error (slot %d): %s", slot_id, result);
++        worker_run((wasm_work_t){.op = WORK_RELEASE, .slot = slot});
+         xSemaphoreGive(s_mutex);
+         return ESP_ERR_INVALID_STATE;
+     }
+-
+-    /* Load module into runtime. */
+-    result = m3_LoadModule(slot->runtime, slot->module);
+-    if (result) {
+-        ESP_LOGE(TAG, "WASM load error (slot %d): %s", slot_id, result);
+-        release_slot(slot);
+-        xSemaphoreGive(s_mutex);
+-        return ESP_ERR_INVALID_STATE;
+-    }
+-
+-    /* Link host API. */
+-    result = link_host_api(slot->module);
+-    if (result) {
+-        ESP_LOGE(TAG, "WASM link error (slot %d): %s", slot_id, result);
+-        release_slot(slot);
+-        xSemaphoreGive(s_mutex);
+-        return ESP_ERR_INVALID_STATE;
+-    }
+-
+-    /* Find exported lifecycle functions. */
+-    m3_FindFunction(&slot->fn_on_init,  slot->runtime, "on_init");
+-    m3_FindFunction(&slot->fn_on_frame, slot->runtime, "on_frame");
+-    m3_FindFunction(&slot->fn_on_timer, slot->runtime, "on_timer");
+ 
+     if (slot->fn_on_frame == NULL) {
+         ESP_LOGW(TAG, "WASM[%d]: no on_frame export (module may be passive)", slot_id);
+@@ -575,6 +662,8 @@
+ 
+ esp_err_t wasm_runtime_start(uint8_t module_id)
+ {
++    if (!atomic_load(&s_worker_ready)) return ESP_ERR_INVALID_STATE;
++
+     if (module_id >= WASM_MAX_MODULES) return ESP_ERR_INVALID_ARG;
+ 
+     xSemaphoreTake(s_mutex, portMAX_DELAY);
+@@ -589,7 +678,8 @@
+     slot->n_events = 0;
+     /* Call on_init if available. */
+     if (slot->fn_on_init) {
+-        M3Result result = m3_CallV(slot->fn_on_init);
++        M3Result result = worker_run((wasm_work_t){
++            .op = WORK_CALL, .function = slot->fn_on_init});
+         if (result) {
+             ESP_LOGE(TAG, "WASM[%u] on_init failed: %s", module_id, result);
+             slot->state = WASM_MODULE_ERROR;
+@@ -608,6 +698,8 @@
+ 
+ esp_err_t wasm_runtime_stop(uint8_t module_id)
+ {
++    if (!atomic_load(&s_worker_ready)) return ESP_ERR_INVALID_STATE;
++
+     if (module_id >= WASM_MAX_MODULES) return ESP_ERR_INVALID_ARG;
+ 
+     xSemaphoreTake(s_mutex, portMAX_DELAY);
+@@ -629,6 +721,8 @@
+ 
+ esp_err_t wasm_runtime_unload(uint8_t module_id)
+ {
++    if (!atomic_load(&s_worker_ready)) return ESP_ERR_INVALID_STATE;
++
+     if (module_id >= WASM_MAX_MODULES) return ESP_ERR_INVALID_ARG;
+ 
+     xSemaphoreTake(s_mutex, portMAX_DELAY);
+@@ -639,7 +733,7 @@
+         return ESP_ERR_INVALID_STATE;
+     }
+ 
+-    release_slot(slot);
++    worker_run((wasm_work_t){.op = WORK_RELEASE, .slot = slot});
+     ESP_LOGI(TAG, "WASM module %u unloaded", module_id);
+ 
+     xSemaphoreGive(s_mutex);
+@@ -651,7 +745,7 @@
+                            const edge_vitals_pkt_t *vitals)
+ {
+     /* Never block CSI DSP behind an HTTP module operation or timer callback. */
+-    if (s_mutex == NULL || xSemaphoreTake(s_mutex, 0) != pdTRUE) return;
++    if (!atomic_load(&s_worker_ready) || xSemaphoreTake(s_mutex, 0) != pdTRUE) return;
+     if (vitals) {
+         s_last_vitals = *vitals;
+         s_last_vitals_us = esp_timer_get_time();
+@@ -672,13 +766,11 @@
+         s_cur_slot_id = i;
+         slot->n_events = 0;
+ 
+-        /* Budget guard: measure execution time. */
+-        int64_t t_start = esp_timer_get_time();
+-
+-        M3Result result = m3_CallV(slot->fn_on_frame, (int32_t)n_sc);
+-
+-        int64_t t_elapsed = esp_timer_get_time() - t_start;
+-        uint32_t elapsed_us = (uint32_t)(t_elapsed & 0xFFFFFFFF);
++        /* Budget measures interpreter execution; scheduler handoff is excluded. */
++        uint32_t elapsed_us = 0;
++
++        M3Result result = worker_run((wasm_work_t){
++            .op = WORK_FRAME, .function = slot->fn_on_frame, .n_sc = n_sc, .execution_us = &elapsed_us});
+ 
+         if (result) {
+             slot->error_count++;
+@@ -733,10 +825,10 @@
+     xSemaphoreGive(s_mutex);
+ }
+ 
+-void wasm_runtime_on_timer(void)
++static void worker_run_timer(void)
+ {
+     /* esp_timer and DSP tasks must never enter one interpreter concurrently. */
+-    if (s_mutex == NULL || xSemaphoreTake(s_mutex, 0) != pdTRUE) return;
++    if (!atomic_load(&s_worker_ready) || xSemaphoreTake(s_mutex, 0) != pdTRUE) return;
+     int64_t age_us = esp_timer_get_time() - s_last_vitals_us;
+     s_cur_vitals = s_last_vitals_us > 0 && age_us >= 0 && age_us <= 1500000
+                  ? &s_last_vitals : NULL;
+@@ -749,7 +841,16 @@
+         s_cur_slot_id = i;
+         slot->n_events = 0;
+ 
++        int64_t t_start = esp_timer_get_time();
+         M3Result result = m3_CallV(slot->fn_on_timer);
++        uint32_t elapsed_us = (uint32_t)(esp_timer_get_time() - t_start);
++        uint32_t budget = slot->manifest_budget_us > 0
++                        ? slot->manifest_budget_us : WASM_FRAME_BUDGET_US;
++        if (elapsed_us > slot->max_us) slot->max_us = elapsed_us;
++        if (elapsed_us > budget) {
++            slot->budget_faults++;
++            if (slot->budget_faults >= 10) slot->state = WASM_MODULE_ERROR;
++        }
+         if (result) {
+             slot->error_count++;
+             ESP_LOGW(TAG, "WASM[%u] on_timer error: %s", i, result);
+@@ -763,8 +864,38 @@
+     xSemaphoreGive(s_mutex);
+ }
+ 
++void wasm_runtime_on_timer(void)
++{
++    /* One queued timer request at most; no interpreter or wait in esp_timer.
++     * Static lifetime also remains safe if a lifecycle operation is in flight.
++     * The worker tries s_mutex and drops this tick when another caller owns it. */
++    static wasm_work_t timer_work = {.op = WORK_TIMER};
++    wasm_work_t *job = &timer_work;
++    if (atomic_load(&s_worker_ready)) xQueueSend(s_worker_queue, &job, 0);
++}
++
++void wasm_runtime_get_resources(wasm_resource_info_t *info)
++{
++    memset(info, 0, sizeof(*info));
++    if (!atomic_load(&s_worker_ready)) return;
++    xSemaphoreTake(s_mutex, portMAX_DELAY);
++    info->uptime_ms = (uint64_t)esp_timer_get_time() / 1000;
++    info->worker_stack_bytes = WASM_NATIVE_STACK_BYTES;
++    /* ESP-IDF reports bytes, not vanilla FreeRTOS StackType_t units. */
++    info->worker_stack_min_free_bytes = uxTaskGetStackHighWaterMark(s_worker_task);
++    info->internal_min_free_bytes = heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
++    info->internal_free_bytes = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
++    info->internal_largest_free_block = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
++    xSemaphoreGive(s_mutex);
++}
++
+ void wasm_runtime_get_info(wasm_module_info_t *info, uint8_t *count)
+ {
++    if (!atomic_load(&s_worker_ready)) {
++        memset(info, 0, sizeof(*info) * WASM_MAX_MODULES);
++        if (count) *count = 0;
++        return;
++    }
+     xSemaphoreTake(s_mutex, portMAX_DELAY);
+ 
+     uint8_t n = 0;
+@@ -791,6 +922,8 @@
+ esp_err_t wasm_runtime_set_manifest(uint8_t module_id, const char *module_name,
+                                      uint32_t capabilities, uint32_t max_frame_us)
+ {
++    if (!atomic_load(&s_worker_ready)) return ESP_ERR_INVALID_STATE;
++
+     if (module_id >= WASM_MAX_MODULES) return ESP_ERR_INVALID_ARG;
+ 
+     xSemaphoreTake(s_mutex, portMAX_DELAY);
+@@ -880,4 +1013,9 @@
+     return ESP_ERR_NOT_SUPPORTED;
+ }
+ 
++void wasm_runtime_get_resources(wasm_resource_info_t *info)
++{
++    memset(info, 0, sizeof(*info));
++}
++
+ #endif /* CONFIG_WASM_ENABLE && WASM3_AVAILABLE */
+--- a/main/wasm_runtime.h
++++ b/main/wasm_runtime.h
+@@ -88,6 +88,17 @@
+ 
+ /* ---- Fixed arena size per module slot (PSRAM) ---- */
+ #define WASM_ARENA_SIZE (160 * 1024) /**< 160 KB per slot, pre-allocated at boot. */
++
++/* Native resource qualification, also exposed by GET /wasm/list. */
++typedef struct {
++    uint64_t uptime_ms;
++    uint32_t worker_stack_bytes;
++    uint32_t worker_stack_min_free_bytes;
++    uint32_t internal_min_free_bytes;
++    uint32_t internal_free_bytes;
++    uint32_t internal_largest_free_block;
++} wasm_resource_info_t;
++void wasm_runtime_get_resources(wasm_resource_info_t *info);
+ 
+ /* ---- Module info (for listing) ---- */
+ typedef struct {
+@@ -151,7 +162,8 @@
+ 
+ /**
+  * Call on_frame(n_subcarriers) on all running modules.
+- * Called from the DSP task (Core 1) after Tier 2 processing.
++ * Called by DSP after Tier 2 processing; execution runs on the dedicated worker.
++ * The caller waits for completion so the borrowed frame buffers stay valid.
+  *
+  * @param phases      Current phase array (read by csi_get_phase).
+  * @param amplitudes  Current amplitude array (read by csi_get_amplitude).
+@@ -165,7 +177,7 @@
+ 
+ /**
+  * Call on_timer() on all running modules.
+- * Called from the main loop at the configured timer interval.
++ * Nonblocking timer request; the dedicated worker coalesces or drops busy ticks.
+  */
+ void wasm_runtime_on_timer(void);
+ 
+--- a/main/wasm_upload.c
++++ b/main/wasm_upload.c
+@@ -236,6 +236,8 @@
+     wasm_module_info_t info[WASM_MAX_MODULES];
+     uint8_t count = 0;
+     wasm_runtime_get_info(info, &count);
++    wasm_resource_info_t resources;
++    wasm_runtime_get_resources(&resources);
+ 
+     /* Build JSON array (larger buffer for manifest fields). */
+     char response[2048];
+@@ -267,7 +269,16 @@
+     }
+ 
+     pos += snprintf(response + pos, sizeof(response) - pos,
+-                    "],\"loaded\":%u,\"max\":%d}", count, WASM_MAX_MODULES);
++                    "],\"loaded\":%u,\"max\":%d,\"runtime\":{"
++                    "\"uptime_ms\":%llu,\"worker_stack_bytes\":%lu,\"worker_stack_min_free_bytes\":%lu,"
++                    "\"internal_min_free_bytes\":%lu,\"internal_free_bytes\":%lu,\"internal_largest_free_block\":%lu}}",
++                    count, WASM_MAX_MODULES,
++                    (unsigned long long)resources.uptime_ms,
++                    (unsigned long)resources.worker_stack_bytes,
++                    (unsigned long)resources.worker_stack_min_free_bytes,
++                    (unsigned long)resources.internal_min_free_bytes,
++                    (unsigned long)resources.internal_free_bytes,
++                    (unsigned long)resources.internal_largest_free_block);
+ 
+     httpd_resp_set_type(req, "application/json");
+     httpd_resp_send(req, response, pos);

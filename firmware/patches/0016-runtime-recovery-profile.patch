@@ -1,0 +1,15 @@
+--- a/main/Kconfig.projbuild
++++ b/main/Kconfig.projbuild
+@@ -1,3 +1,12 @@
+ menu "CSI Node Configuration"
+ 
++    config HOME_RUNTIME_RECOVERY_V1
++        bool "Enable reviewed runtime recovery v1 protocol"
++        depends on IDF_TARGET_ESP32S3 && HOME_CSI_ASSOCIATED_ONLY && WASM_ENABLE
++        default n
++        help
++            Explicit 0.8.8.10 home profile: supervised CSI self-ping and
++            boot-bound module uploads. Historical profiles retain their
++            original startup and HTTP contracts with this option disabled.
++
+     config HOME_WIFI_PREFERRED_AP_ENABLE

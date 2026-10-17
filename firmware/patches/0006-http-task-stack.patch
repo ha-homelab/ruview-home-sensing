@@ -1,0 +1,12 @@
+--- a/main/ota_update.c
++++ b/main/ota_update.c
+@@ -214,6 +214,9 @@
+ {
+     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+     config.server_port = OTA_PORT;
++    /* Signed WASM parsing/compilation shares this task with OTA. Keep its
++     * native call stack separate from the interpreter/guest stack budgets. */
++    config.stack_size = 12288;
+     config.max_uri_handlers = 12;  /* Extra slots for WASM endpoints (ADR-040). */
+     /* Increase receive timeout for large uploads. */
+     config.recv_wait_timeout = 30;

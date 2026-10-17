@@ -1,0 +1,17 @@
+--- a/components/wasm3/wasm3-src/source/m3_compile.c
++++ b/components/wasm3/wasm3-src/source/m3_compile.c
+@@ -1621,8 +1621,12 @@
+     u32 typeIndex;
+ _   (ReadLEB_u32 (& typeIndex, & o->wasm, o->wasmEnd));
+ 
+-    i8 reserved;
+-_   (ReadLEB_i7 (& reserved, & o->wasm, o->wasmEnd));
++    // The table index is u32 LEB128, including LLVM's padded zero encoding.
++    // This interpreter supports table zero only; do not silently route others.
++    u64 tableIndex;
++_   (ReadLebUnsigned (& tableIndex, 32, & o->wasm, o->wasmEnd));
++    _throwif (m3Err_lebOverflow, tableIndex > UINT32_MAX);
++    _throwif ("only table zero is supported", tableIndex != 0);
+ 
+     _throwif ("function call type index out of range", typeIndex >= o->module->numFuncTypes);
+ 

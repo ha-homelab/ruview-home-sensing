@@ -1,0 +1,62 @@
+{
+  "floor": "upper",
+  "items": [
+    {
+      "id": "ruview_lab_1",
+      "name": "Fictional laboratory receiver 1",
+      "type": "sensor",
+      "room": "lab_west",
+      "position_m": {
+        "x": 1,
+        "y": 1.45,
+        "z": 1
+      },
+      "dimensions_m": {
+        "width": 0.1,
+        "height": 0.1,
+        "depth": 0.1
+      },
+      "rotation_deg": 0,
+      "entity_id": "binary_sensor.ruview_node1_presence",
+      "notes": "Independent synthetic geometry; not an installation or observed measurement."
+    },
+    {
+      "id": "ruview_lab_2",
+      "name": "Fictional laboratory receiver 2",
+      "type": "sensor",
+      "room": "lab_east",
+      "position_m": {
+        "x": 7,
+        "y": 1.45,
+        "z": 1
+      },
+      "dimensions_m": {
+        "width": 0.1,
+        "height": 0.1,
+        "depth": 0.1
+      },
+      "rotation_deg": 0,
+      "entity_id": "binary_sensor.ruview_node2_presence",
+      "notes": "Independent synthetic geometry; not an installation or observed measurement."
+    },
+    {
+      "id": "ruview_lab_3",
+      "name": "Fictional laboratory receiver 3",
+      "type": "sensor",
+      "room": "lab_north",
+      "position_m": {
+        "x": 4,
+        "y": 1.45,
+        "z": 5
+      },
+      "dimensions_m": {
+        "width": 0.1,
+        "height": 0.1,
+        "depth": 0.1
+      },
+      "rotation_deg": 0,
+      "entity_id": "binary_sensor.ruview_node3_presence",
+      "notes": "Independent synthetic geometry; not an installation or observed measurement."
+    }
+  ]
+}

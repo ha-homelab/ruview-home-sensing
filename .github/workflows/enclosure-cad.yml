@@ -1,0 +1,28 @@
+name: Enclosure CAD
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  print-artifacts:
+    runs-on: ubuntu-24.04
+    # Rebuild all geometry from the reviewed model and check intersections.
+    timeout-minutes: 45
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Extract verified native CAD libraries and fonts without root
+        run: python mechanical/enclosure/provision_native.py --output "$RUNNER_TEMP/enclosure-native" --github-env "$GITHUB_ENV"
+      - run: |
+          python -m pip install --require-hashes --only-binary=:all: -r mechanical/enclosure/requirements.lock
+      - name: Generate CAD and check assembly intersections
+        run: python -u mechanical/enclosure/model.py
+      - name: Validate the freshly generated STL and STEP artifacts
+        run: python -m unittest discover -s mechanical/enclosure/tests -v

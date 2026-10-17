@@ -1,0 +1,480 @@
+--- a/src/gesture.rs
++++ b/src/gesture.rs
+@@ -20,6 +20,55 @@
+ 
+ /// Sakoe-Chiba band width (constrains warping path).
+ const BAND_WIDTH: usize = 5;
++
++/// Four shared row credits include work on both sides of a template boundary.
++/// The shipped templates have lengths 12, 8, 8 and 10: at most 44 DP cells
++/// and 48 row-clear stores per callback. This is not a wall-time guarantee.
++const ROWS_PER_FRAME: usize = 4;
++const LONGEST_TEMPLATE: usize = 12;
++const SNAPSHOT_LEN: usize = LONGEST_TEMPLATE + BAND_WIDTH;
++
++struct DtwJob {
++    observation: [f32; SNAPSHOT_LEN],
++    len: usize,
++    active: bool,
++    template: usize,
++    row: usize,
++    previous: usize,
++    rows: [[f32; MAX_TEMPLATE_LEN]; 2],
++    best_id: Option<u8>,
++    best_dist: f32,
++    #[cfg(test)]
++    distances: [f32; NUM_TEMPLATES],
++}
++
++impl DtwJob {
++    const fn new() -> Self {
++        Self {
++            observation: [0.0; SNAPSHOT_LEN],
++            len: 0,
++            active: false,
++            template: 0,
++            row: 0,
++            previous: 0,
++            // Row zero ignores the previous row. Each executed row clears
++            // its own active width, so no transition needs a full-array fill.
++            rows: [[0.0; MAX_TEMPLATE_LEN]; 2],
++            best_id: None,
++            best_dist: DTW_THRESHOLD,
++            #[cfg(test)]
++            distances: [f32::MAX; NUM_TEMPLATES],
++        }
++    }
++}
++
++#[cfg(test)]
++#[derive(Default)]
++struct WorkCount {
++    rows: usize,
++    cells: usize,
++    clears: usize,
++}
+ 
+ /// Gesture template: a named sequence of phase-delta values.
+ struct GestureTemplate {
+@@ -44,6 +93,9 @@
+     cooldown: u16,
+     /// Predefined gesture templates.
+     templates: [GestureTemplate; NUM_TEMPLATES],
++    job: DtwJob,
++    #[cfg(test)]
++    work: WorkCount,
+ }
+ 
+ impl GestureDetector {
+@@ -55,6 +107,9 @@
+             prev_phase: 0.0,
+             initialized: false,
+             cooldown: 0,
++            job: DtwJob::new(),
++            #[cfg(test)]
++            work: WorkCount { rows: 0, cells: 0, clears: 0 },
+             templates: [
+                 // Template 1: Wave (oscillating phase)
+                 GestureTemplate {
+@@ -109,7 +164,11 @@
+ 
+     /// Process one frame's phase data, returning a gesture ID if detected.
+     pub fn process_frame(&mut self, phases: &[f32]) -> Option<u8> {
++        #[cfg(test)]
++        { self.work = WorkCount::default(); }
+         if phases.is_empty() {
++            // Do not resume an old snapshot after an explicit missing input.
++            self.job.active = false;
+             return None;
+         }
+ 
+@@ -144,45 +203,115 @@
+             return None;
+         }
+ 
+-        // Build contiguous observation from ring buffer.
+-        let mut obs = [0.0f32; MAX_WINDOW_LEN];
+-        for i in 0..self.window_len {
+-            let ri = (self.window_idx + MAX_WINDOW_LEN - self.window_len + i) % MAX_WINDOW_LEN;
+-            obs[i] = self.window[ri];
+-        }
+-
+-        // Match against each template.
+-        let mut best_id: Option<u8> = None;
+-        let mut best_dist = DTW_THRESHOLD;
+-
+-        for tmpl in &self.templates {
+-            if tmpl.len == 0 || self.window_len < tmpl.len {
++        if !self.job.active {
++            self.start_job();
++        }
++        self.advance_job()
++    }
++
++    fn start_job(&mut self) {
++        // Every v2 template reads only its tail of length template.len + 5.
++        // Freeze that common suffix once; later live-ring writes cannot alter it.
++        let job = &mut self.job;
++        job.len = self.window_len.min(SNAPSHOT_LEN);
++        for i in 0..job.len {
++            let ri = (self.window_idx + MAX_WINDOW_LEN - job.len + i) % MAX_WINDOW_LEN;
++            job.observation[i] = self.window[ri];
++        }
++        job.active = true;
++        job.template = 0;
++        job.row = 0;
++        job.previous = 0;
++        job.best_id = None;
++        job.best_dist = DTW_THRESHOLD;
++        #[cfg(test)]
++        { job.distances = [f32::MAX; NUM_TEMPLATES]; }
++    }
++
++    fn advance_job(&mut self) -> Option<u8> {
++        let job = &mut self.job;
++        let mut remaining = ROWS_PER_FRAME;
++        while job.template < NUM_TEMPLATES {
++            let tmpl = &self.templates[job.template];
++            if tmpl.len == 0 || job.len < tmpl.len {
++                job.template += 1;
+                 continue;
+             }
+-
+-            // The endpoint must remain within the same Sakoe-Chiba band as
+-            // the recurrence. A +10 tail with BAND_WIDTH=5 made every template
+-            // unreachable after warmup, even though the full DTW still ran.
+-            let obs_start = self.window_len.saturating_sub(tmpl.len + BAND_WIDTH);
+-            let obs_slice = &obs[obs_start..self.window_len];
+-
+-            let dist = dtw_distance(obs_slice, &tmpl.values[..tmpl.len]);
+-            if dist < best_dist {
+-                best_dist = dist;
+-                best_id = Some(tmpl.id);
+-            }
+-        }
+-
+-        if best_id.is_some() {
+-            self.cooldown = 40; // ~2 seconds at 20 Hz.
+-        }
+-
+-        best_id
++            if remaining == 0 {
++                return None;
++            }
++
++            let n = job.len.min(tmpl.len + BAND_WIDTH);
++            let obs_start = job.len - n;
++            let (i, m) = (job.row, tmpl.len);
++            let (left, right) = job.rows.split_at_mut(1);
++            let (previous, current) = if job.previous == 0 {
++                (&left[0], &mut right[0])
++            } else {
++                (&right[0], &mut left[0])
++            };
++            current[..m].fill(f32::MAX);
++            let first = i.saturating_sub(BAND_WIDTH);
++            let end = (i + BAND_WIDTH + 1).min(m);
++            #[cfg(test)]
++            {
++                self.work.rows += 1;
++                self.work.clears += m;
++            }
++            for j in first..end {
++                #[cfg(test)]
++                { self.work.cells += 1; }
++                let c = fabsf(job.observation[obs_start + i] - tmpl.values[j]);
++                if i == 0 && j == 0 {
++                    current[j] = c;
++                } else {
++                    // Exact v2 comparison and f32 operation order.
++                    let mut min_prev = f32::MAX;
++                    if i > 0 && previous[j] < min_prev {
++                        min_prev = previous[j];
++                    }
++                    if j > 0 && current[j - 1] < min_prev {
++                        min_prev = current[j - 1];
++                    }
++                    if i > 0 && j > 0 && previous[j - 1] < min_prev {
++                        min_prev = previous[j - 1];
++                    }
++                    current[j] = c + min_prev;
++                }
++            }
++            job.previous = 1 - job.previous;
++            job.row += 1;
++            remaining -= 1;
++            if job.row == n {
++                let dist = job.rows[job.previous][m - 1] / (n + m) as f32;
++                #[cfg(test)]
++                { job.distances[job.template] = dist; }
++                if dist < job.best_dist {
++                    job.best_dist = dist;
++                    job.best_id = Some(tmpl.id);
++                }
++                job.template += 1;
++                job.row = 0;
++                job.previous = 0;
++            }
++        }
++
++        job.active = false;
++        // Publish once, after comparing every eligible template. Cooldown starts
++        // at publication, not capture. A mature 58-row job takes 15 callbacks
++        // (up to 14 extra intervals, ~0.7 s at 20 Hz). Failed jobs capture a new
++        // snapshot on the next callback; successful jobs wait the original 40
++        // frame cooldown before capture. No backlog of intermediate windows.
++        if job.best_id.is_some() {
++            self.cooldown = 40;
++        }
++        job.best_id
+     }
+ }
+ 
+ /// Compute constrained DTW distance between two sequences.
+ /// Uses Sakoe-Chiba band to limit warping and reduce computation.
++#[cfg(test)]
+ fn dtw_distance(a: &[f32], b: &[f32]) -> f32 {
+     let n = a.len();
+     let m = b.len();
+@@ -433,3 +562,182 @@
+         assert_eq!(detector.window_len, MAX_WINDOW_LEN);
+     }
+ }
++
++#[cfg(test)]
++mod incremental_dtw_tests {
++    use super::*;
++
++    fn with_window(observation: &[f32]) -> GestureDetector {
++        let mut det = GestureDetector::new();
++        det.initialized = true;
++        det.window[..observation.len()].copy_from_slice(observation);
++        det.window_len = observation.len();
++        det.window_idx = observation.len() % MAX_WINDOW_LEN;
++        det
++    }
++
++    fn expected(det: &GestureDetector, observation: &[f32]) -> ([f32; 4], Option<u8>) {
++        let mut distances = [f32::MAX; NUM_TEMPLATES];
++        let mut best = DTW_THRESHOLD;
++        let mut id = None;
++        for (i, tmpl) in det.templates.iter().enumerate() {
++            if observation.len() < tmpl.len { continue; }
++            let start = observation.len().saturating_sub(tmpl.len + BAND_WIDTH);
++            let dist = dtw_distance(&observation[start..], &tmpl.values[..tmpl.len]);
++            distances[i] = dist;
++            if dist < best { best = dist; id = Some(tmpl.id); }
++        }
++        (distances, id)
++    }
++
++    fn step(det: &mut GestureDetector) -> Option<u8> {
++        det.work = WorkCount::default();
++        let result = det.advance_job();
++        assert!(det.work.rows <= 4);
++        assert!(det.work.cells <= 44);
++        assert!(det.work.clears <= 48);
++        result
++    }
++
++    #[test]
++    fn exact_v2_distances_and_matches_for_every_snapshot_length() {
++        let mut random = 0x9e3779b9_u32;
++        for seed in 0..16 {
++            for len in 1..=MAX_WINDOW_LEN {
++                let mut obs = [0.0; MAX_WINDOW_LEN];
++                for value in &mut obs[..len] {
++                    random = random.wrapping_mul(1664525).wrapping_add(1013904223);
++                    *value = match seed {
++                        0 => 0.0,
++                        1 => 64.0,
++                        2 => if random & 1 == 0 { f32::MAX } else { -f32::MAX },
++                        3 => if random & 1 == 0 { -0.0 } else { 0.0 },
++                        _ => (random >> 16) as f32 / 8192.0 - 4.0,
++                    };
++                }
++                let mut det = with_window(&obs[..len]);
++                let (distances, wanted) = expected(&det, &obs[..len]);
++                // Transition correctness cannot depend on zero-initialized rows.
++                det.job.rows = [[-123.0; MAX_TEMPLATE_LEN], [f32::NAN; MAX_TEMPLATE_LEN]];
++                det.start_job();
++                let mut result = None;
++                let mut calls = 0;
++                while det.job.active {
++                    result = step(&mut det);
++                    calls += 1;
++                    assert!(calls <= 15);
++                    if det.job.active { assert!(result.is_none()); }
++                }
++                for (got, want) in det.job.distances.iter().zip(distances) {
++                    assert_eq!(got.to_bits(), want.to_bits(), "seed={seed} len={len}");
++                }
++                assert_eq!(result, wanted, "seed={seed} len={len}");
++            }
++        }
++    }
++
++    #[test]
++    fn row_credits_span_template_transitions_and_mature_latency_is_exact() {
++        let mut det = with_window(&[0.0; MAX_WINDOW_LEN]);
++        assert_eq!(det.templates.iter().map(|t| t.len).collect::<Vec<_>>(), [12, 8, 8, 10]);
++        assert_eq!(LONGEST_TEMPLATE, det.templates.iter().map(|t| t.len).max().unwrap());
++        det.start_job();
++        let mut totals = (0, 0, 0);
++        let mut transitions_with_work = 0;
++        for call in 1..=15 {
++            let before = det.job.template;
++            let result = step(&mut det);
++            totals.0 += det.work.rows;
++            totals.1 += det.work.cells;
++            totals.2 += det.work.clears;
++            if det.job.template > before && det.job.row > 0 { transitions_with_work += 1; }
++            assert_eq!(det.job.active, call < 15);
++            assert_eq!(result.is_some(), call == 15);
++            if call < 15 { assert_eq!(det.work.rows, 4); }
++        }
++        assert_eq!(totals, (58, 358, 562));
++        assert!(transitions_with_work >= 2);
++        assert_eq!(det.cooldown, 40);
++    }
++
++    #[test]
++    fn live_ring_writes_do_not_change_frozen_snapshot_or_result() {
++        let mut det = with_window(&[0.0; MAX_WINDOW_LEN]);
++        let wanted = expected(&det, &[0.0; SNAPSHOT_LEN]).1;
++        let mut result = None;
++        for frame in 0..15 {
++            result = det.process_frame(&[frame as f32 * 64.0]);
++            assert_eq!(det.job.observation, [0.0; SNAPSHOT_LEN]);
++            assert!(det.work.rows <= 4 && det.work.cells <= 44 && det.work.clears <= 48);
++            if frame < 14 { assert!(result.is_none()); }
++        }
++        assert_eq!(result, wanted);
++        assert_eq!(det.window[(det.window_idx + MAX_WINDOW_LEN - 1) % MAX_WINDOW_LEN], 64.0);
++    }
++
++    #[test]
++    fn result_publishes_once_and_cooldown_starts_at_publication() {
++        let mut det = GestureDetector::new();
++        let mut publications = Vec::new();
++        for frame in 1..=300 {
++            if det.process_frame(&[1.0]).is_some() {
++                publications.push(frame);
++                assert!(!det.job.active);
++                assert_eq!(det.cooldown, 40);
++            }
++            assert!(det.work.rows <= 4 && det.work.cells <= 44 && det.work.clears <= 48);
++        }
++        // The first 8-sample job has only two eligible templates (16 rows).
++        // Later jobs need 15 callbacks, after the 40-frame cooldown.
++        assert_eq!(publications, [12, 66, 120, 174, 228, 282]);
++    }
++
++    #[test]
++    fn unmatched_job_starts_newest_snapshot_only_on_next_callback() {
++        let mut det = with_window(&[64.0; MAX_WINDOW_LEN]);
++        for frame in 1..=15 {
++            assert!(det.process_frame(&[frame as f32 * 64.0]).is_none());
++            assert_eq!(det.job.active, frame < 15);
++            assert_eq!(det.cooldown, 0);
++        }
++        assert_eq!(det.job.observation, [64.0; SNAPSHOT_LEN]);
++        assert!(det.process_frame(&[0.0]).is_none());
++        assert!(det.job.active);
++        assert_eq!(det.job.row, 4);
++        assert_eq!(det.job.observation[SNAPSHOT_LEN - 1], -960.0);
++    }
++
++    #[test]
++    fn missing_input_cancels_pending_job_and_new_instance_resets_it() {
++        let mut det = with_window(&[0.0; MAX_WINDOW_LEN]);
++        det.process_frame(&[0.0]);
++        assert!(det.job.active);
++        assert!(det.process_frame(&[]).is_none());
++        assert!(!det.job.active);
++        assert_eq!(det.work.rows, 0);
++        det.process_frame(&[100.0]);
++        assert!(det.job.active);
++        assert_eq!(det.job.row, 4);
++        assert_eq!(det.job.observation[SNAPSHOT_LEN - 1], 100.0);
++        det = GestureDetector::new();
++        assert!(!det.job.active);
++        assert_eq!(det.job.len, 0);
++        assert_eq!(det.cooldown, 0);
++        assert!(det.process_frame(&[0.0]).is_none());
++        assert!(!det.job.active);
++        assert_eq!(det.window_len, 0);
++    }
++
++    #[test]
++    fn equal_template_distances_keep_original_first_winner() {
++        let mut det = with_window(&[0.0; MAX_WINDOW_LEN]);
++        det.templates[2].values = det.templates[1].values;
++        let wanted = expected(&det, &[0.0; MAX_WINDOW_LEN]);
++        det.start_job();
++        let mut result = None;
++        while det.job.active { result = step(&mut det); }
++        assert_eq!(result, wanted.1);
++        assert_eq!(det.job.distances[1].to_bits(), det.job.distances[2].to_bits());
++        assert_eq!(result, Some(det.templates[1].id));
++    }
++}
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -656,11 +656,18 @@
+             frame_count: 0,
+         }
+     }
++
++    fn reset_gesture(&mut self) {
++        // A stopped/restarted instance must not publish a pre-stop snapshot.
++        // Preserve existing coherence/anomaly calibration and timer cadence.
++        self.gesture = gesture::GestureDetector::new();
++    }
+ }
+ 
+ #[cfg(all(target_arch = "wasm32", feature = "default-pipeline"))]
+ #[no_mangle]
+ pub extern "C" fn on_init() {
++    unsafe { &mut *core::ptr::addr_of_mut!(STATE) }.reset_gesture();
+     log_msg("wasm-edge: combined pipeline init");
+ }
+ 
+@@ -782,6 +789,37 @@
+ #[cfg(test)]
+ mod home_signal_warmup_tests {
+     use super::{adversarial::AnomalyDetector, coherence::CoherenceMonitor, gesture::GestureDetector};
++
++    #[test]
++    #[cfg(feature = "default-pipeline")]
++    fn restart_resets_only_gesture_job_history_and_cooldown() {
++        let mut state = super::CombinedState::new();
++        state.frame_count = 123;
++        for i in 0..101 {
++            state.coherence.process_frame(&[i as f32 * 0.1, i as f32 * 0.3]);
++            state.adversarial.process_frame(&[0.0; 4], &[1.0; 4]);
++        }
++        let score = state.coherence.coherence_score().to_bits();
++        let gate = state.coherence.gate_state();
++        let anomalies = state.adversarial.total_anomalies();
++        assert_eq!(anomalies, 1);
++        // Nine frames leave the first frozen gesture job partly evaluated.
++        for _ in 0..9 { assert!(state.gesture.process_frame(&[1.0]).is_none()); }
++        for _ in 0..2 {
++            state.reset_gesture();
++            assert_eq!(state.frame_count, 123);
++            assert_eq!(state.coherence.coherence_score().to_bits(), score);
++            assert_eq!(state.coherence.gate_state(), gate);
++            assert_eq!(state.adversarial.total_anomalies(), anomalies);
++            let mut fresh = GestureDetector::new();
++            for frame in 1..=12 {
++                let got = state.gesture.process_frame(&[1.0]);
++                assert_eq!(got, fresh.process_frame(&[1.0]));
++                assert_eq!(got.is_some(), frame == 12);
++            }
++            // The second restart also clears the just-established cooldown.
++        }
++    }
+ 
+     #[test]
+     fn combined_flatline_path_runs_past_thousand_frames() {

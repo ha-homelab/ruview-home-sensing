@@ -1,0 +1,15 @@
+{
+  "repository": "https://github.com/espressif/esp-idf",
+  "commit": "67c1de1eebe095d554d281952fde63c16ee2dca0",
+  "version": "v5.4",
+  "files": {
+    "nvs_parser.py": {
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/67c1de1eebe095d554d281952fde63c16ee2dca0/components/nvs_flash/nvs_partition_tool/nvs_parser.py",
+      "sha256": "621bdbf0ac60e34ae190f63be10f0f1a4dd4d18c25ebab0cf56ff53a6f2b6c2c"
+    },
+    "LICENSE": {
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/67c1de1eebe095d554d281952fde63c16ee2dca0/LICENSE",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    }
+  }
+}

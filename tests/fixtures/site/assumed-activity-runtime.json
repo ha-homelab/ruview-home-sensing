@@ -1,0 +1,5 @@
+{
+  "schema": "ruview.assumed-activity.runtime.v1",
+  "receiver_http_timeout_seconds": 1.5,
+  "receiver_phase_budget_seconds": 1.5
+}

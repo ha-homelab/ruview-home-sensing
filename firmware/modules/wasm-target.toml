@@ -1,0 +1,9 @@
+# The gesture DTW matrix alone uses 9,600 bytes; upstream's 8 KiB guest stack traps.
+[target.wasm32-unknown-unknown]
+rustflags = [
+  "-C", "link-arg=-z",
+  "-C", "link-arg=stack-size=32768",
+  "-C", "link-arg=--initial-memory=131072",
+  "-C", "link-arg=--max-memory=131072",
+  "-C", "target-feature=-bulk-memory,-nontrapping-fptoint,-sign-ext,-reference-types,-multivalue,-mutable-globals",
+]

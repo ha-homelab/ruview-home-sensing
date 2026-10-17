@@ -1,0 +1,147 @@
+import { apiService } from '../services/api.service.js';
+import { sensingService } from '../services/sensing.service.js';
+import { FLOOR } from './floor-config.js';
+import { ReceiverObservations } from './node-state.mjs';
+
+const SVG = 'http://www.w3.org/2000/svg';
+const READY = '#27bda8';
+const UNKNOWN = '#87959d';
+
+function element(tag, text, parent) {
+  const node = document.createElement(tag);
+  if (text) node.textContent = text;
+  if (parent) parent.append(node);
+  return node;
+}
+function svg(tag, attributes, parent, text) {
+  const node = document.createElementNS(SVG, tag);
+  for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, String(value));
+  if (text) node.textContent = text;
+  parent.append(node);
+  return node;
+}
+
+export class HomeFloorPanel {
+  constructor(container) {
+    this.container = container;
+    this.observations = new ReceiverObservations(FLOOR.receivers.map(receiver => receiver.node_id));
+    this.rows = new Map();
+    this.markers = new Map();
+    this.disposed = false;
+  }
+
+  start() {
+    if (!this.container) return;
+    this.container.replaceChildren();
+    element('h4', 'Receiver map', this.container);
+    element('p', 'Receiver positions and accepted CSI freshness. Room occupancy, body pose and fall confirmation are not measured by this panel.', this.container);
+    const layout = element('div', '', this.container);
+    layout.style.cssText = 'display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start';
+    const map = svg('svg', { viewBox: '-0.25 -0.2 8.3 21.4', role: 'img',
+      'aria-label': 'Configured receiver positions',
+      style: 'width:240px;max-width:100%;height:auto;flex:0 1 240px;background:#101e28;border-radius:8px' }, layout);
+    svg('title', {}, map, 'Receiver locations; colours indicate CSI freshness, not people');
+    for (const room of FLOOR.rooms) {
+      const outline = svg('polygon', { points: room.polygon.map(p => p.join(',')).join(' '),
+        fill: '#203541', stroke: '#69818c', 'stroke-width': 0.025 }, map);
+      svg('title', {}, outline, `${room.display_id}: ${room.name}`);
+      svg('text', { x: room.label[0], y: room.label[1], fill: '#e2ecef',
+        'font-size': 0.28, 'text-anchor': 'middle' }, map, room.display_id);
+    }
+    for (const zone of FLOOR.zones) {
+      const outline = svg('polygon', { points: zone.polygon.map(p => p.join(',')).join(' '),
+        fill: 'none', stroke: '#5aade4', 'stroke-width': 0.04, 'stroke-dasharray': '0.12 0.08' }, map);
+      svg('title', {}, outline, `${zone.name}: assumed signal-region outline, not measured occupancy`);
+    }
+    for (const receiver of FLOOR.receivers) {
+      const group = svg('g', {}, map);
+      svg('title', {}, group, `Receiver ${receiver.node_id}: ${receiver.name}; centre height ${receiver.height_m.toFixed(2)} m`);
+      const marker = svg('circle', { cx: receiver.position[0], cy: receiver.position[1], r: 0.2,
+        fill: UNKNOWN, stroke: '#fff', 'stroke-width': 0.03 }, group);
+      svg('text', { x: receiver.position[0], y: receiver.position[1] + 0.09,
+        fill: '#061c24', 'font-size': 0.25, 'font-weight': 'bold', 'text-anchor': 'middle' }, group, String(receiver.node_id));
+      this.markers.set(receiver.node_id, marker);
+    }
+    const details = element('div', '', layout);
+    details.style.cssText = 'flex:1 1 220px;min-width:0';
+    element('strong', 'Three installed receivers · 1.50 m high', details);
+    for (const receiver of FLOOR.receivers) {
+      const row = element('p', '', details);
+      element('strong', `${receiver.node_id} · ${receiver.name}`, row);
+      element('br', '', row);
+      this.rows.set(receiver.node_id, element('span', 'CSI unavailable', row));
+    }
+    element('p', 'Green = fresh accepted CSI; grey = stale or unavailable. Receiver placement does not establish sensing coverage.', details);
+    const key = element('details', '', details);
+    element('summary', 'Room names from HA 3D', key);
+    const list = element('ul', '', key);
+    for (const room of FLOOR.rooms) element('li', `${room.display_id} · ${room.name}`, list);
+    element('strong', 'Assumed signal regions', details);
+    const zones = element('ul', '', details);
+    for (const zone of FLOOR.zones) element('li', zone.name, zones);
+    element('p', 'Blue outlines show approximate geometry only. Live signal intensity is available on the HA 3D plan; it is not a person count.', details);
+    const link = element('a', 'Open HA 3D floor plan ↗', details);
+    link.href = '@@FLOORPLAN_URL@@';
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    element('p', 'Legacy zone_1–zone_4 counters were placeholders: one aggregate presence flag and three constant zeros. They are not mapped to these rooms.', this.container);
+    this.unsub = sensingService.onStateChange(() => this.render());
+    this.visibility = () => {
+      if (document.hidden) this.clear();
+      else this.poll();
+    };
+    document.addEventListener('visibilitychange', this.visibility);
+    this.poll();
+    this.pollTimer = setInterval(() => this.poll(), 2000);
+    this.expiryTimer = setInterval(() => this.render(), 250);
+  }
+
+  async poll() {
+    if (this.disposed || document.hidden || this.inFlight) return;
+    this.inFlight = true;
+    const started = performance.now();
+    const controller = new AbortController();
+    this.controller = controller;
+    const timeout = setTimeout(() => controller.abort(), 2500);
+    try {
+      const result = await apiService.get('/api/v1/nodes', {}, { signal: controller.signal, cache: 'no-store' });
+      if (this.disposed || document.hidden) return;
+      const now = performance.now();
+      this.observations.accept(result?.nodes, started, now);
+      this.render();
+    } catch {
+      this.clear();
+    } finally {
+      clearTimeout(timeout);
+      this.inFlight = false;
+    }
+  }
+
+  clear() {
+    this.observations.clear();
+    this.render();
+  }
+
+  render() {
+    if (this.disposed) return;
+    const now = performance.now();
+    for (const receiver of FLOOR.receivers) {
+      const item = this.observations.get(receiver.node_id);
+      const fresh = !document.hidden && sensingService.dataSource === 'live' && item && item.expires > now;
+      this.markers.get(receiver.node_id)?.setAttribute('fill', fresh ? READY : UNKNOWN);
+      const row = this.rows.get(receiver.node_id);
+      if (row) row.textContent = fresh
+        ? `Fresh accepted CSI${item.rssi === null ? '' : ` · RSSI ${item.rssi.toFixed(0)} dBm`}`
+        : 'CSI stale or unavailable';
+    }
+  }
+
+  dispose() {
+    this.disposed = true;
+    this.controller?.abort();
+    clearInterval(this.pollTimer);
+    clearInterval(this.expiryTimer);
+    this.unsub?.();
+    document.removeEventListener('visibilitychange', this.visibility);
+  }
+}

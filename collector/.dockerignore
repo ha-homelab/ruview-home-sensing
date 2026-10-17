@@ -1,0 +1,9 @@
+# Public source only: never send Cargo caches, compiler outputs or operator logs.
+*
+!Dockerfile
+!source/
+!source/**
+source/.git
+source/**/.git
+source/**/target
+source/**/__pycache__

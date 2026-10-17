@@ -1,0 +1,256 @@
+name: Public validation
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  merge_group:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  public-boundary:
+    name: Public source boundary
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require explicit GitHub-hosted policy
+        env:
+          RUNNER_MODE: ${{ vars.CI_RUNNER_MODE }}
+          RUNNER_ENVIRONMENT: ${{ runner.environment }}
+        run: |
+          test "$RUNNER_MODE" = github
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: python3 scripts/check-public-boundary.py
+      - run: python3 tools/check_workflows.py
+  bridge-container:
+    needs: public-boundary
+    # Native ARM64 validates the documented architecture without emulation.
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build and import the bridge in its native ARM64 container
+        run: python3 scripts/test-bridge-container.py
+  assumed-activity-container:
+    needs: public-boundary
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build and import the activity service in its native AMD64 container
+        run: python3 scripts/test-assumed-activity-container.py
+  validate:
+    needs: public-boundary
+    runs-on: ubuntu-24.04
+    # Cold compilers and complete native regression suites have a bounded budget.
+    timeout-minutes: 45
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - uses: victron-venus/venus-os-ci-toolkit/actions/setup-python@21a366f200f0371a10a6de7ad6ca263af230b842 # shared, immutable
+        with:
+          python-version: '3.13'
+      - name: Install the pinned CMake wheel for host component checks
+        run: |
+          python -m pip install --require-hashes --only-binary=:all: -r .github/requirements-build-tools.txt
+      - name: Install the hash-checked public bridge and runtime dependencies
+        run: |
+          python -m pip install --require-hashes --only-binary=:all: -r requirements.txt
+      - name: Verify imports use the installed public distribution
+        run: python scripts/test-public-adapter-installed.py
+      - run: python -m pip install ruff==0.16.5 esp-idf-nvs-partition-gen==0.3.0 esptool==5.1.0
+      - run: ruff check bridge.py module_observations.py ruview_http.py scripts tools tests firmware/*.py firmware/tests firmware/fleet firmware/wisp-pilot collector/*.py collector/ui/export-floor-config.py inference server-modules/*.py server-modules/tests assumed_activity radar wisp_pilot
+      - run: ruff format --check bridge.py module_observations.py ruview_http.py scripts tools tests firmware/*.py firmware/tests firmware/fleet firmware/wisp-pilot collector/*.py collector/ui/export-floor-config.py inference server-modules/*.py server-modules/tests assumed_activity radar wisp_pilot
+      - run: node --test collector/ui/tests/*.test.mjs
+      - run: python -m unittest discover -s assumed_activity/tests -v
+      - run: python -m unittest discover -s radar/tests -v
+      - run: python -m unittest discover -s wisp_pilot/tests -v
+      - run: python -m unittest discover -s firmware/wisp-pilot/tests -v
+      - run: python -m unittest discover -s tests -v
+      - run: python -m unittest discover -s firmware/fleet/tests -v
+      - run: python -m pip install -r inference/requirements.txt
+      - run: OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python -m unittest discover -s inference/tests -v
+      - run: python -m unittest discover -s server-modules/tests -v
+      - run: python firmware/tests/test_nvs.py -v
+      - run: python firmware/fetch-source.py "$RUNNER_TEMP/ruview-firmware"
+      - run: python firmware/tests/test_rvf.py "$RUNNER_TEMP/ruview-firmware/source" -v
+      - run: python firmware/tests/test_wifi_selection.py "$RUNNER_TEMP/ruview-firmware/source"
+      - run: python firmware/tests/test_preferred_ap.py "$RUNNER_TEMP/ruview-firmware/source"
+      - run: python firmware/tests/test_runtime_diagnostics.py "$RUNNER_TEMP/ruview-firmware/source"
+      - run: python firmware/tests/test_ota_deadlines.py "$RUNNER_TEMP/ruview-firmware/source"
+      - run: python firmware/tests/test_http_nodelay.py "$RUNNER_TEMP/ruview-firmware/source"
+      - run: python firmware/tests/test_http_status_result.py "$RUNNER_TEMP/ruview-firmware/source"
+      - run: python firmware/tests/test_self_ping_recovery.py "$RUNNER_TEMP/ruview-firmware/source"
+      - run: python firmware/tests/test_boot_bound_recovery.py "$RUNNER_TEMP/ruview-firmware/source"
+      - run: python firmware/tests/test_csi_sequence_admission.py "$RUNNER_TEMP/ruview-firmware/source"
+      - run: |
+          git init "$RUNNER_TEMP/wasm3"
+          git -C "$RUNNER_TEMP/wasm3" remote add origin https://github.com/wasm3/wasm3.git
+          git -C "$RUNNER_TEMP/wasm3" fetch --depth 1 origin 6b8bcb1e07bf26ebef09a7211b0a37a446eafd52
+          git -C "$RUNNER_TEMP/wasm3" checkout --detach FETCH_HEAD
+          python firmware/tests/test_component.py "$RUNNER_TEMP/ruview-firmware/source" "$RUNNER_TEMP/wasm3"
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # shared toolkit pin
+        with:
+          toolchain: '1.96.1'
+          targets: wasm32-unknown-unknown
+      - name: Verify immutable module source profiles
+        run: |
+          python firmware/fetch-modules.py "$RUNNER_TEMP/ruview-module-pristine" --source-only
+          python firmware/tests/test_module_profiles.py "$RUNNER_TEMP/ruview-module-pristine"
+      - name: Validate v2 module source and warmup regressions
+        env:
+          RUSTUP_TOOLCHAIN: 1.96.1
+          CARGO_BUILD_JOBS: '4'
+        run: |
+          python firmware/fetch-modules.py "$RUNNER_TEMP/ruview-home-signal-v2" --profile home-signal-v2
+          rustup target add wasm32-unknown-unknown
+          cd "$RUNNER_TEMP/ruview-home-signal-v2"
+          cargo test --locked --features std --lib
+          cargo build --locked --lib --release --target wasm32-unknown-unknown
+          python "$GITHUB_WORKSPACE/firmware/tests/test_runtime.py" "$RUNNER_TEMP/ruview-firmware/source" "$RUNNER_TEMP/wasm3" --wasm target/wasm32-unknown-unknown/release/wifi_densepose_wasm_edge.wasm
+      - name: Validate incremental v3 module and restart behavior
+        env:
+          RUSTUP_TOOLCHAIN: 1.96.1
+          CARGO_BUILD_JOBS: '4'
+        run: |
+          python firmware/fetch-modules.py "$RUNNER_TEMP/ruview-home-signal-v3" --profile home-signal-v3
+          cd "$RUNNER_TEMP/ruview-home-signal-v3"
+          cargo test --locked --features std --lib
+          cargo build --locked --lib --release --target wasm32-unknown-unknown
+          python "$GITHUB_WORKSPACE/firmware/tests/test_runtime.py" "$RUNNER_TEMP/ruview-firmware/source" "$RUNNER_TEMP/wasm3" --wasm target/wasm32-unknown-unknown/release/wifi_densepose_wasm_edge.wasm --gesture-restart
+      - name: Validate two-row v4 module and exact restart warmup
+        env:
+          RUSTUP_TOOLCHAIN: 1.96.1
+          CARGO_BUILD_JOBS: '4'
+        run: |
+          python firmware/fetch-modules.py "$RUNNER_TEMP/ruview-home-signal-v4" --profile home-signal-v4
+          cd "$RUNNER_TEMP/ruview-home-signal-v4"
+          cargo test --locked --features std --lib
+          cargo build --locked --lib --release --target wasm32-unknown-unknown
+          python "$GITHUB_WORKSPACE/firmware/tests/test_runtime.py" "$RUNNER_TEMP/ruview-firmware/source" "$RUNNER_TEMP/wasm3" --wasm target/wasm32-unknown-unknown/release/wifi_densepose_wasm_edge.wasm --gesture-restart --gesture-restart-profile home-signal-v4
+      - name: Validate one-row v5 module and exact restart warmup
+        env:
+          RUSTUP_TOOLCHAIN: 1.96.1
+          CARGO_BUILD_JOBS: '4'
+        run: |
+          python firmware/fetch-modules.py "$RUNNER_TEMP/ruview-home-signal-v5" --profile home-signal-v5
+          cd "$RUNNER_TEMP/ruview-home-signal-v5"
+          cargo test --locked --features std --lib
+          cargo build --locked --lib --release --target wasm32-unknown-unknown
+          python "$GITHUB_WORKSPACE/firmware/tests/test_runtime.py" "$RUNNER_TEMP/ruview-firmware/source" "$RUNNER_TEMP/wasm3" --wasm target/wasm32-unknown-unknown/release/wifi_densepose_wasm_edge.wasm --gesture-restart --gesture-restart-profile home-signal-v5
+      - run: RUSTUP_TOOLCHAIN=1.96.1 sh collector/test-grid.sh
+      - name: Validate native server catalog and bounded UDP/HTTP service
+        env:
+          RUSTUP_TOOLCHAIN: 1.96.1
+          CARGO_BUILD_JOBS: '4'
+          RUST_TEST_THREADS: '1'
+        run: |
+          python server-modules/prepare.py "$RUNNER_TEMP/ruview-server-modules" --source "$RUNNER_TEMP/ruview-module-pristine" --offline
+          cd "$RUNNER_TEMP/ruview-server-modules/worker"
+          cargo test --manifest-path ../upstream/Cargo.toml --target-dir target --locked --no-default-features --features std --lib sec_tailgating::tests
+          cargo test --locked --all-targets
+          cargo build --locked --release
+          python tests/service_smoke.py target/release/ruview-server-modules "$RUNNER_TEMP/ruview-server-modules-smoke"
+          python tests/fleet_service_smoke.py target/release/ruview-server-modules "$RUNNER_TEMP/ruview-fleet-modules-smoke"
+          python tests/capture_service_smoke.py target/release/ruview-server-modules "$RUNNER_TEMP/ruview-capture-modules-smoke"
+  packages:
+    name: Distribution integrity
+    needs: public-boundary
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: victron-venus/venus-os-ci-toolkit/actions/setup-python@21a366f200f0371a10a6de7ad6ca263af230b842
+        with:
+          python-version: '3.13'
+      - name: Install locked runtime and numerical dependencies
+        run: |
+          python -m pip install --require-hashes --only-binary=:all: -r requirements.txt
+          python -m pip install -r inference/requirements.txt
+      - name: Build wheel and verify isolated installed entrypoints
+        run: |
+          mkdir -p "$RUNNER_TEMP/distributions"
+          python -m pip wheel --no-deps --wheel-dir "$RUNNER_TEMP/distributions" .
+          python scripts/test-installed-wheel.py "$RUNNER_TEMP"/distributions/*.whl
+          python scripts/check-public-boundary.py --archive "$RUNNER_TEMP"/distributions/*.whl
+      - name: Build deterministic complete tools archive and scan publication bytes
+        run: |
+          revision=$(git rev-parse HEAD)
+          python scripts/build-release.py --revision "$revision" --output "$RUNNER_TEMP/distributions/ruview-home-sensing-tools.tar.gz"
+          python scripts/build-release.py --revision "$revision" --output "$RUNNER_TEMP/second-tools.tar.gz"
+          cmp "$RUNNER_TEMP/distributions/ruview-home-sensing-tools.tar.gz" "$RUNNER_TEMP/second-tools.tar.gz"
+          python scripts/check-public-boundary.py --archive "$RUNNER_TEMP/distributions/ruview-home-sensing-tools.tar.gz"
+      - name: Retain only scanned distributions
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: reviewed-distributions
+          path: ${{ runner.temp }}/distributions/*
+          if-no-files-found: error
+          retention-days: 7
+  enclosure:
+    needs: public-boundary
+    uses: ./.github/workflows/enclosure-cad.yml
+  security:
+    needs: public-boundary
+    uses: victron-venus/venus-os-ci-toolkit/.github/workflows/security-scan.yml@21a366f200f0371a10a6de7ad6ca263af230b842
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    with:
+      force-full: true
+      languages: python,javascript-typescript,actions
+      run-codeql: true
+      run-trivy: true
+      run-dependency-review: true
+  gate:
+    name: Public CI gate
+    if: ${{ always() }}
+    needs: [public-boundary, bridge-container, assumed-activity-container, validate, packages, enclosure, security]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every validation result
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PYCODE'
+          import json
+          import os
+          results = json.loads(os.environ["RESULTS"])
+          failed = {name: value["result"] for name, value in results.items() if value["result"] != "success"}
+          if failed:
+              raise SystemExit(f"Required validation did not succeed: {failed}")
+          print("All required public source, runtime, firmware, CAD and security checks passed.")
+          PYCODE

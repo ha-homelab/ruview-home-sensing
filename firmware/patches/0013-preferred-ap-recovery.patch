@@ -1,0 +1,691 @@
+--- a/main/CMakeLists.txt
++++ b/main/CMakeLists.txt
+@@ -1,4 +1,5 @@
+ set(SRCS
++    "home_wifi_policy.c" "home_wifi_policy_core.c"
+     "main.c" "csi_collector.c" "stream_sender.c" "nvs_config.c"
+     "edge_processing.c" "ota_update.c" "power_mgmt.c"
+     "wasm_runtime.c" "wasm_upload.c" "rvf_parser.c"
+--- a/main/Kconfig.projbuild
++++ b/main/Kconfig.projbuild
+@@ -1,4 +1,30 @@
+ menu "CSI Node Configuration"
++
++    config HOME_WIFI_PREFERRED_AP_ENABLE
++        bool "Enable node-scoped preferred AP with bounded fallback"
++        depends on IDF_TARGET_ESP32S3 && HOME_CSI_ASSOCIATED_ONLY
++        default n
++        help
++            Optional deployment profile. Match both node ID and station MAC.
++            Tries the preferred BSSID for at most 30 seconds, then keeps the
++            original SSID/security and retries without a BSSID restriction.
++
++    config HOME_WIFI_PREFERRED_BSSID
++        string "Preferred AP unicast BSSID"
++        depends on HOME_WIFI_PREFERRED_AP_ENABLE
++        default ""
++
++    config HOME_WIFI_PREFERRED_NODE_ID
++        int "Node ID eligible for preferred AP"
++        depends on HOME_WIFI_PREFERRED_AP_ENABLE
++        range 1 255
++        default 2
++
++    config HOME_WIFI_PREFERRED_STA_MAC
++        string "Station unicast MAC eligible for preferred AP"
++        depends on HOME_WIFI_PREFERRED_AP_ENABLE
++        default ""
++
+ 
+     config CSI_NODE_ID
+         int "Node ID (0-255)"
+--- /dev/null
++++ b/main/home_wifi_policy.c
+@@ -0,0 +1,386 @@
++/* Optional node-local Wi-Fi policy; no credentials or NVS write interface. */
++#include "home_wifi_policy.h"
++#include "home_wifi_policy_core.h"
++#include "sdkconfig.h"
++
++#if defined(CONFIG_HOME_WIFI_PREFERRED_AP_ENABLE)
++#include <string.h>
++#include <stdio.h>
++#include <stdarg.h>
++#include <inttypes.h>
++#include "esp_netif.h"
++#include "esp_timer.h"
++#include "freertos/task.h"
++
++/* One worker owns every connect/scan/config operation. The event loop only
++ * updates a fixed mailbox under this lock: no queue can overflow, and no
++ * timer callback can race a reconnect. Never call an SDK API under the lock. */
++static portMUX_TYPE s_lock = portMUX_INITIALIZER_UNLOCKED;
++typedef struct {
++    bool started, scan_done;
++    uint32_t scan_status, disconnect_count, got_ip_count, lost_ip_count;
++    uint64_t sequence, disconnect_sequence, stop_sequence, last_disconnect_ms;
++    uint8_t last_bssid[6], reason;
++    int8_t rssi;
++} mailbox_t;
++typedef struct {
++    uint8_t bssid[6], channel;
++    int8_t rssi;
++    int authmode;
++} ap_view_t;
++typedef struct {
++    bool active, effective_valid, associated, ip_ready, preferred, scan_finished;
++    const char *gate, *phase, *error_operation;
++    int last_error, ap_error, config_error, scan_error;
++    int scan_method, sort_method, auth_threshold, rssi_threshold;
++    bool bssid_set;
++    uint8_t configured_bssid[6], preferred_bssid[6], channel_hint;
++    ap_view_t current, scan[HWP_SCAN_MAX];
++    uint16_t scan_total, scan_count;
++    bool scan_truncated;
++    uint32_t attempts, failures, fallback_entries;
++    uint64_t next_attempt_ms, preferred_deadline_ms;
++    mailbox_t events;
++} status_t;
++static mailbox_t s_events;
++static status_t s_status = {.gate="not_initialized", .phase="disabled", .error_operation="none"};
++static wifi_config_t s_base;
++static uint8_t s_preferred[6], s_scan_ssid[33];
++static bool s_active, s_targeted;
++static EventGroupHandle_t s_ready_group;
++static EventBits_t s_ready_bit;
++static hwp_core_t s_core;
++static bool s_scan_started, s_scan_finished, s_pending;
++static bool s_boot_issued;
++static uint8_t s_boot_backoff;
++static uint64_t s_boot_at, s_boot_deadline, s_seen_stop;
++static uint64_t s_scan_deadline, s_barrier_deadline, s_quiet_until, s_barrier_sequence;
++
++static uint64_t milliseconds(void) { return (uint64_t)esp_timer_get_time() / 1000; }
++static mailbox_t mailbox(void) {
++    mailbox_t out;
++    portENTER_CRITICAL(&s_lock); out = s_events; portEXIT_CRITICAL(&s_lock);
++    return out;
++}
++static void error(status_t *s, const char *operation, esp_err_t result) {
++    if (result != ESP_OK) { s->last_error = result; s->error_operation = operation; }
++}
++static void ap_view(ap_view_t *out, const wifi_ap_record_t *in) {
++    memcpy(out->bssid, in->bssid, 6); out->channel = in->primary;
++    out->rssi = in->rssi; out->authmode = in->authmode;
++}
++static bool network(status_t *s) {
++    wifi_ap_record_t ap = {0};
++    s->ap_error = esp_wifi_sta_get_ap_info(&ap);
++    s->associated = s->ap_error == ESP_OK;
++    memset(&s->current, 0, sizeof(s->current));
++    if (s->associated) ap_view(&s->current, &ap);
++    esp_netif_t *netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
++    esp_netif_ip_info_t ip = {0};
++    s->ip_ready = s->associated && netif && esp_netif_is_netif_up(netif) &&
++        esp_netif_get_ip_info(netif, &ip) == ESP_OK && ip.ip.addr != 0;
++    return s->ip_ready;
++}
++static void effective(status_t *s) {
++    wifi_config_t config = {0};
++    s->config_error = esp_wifi_get_config(WIFI_IF_STA, &config);
++    s->effective_valid = s->config_error == ESP_OK;
++    if (!s->effective_valid) return;
++    s->scan_method = config.sta.scan_method;
++    s->sort_method = config.sta.sort_method;
++    s->auth_threshold = config.sta.threshold.authmode;
++    s->rssi_threshold = config.sta.threshold.rssi;
++    s->bssid_set = config.sta.bssid_set;
++    memcpy(s->configured_bssid, config.sta.bssid, 6);
++    s->channel_hint = config.sta.channel;
++    /* Neither SSID nor password enters the diagnostic snapshot. */
++}
++static void disconnect(status_t *s) {
++    esp_err_t result = esp_wifi_disconnect();
++    if (result != ESP_ERR_WIFI_NOT_CONNECT) error(s, "disconnect", result);
++}
++static void finish_scan(status_t *s, bool timeout) {
++    if (timeout) {
++        error(s, "scan_stop", esp_wifi_scan_stop());
++        s->scan_error = ESP_ERR_TIMEOUT;
++    } else {
++        mailbox_t events = mailbox();
++        s->scan_error = events.scan_status == 0 ? ESP_OK : ESP_FAIL;
++        if (s->scan_error == ESP_OK) {
++            wifi_ap_record_t records[HWP_SCAN_MAX];
++            memset(records, 0, sizeof(records));
++            esp_err_t result = esp_wifi_scan_get_ap_num(&s->scan_total);
++            uint16_t count = HWP_SCAN_MAX;
++            if (result == ESP_OK) result = esp_wifi_scan_get_ap_records(&count, records);
++            if (result != ESP_OK) s->scan_error = result;
++            else {
++                if (count > HWP_SCAN_MAX) count = HWP_SCAN_MAX;
++                s->scan_count = count;
++                for (unsigned i = 0; i < count; ++i) ap_view(&s->scan[i], &records[i]);
++                s->scan_truncated = s->scan_total > count;
++            }
++        }
++    }
++    /* Also release the driver's list after count/read failures and timeout. */
++    error(s, "scan_clear", esp_wifi_clear_ap_list());
++    s_scan_finished = true; s->scan_finished = true;
++}
++static void begin_scan(status_t *s, uint64_t now) {
++    memset(s_scan_ssid, 0, sizeof(s_scan_ssid));
++    memcpy(s_scan_ssid, s_base.sta.ssid, 32);
++    wifi_scan_config_t config = {0};
++    config.ssid = s_scan_ssid;
++    config.scan_type = WIFI_SCAN_TYPE_ACTIVE;
++    config.scan_time.active.min = 0;
++    config.scan_time.active.max = 120;
++    /* Keep the SSID storage valid until the one-shot asynchronous scan ends. */
++    s_scan_started = true; s_scan_deadline = now + HWP_SCAN_MS;
++    esp_err_t result = esp_wifi_scan_start(&config, false);
++    if (result != ESP_OK) {
++        s->scan_error = result;
++        error(s, "scan_start", result);
++        error(s, "scan_clear", esp_wifi_clear_ap_list());
++        s_scan_finished = true; s->scan_finished = true;
++    }
++}
++static void connect_now(status_t *s, uint64_t now) {
++    wifi_config_t config = s_base;  /* Retain the entire original security policy. */
++    config.sta.bssid_set = s_core.preferred;
++    memset(config.sta.bssid, 0, sizeof(config.sta.bssid));
++    if (s_core.preferred) memcpy(config.sta.bssid, s_preferred, 6);
++    config.sta.channel = 0;
++    config.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
++    config.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
++    esp_err_t result = esp_wifi_set_config(WIFI_IF_STA, &config);
++    const char *operation = "set_config";
++    if (result == ESP_OK) { operation = "connect"; result = esp_wifi_connect(); }
++    if (result != ESP_OK) {
++        error(s, operation, result);
++        (void)hwp_core_failed(&s_core, now);
++        disconnect(s);
++    }
++}
++/* Single worker iteration is also exercised by the actual-source host test. */
++static void tick(uint64_t now) {
++    status_t status;
++    portENTER_CRITICAL(&s_lock); status = s_status; portEXIT_CRITICAL(&s_lock);
++    mailbox_t events = mailbox();
++    bool healthy = network(&status);
++    bool association_unknown = status.ap_error != ESP_OK &&
++        status.ap_error != ESP_ERR_WIFI_NOT_CONNECT;
++    if (events.stop_sequence != s_seen_stop) {
++        s_seen_stop = events.stop_sequence; s_boot_issued = false; s_boot_at = now + 5000;
++    }
++    if (events.started) s_boot_backoff = 0;
++    else {
++        if (s_boot_issued && now >= s_boot_deadline) {
++            s_boot_issued = false; error(&status, "start_event_timeout", ESP_ERR_TIMEOUT);
++        }
++        if (!s_boot_issued && now >= s_boot_at) {
++            static const unsigned delays[] = {5000,10000,20000,40000,60000};
++            esp_err_t result = esp_wifi_set_config(WIFI_IF_STA, &s_base);
++            const char *operation = "initial_config";
++            if (result == ESP_OK) { operation = "start"; result = esp_wifi_start(); }
++            error(&status, operation, result);
++            s_boot_issued = result == ESP_OK; s_boot_deadline = now + 10000;
++            s_boot_at = now + delays[s_boot_backoff];
++            if (s_boot_backoff < 4) ++s_boot_backoff;
++        }
++    }
++    if (!events.started) {
++        if (s_scan_started && !s_scan_finished) finish_scan(&status, true);
++        s_pending = false;
++        (void)hwp_core_step(&s_core, now, false, false, false, events.disconnect_sequence);
++        xEventGroupClearBits(s_ready_group, s_ready_bit);
++    } else {
++        if (!s_scan_started) begin_scan(&status, now);
++        if (!s_scan_finished && (events.scan_done || now >= s_scan_deadline))
++            finish_scan(&status, !events.scan_done);
++        if (s_scan_finished) {
++            /* A late GOT_IP cannot qualify a disconnected driver/netif. A late
++             * DISCONNECTED cannot invalidate an actually healthy link. */
++            hwp_action_t action = hwp_core_step(&s_core, now, true,
++                !s_pending && (healthy || (association_unknown && s_core.phase == HWP_ONLINE)),
++                !s_pending && (status.associated || (association_unknown && s_core.attempt_associated)),
++                events.disconnect_sequence);
++            if (action == HWP_DISCONNECT) { s_pending = false; disconnect(&status); }
++            if (action == HWP_CONNECT) {
++                s_pending = true; s_barrier_deadline = now + 1500;
++                s_quiet_until = now + 200; s_barrier_sequence = events.disconnect_sequence;
++                disconnect(&status);
++            }
++            if (s_pending) {
++                mailbox_t current = mailbox();
++                if (!current.started) s_pending = false;
++                else {
++                    if (current.disconnect_sequence != s_barrier_sequence) {
++                        s_barrier_sequence = current.disconnect_sequence;
++                        s_quiet_until = now + 200;
++                    }
++                    if (!status.associated && !association_unknown && now >= s_quiet_until) {
++                        s_pending = false; connect_now(&status, now);
++                    } else if (now >= s_barrier_deadline) {
++                        s_pending = false; error(&status, "disconnect_barrier", ESP_ERR_TIMEOUT);
++                        (void)hwp_core_failed(&s_core, now); disconnect(&status);
++                    }
++                }
++            }
++            if (s_core.phase == HWP_ONLINE && healthy) {
++                /* Recheck event sequencing before releasing main initialization. */
++                mailbox_t current = mailbox();
++                if (current.started && current.disconnect_sequence == events.disconnect_sequence)
++                    xEventGroupSetBits(s_ready_group, s_ready_bit);
++            } else xEventGroupClearBits(s_ready_group, s_ready_bit);
++        }
++    }
++    effective(&status);
++    status.events = mailbox();
++    status.phase = !s_scan_finished && events.started ? "boot_scan" : hwp_phase_name(s_core.phase);
++    status.preferred = s_core.preferred;
++    status.attempts = s_core.attempts; status.failures = s_core.failures;
++    status.fallback_entries = s_core.fallback_entries;
++    status.next_attempt_ms = s_core.next_at;
++    status.preferred_deadline_ms = s_core.preferred_deadline;
++    portENTER_CRITICAL(&s_lock); s_status = status; portEXIT_CRITICAL(&s_lock);
++}
++static void worker(void *unused) {
++    (void)unused;
++    for (;;) { tick(milliseconds()); vTaskDelay(pdMS_TO_TICKS(100)); }
++}
++
++bool home_wifi_policy_init(const wifi_config_t *base, uint8_t node_id,
++                           EventGroupHandle_t group, EventBits_t bit) {
++    s_status.gate = "profile_mismatch";
++#if !defined(CONFIG_IDF_TARGET_ESP32S3) || !defined(CONFIG_HOME_CSI_ASSOCIATED_ONLY)
++    (void)base; (void)node_id; (void)group; (void)bit;
++    return false;
++#endif
++    uint8_t expected_mac[6], actual_mac[6];
++    s_status.gate = "invalid_configuration";
++    if (!base || !group || !bit ||
++        !hwp_parse_mac(CONFIG_HOME_WIFI_PREFERRED_BSSID, s_preferred) ||
++        !hwp_parse_mac(CONFIG_HOME_WIFI_PREFERRED_STA_MAC, expected_mac)) return false;
++    s_status.gate = "node_mismatch";
++    if (node_id != CONFIG_HOME_WIFI_PREFERRED_NODE_ID) return false;
++    esp_err_t result = esp_wifi_get_mac(WIFI_IF_STA, actual_mac);
++    s_status.gate = "mac_read_failed";
++    if (result != ESP_OK) { error(&s_status, "get_mac", result); return false; }
++    s_status.gate = "mac_mismatch";
++    if (memcmp(actual_mac, expected_mac, 6) != 0) return false;
++    s_targeted = true;
++    s_base = *base;
++    s_ready_group = group; s_ready_bit = bit;
++    memcpy(s_status.preferred_bssid, s_preferred, 6);
++    s_status.gate = "storage_failed";
++    /* Transient BSSID/fallback changes must not rewrite stored credentials. */
++    result = esp_wifi_set_storage(WIFI_STORAGE_RAM);
++    if (result != ESP_OK) { error(&s_status, "set_storage", result); return false; }
++    hwp_core_init(&s_core);
++    portENTER_CRITICAL(&s_lock);
++    s_active = true; s_status.active = true; s_status.gate = "enabled";
++    portEXIT_CRITICAL(&s_lock);
++    if (xTaskCreate(worker, "home_wifi", 6144, NULL, 4, NULL) != pdPASS) {
++        portENTER_CRITICAL(&s_lock);
++        s_active = false; s_status.active = false; s_status.gate = "worker_failed";
++        portEXIT_CRITICAL(&s_lock);
++        error(&s_status, "worker_create", ESP_ERR_NO_MEM);
++        return false;
++    }
++    return true;
++}
++bool home_wifi_policy_targeted(void) { return s_targeted; }
++bool home_wifi_policy_event(esp_event_base_t base, int32_t id, const void *data) {
++    uint64_t now = milliseconds();
++    portENTER_CRITICAL(&s_lock);
++    if (!s_active) { portEXIT_CRITICAL(&s_lock); return false; }
++    ++s_events.sequence;
++    if (base == WIFI_EVENT && id == WIFI_EVENT_STA_START) s_events.started = true;
++    else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_STOP) {
++        s_events.started = false; s_events.stop_sequence = s_events.sequence;
++    }
++    else if (base == WIFI_EVENT && id == WIFI_EVENT_SCAN_DONE) {
++        s_events.scan_done = true;
++        s_events.scan_status = data ? ((const wifi_event_sta_scan_done_t *)data)->status : 1;
++    } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
++        s_events.disconnect_sequence = s_events.sequence;
++        hwp_increment(&s_events.disconnect_count); s_events.last_disconnect_ms = now;
++        if (data) {
++            const wifi_event_sta_disconnected_t *event = data;
++            s_events.reason = event->reason; s_events.rssi = event->rssi;
++            memcpy(s_events.last_bssid, event->bssid, 6);
++        }
++    } else if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP) hwp_increment(&s_events.got_ip_count);
++    else if (base == IP_EVENT && id == IP_EVENT_STA_LOST_IP) hwp_increment(&s_events.lost_ip_count);
++    portEXIT_CRITICAL(&s_lock);
++    return true;
++}
++
++static bool append(char *out, size_t size, size_t *used, const char *format, ...) {
++    if (*used >= size) return false;
++    va_list args; va_start(args, format);
++    int n = vsnprintf(out + *used, size - *used, format, args); va_end(args);
++    if (n < 0 || (size_t)n >= size - *used) return false;
++    *used += (size_t)n; return true;
++}
++#define MAC_FORMAT "%02x:%02x:%02x:%02x:%02x:%02x"
++#define MAC_ARGS(m) (m)[0],(m)[1],(m)[2],(m)[3],(m)[4],(m)[5]
++static bool render(const status_t *s, char *out, size_t size, size_t *used) {
++    *used = 0;
++#define ADD(...) do { if (!append(out, size, used, __VA_ARGS__)) return false; } while (0)
++    ADD("{\"enabled\":%s,\"gate\":\"%s\",\"phase\":\"%s\",\"preferred\":%s,"
++        "\"preferred_bssid\":\"" MAC_FORMAT "\",\"attempts\":%" PRIu32 ",\"failures\":%" PRIu32
++        ",\"fallback_entries\":%" PRIu32 ",\"next_attempt_ms\":%" PRIu64 ",\"preferred_deadline_ms\":%" PRIu64
++        ",\"last_api_error\":%d,\"error_operation\":\"%s\",\"effective\":{\"valid\":%s,\"error\":%d,"
++        "\"scan_method\":%d,\"sort_method\":%d,\"auth_threshold\":%d,\"rssi_threshold\":%d,"
++        "\"bssid_set\":%s,\"bssid\":\"" MAC_FORMAT "\",\"channel_hint\":%u},",
++        s->active?"true":"false", s->gate, s->phase, s->preferred?"true":"false",
++        MAC_ARGS(s->preferred_bssid), s->attempts, s->failures, s->fallback_entries,
++        s->next_attempt_ms, s->preferred_deadline_ms, s->last_error, s->error_operation,
++        s->effective_valid?"true":"false", s->config_error, s->scan_method, s->sort_method,
++        s->auth_threshold, s->rssi_threshold, s->bssid_set?"true":"false",
++        MAC_ARGS(s->configured_bssid), (unsigned)s->channel_hint);
++    ADD("\"association\":{\"associated\":%s,\"ip_ready\":%s,\"error\":%d,",
++        s->associated?"true":"false", s->ip_ready?"true":"false", s->ap_error);
++    if (s->associated) ADD("\"bssid\":\"" MAC_FORMAT "\",\"channel\":%u,\"rssi_dbm\":%d,\"authmode\":%d},",
++        MAC_ARGS(s->current.bssid), (unsigned)s->current.channel, (int)s->current.rssi, s->current.authmode);
++    else ADD("\"bssid\":null,\"channel\":null,\"rssi_dbm\":null,\"authmode\":null},");
++    ADD("\"last_disconnect\":{\"count\":%" PRIu32 ",\"reason\":%u,\"bssid\":\"" MAC_FORMAT
++        "\",\"rssi_dbm\":%d,\"at_ms\":%" PRIu64 "},\"got_ip_count\":%" PRIu32 ",\"lost_ip_count\":%" PRIu32 ",",
++        s->events.disconnect_count, (unsigned)s->events.reason, MAC_ARGS(s->events.last_bssid),
++        (int)s->events.rssi, s->events.last_disconnect_ms, s->events.got_ip_count, s->events.lost_ip_count);
++    ADD("\"boot_scan\":{\"finished\":%s,\"error\":%d,\"total\":%u,\"count\":%u,\"truncated\":%s,\"aps\":[",
++        s->scan_finished?"true":"false", s->scan_error, (unsigned)s->scan_total,
++        (unsigned)s->scan_count, s->scan_truncated?"true":"false");
++    for (unsigned i = 0; i < s->scan_count && i < HWP_SCAN_MAX; ++i) {
++        const ap_view_t *a = &s->scan[i];
++        ADD("%s{\"bssid\":\"" MAC_FORMAT "\",\"channel\":%u,\"rssi_dbm\":%d,\"authmode\":%d}",
++            i?",":"", MAC_ARGS(a->bssid), (unsigned)a->channel, (int)a->rssi, a->authmode);
++    }
++    ADD("]}}");
++#undef ADD
++    return true;
++}
++static esp_err_t status_handler(httpd_req_t *request) {
++    status_t snapshot;
++    portENTER_CRITICAL(&s_lock); snapshot = s_status; portEXIT_CRITICAL(&s_lock);
++    if (!snapshot.active) { network(&snapshot); effective(&snapshot); }
++    char response[4096]; size_t used;
++    if (!render(&snapshot, response, sizeof(response), &used))
++        return httpd_resp_send_err(request, HTTPD_500_INTERNAL_SERVER_ERROR, "WiFi status too large");
++    httpd_resp_set_type(request, "application/json");
++    return httpd_resp_send(request, response, (ssize_t)used);
++}
++esp_err_t home_wifi_policy_register_http(httpd_handle_t server) {
++    const httpd_uri_t uri = {.uri="/wifi/status", .method=HTTP_GET, .handler=status_handler};
++    return httpd_register_uri_handler(server, &uri);
++}
++#else
++bool home_wifi_policy_init(const wifi_config_t *base, uint8_t id, EventGroupHandle_t group, EventBits_t bit) {
++    (void)base; (void)id; (void)group; (void)bit; return false;
++}
++bool home_wifi_policy_targeted(void) { return false; }
++bool home_wifi_policy_event(esp_event_base_t base, int32_t id, const void *event) {
++    (void)base; (void)id; (void)event; return false;
++}
++esp_err_t home_wifi_policy_register_http(httpd_handle_t server) { (void)server; return ESP_OK; }
++#endif
+--- /dev/null
++++ b/main/home_wifi_policy.h
+@@ -0,0 +1,15 @@
++#pragma once
++#include <stdbool.h>
++#include <stdint.h>
++#include "esp_wifi.h"
++#include "esp_event.h"
++#include "esp_http_server.h"
++#include "freertos/FreeRTOS.h"
++#include "freertos/event_groups.h"
++/* Call once after esp_wifi_init/set_mode and before esp_wifi_start. */
++bool home_wifi_policy_init(const wifi_config_t *base, uint8_t node_id,
++                           EventGroupHandle_t ready_group, EventBits_t ready_bit);
++/* Nonblocking mailbox update; true means the legacy handler must return. */
++bool home_wifi_policy_targeted(void);
++bool home_wifi_policy_event(esp_event_base_t base, int32_t id, const void *event);
++esp_err_t home_wifi_policy_register_http(httpd_handle_t server);
+--- /dev/null
++++ b/main/home_wifi_policy_core.c
+@@ -0,0 +1,117 @@
++#include "home_wifi_policy_core.h"
++#include <string.h>
++#include <limits.h>
++
++void hwp_increment(uint32_t *v) { if (*v < UINT32_MAX) ++*v; }
++void hwp_core_init(hwp_core_t *s) { memset(s, 0, sizeof(*s)); }
++static void fallback_wait(hwp_core_t *s, uint64_t now) {
++    static const unsigned delays[] = {5000, 10000, 20000, 40000, 60000};
++    s->preferred = false;
++    s->phase = HWP_FALLBACK_WAIT;
++    s->next_at = now + delays[s->backoff];
++    if (s->backoff < 4) ++s->backoff;
++}
++static void cycle(hwp_core_t *s, uint64_t now) {
++    if (now >= s->next_preferred_at) {
++        s->preferred = true;
++        s->preferred_failures = 0;
++        s->preferred_deadline = now + HWP_PREFERRED_MS;
++        s->next_preferred_at = now + HWP_RETRY_COOLDOWN_MS;
++        s->next_at = now;
++        s->phase = HWP_PREFERRED_WAIT;
++    } else {
++        hwp_increment(&s->fallback_entries);
++        fallback_wait(s, now);
++    }
++}
++hwp_action_t hwp_core_failed(hwp_core_t *s, uint64_t now) {
++    hwp_increment(&s->failures);
++    if (s->preferred) {
++        if (s->preferred_failures < 3) ++s->preferred_failures;
++        if (s->preferred_failures < 3 && now < s->preferred_deadline) {
++            s->phase = HWP_PREFERRED_WAIT;
++            s->next_at = now + 1000;
++            return HWP_DISCONNECT;
++        }
++        hwp_increment(&s->fallback_entries);
++    }
++    fallback_wait(s, now);
++    return HWP_DISCONNECT;
++}
++hwp_action_t hwp_core_step(hwp_core_t *s, uint64_t now, bool started,
++                           bool healthy, bool associated, uint64_t disconnect) {
++    if (!started) {
++        s->phase = HWP_STOPPED;
++        s->seen_disconnect = disconnect;
++        return HWP_NONE;
++    }
++    /* Driver/netif state wins over delayed event delivery. Never evict a
++     * healthy fallback connection, even after the preference cooldown. */
++    if (healthy) {
++        s->phase = HWP_ONLINE;
++        s->backoff = 0;
++        s->seen_disconnect = disconnect;
++        return HWP_NONE;
++    }
++    if (s->phase == HWP_STOPPED) {
++        cycle(s, now);
++    } else if (s->phase == HWP_ONLINE) {
++        if (associated) {
++            s->phase = s->preferred ? HWP_PREFERRED_CONNECTING : HWP_FALLBACK_CONNECTING;
++            /* Lost IP is bounded independently of a missing disconnect. */
++            s->deadline = now + HWP_CONNECT_MS;
++            s->preferred_deadline = s->deadline;
++        } else {
++            cycle(s, now);
++        }
++    }
++    if (s->phase == HWP_PREFERRED_CONNECTING || s->phase == HWP_FALLBACK_CONNECTING) {
++        bool disconnected = !associated && s->attempt_associated;
++        if (associated) s->attempt_associated = true;
++        s->seen_disconnect = disconnect;
++        if (disconnected || now >= s->deadline) return hwp_core_failed(s, now);
++    }
++    if (s->phase == HWP_PREFERRED_WAIT && now >= s->preferred_deadline) {
++        hwp_increment(&s->fallback_entries);
++        fallback_wait(s, now);
++        return HWP_DISCONNECT;
++    }
++    if ((s->phase == HWP_PREFERRED_WAIT || s->phase == HWP_FALLBACK_WAIT) && now >= s->next_at) {
++        s->seen_disconnect = disconnect;
++        s->attempt_associated = false;
++        s->phase = s->preferred ? HWP_PREFERRED_CONNECTING : HWP_FALLBACK_CONNECTING;
++        s->deadline = s->preferred ? s->preferred_deadline : now + HWP_CONNECT_MS;
++        hwp_increment(&s->attempts);
++        return HWP_CONNECT;
++    }
++    return HWP_NONE;
++}
++const char *hwp_phase_name(hwp_phase_t p) {
++    switch (p) {
++    case HWP_STOPPED: return "stopped";
++    case HWP_PREFERRED_WAIT: return "preferred_wait";
++    case HWP_PREFERRED_CONNECTING: return "preferred_connecting";
++    case HWP_FALLBACK_WAIT: return "fallback_wait";
++    case HWP_FALLBACK_CONNECTING: return "fallback_connecting";
++    case HWP_ONLINE: return "online";
++    default: return "unknown";
++    }
++}
++static int nibble(char c) {
++    if (c >= '0' && c <= '9') return c - '0';
++    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
++    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
++    return -1;
++}
++bool hwp_parse_mac(const char *text, uint8_t mac[6]) {
++    if (!text || strlen(text) != 17) return false;
++    uint8_t candidate[6]; unsigned nonzero = 0;
++    for (unsigned i = 0; i < 6; ++i) {
++        int a = nibble(text[i * 3]), b = nibble(text[i * 3 + 1]);
++        if (a < 0 || b < 0 || (i < 5 && text[i * 3 + 2] != ':')) return false;
++        candidate[i] = (uint8_t)((a << 4) | b); nonzero |= candidate[i];
++    }
++    if (!nonzero || (candidate[0] & 1)) return false;
++    memcpy(mac, candidate, 6);
++    return true;
++}
+--- /dev/null
++++ b/main/home_wifi_policy_core.h
+@@ -0,0 +1,27 @@
++#pragma once
++#include <stdbool.h>
++#include <stdint.h>
++/* Pure, allocation-free policy. All timestamps are monotonic milliseconds. */
++#define HWP_PREFERRED_MS 30000ULL
++#define HWP_RETRY_COOLDOWN_MS 300000ULL
++#define HWP_CONNECT_MS 30000ULL
++#define HWP_SCAN_MS 6000ULL
++#define HWP_SCAN_MAX 16
++
++typedef enum { HWP_STOPPED, HWP_PREFERRED_WAIT, HWP_PREFERRED_CONNECTING,
++               HWP_FALLBACK_WAIT, HWP_FALLBACK_CONNECTING, HWP_ONLINE } hwp_phase_t;
++typedef enum { HWP_NONE, HWP_CONNECT, HWP_DISCONNECT } hwp_action_t;
++typedef struct {
++    hwp_phase_t phase;
++    bool preferred, attempt_associated;
++    uint8_t preferred_failures, backoff;
++    uint64_t preferred_deadline, next_preferred_at, next_at, deadline, seen_disconnect;
++    uint32_t attempts, failures, fallback_entries;
++} hwp_core_t;
++void hwp_increment(uint32_t *value);
++void hwp_core_init(hwp_core_t *state);
++hwp_action_t hwp_core_step(hwp_core_t *state, uint64_t now, bool started,
++                           bool healthy, bool associated, uint64_t disconnect);
++hwp_action_t hwp_core_failed(hwp_core_t *state, uint64_t now);
++const char *hwp_phase_name(hwp_phase_t phase);
++bool hwp_parse_mac(const char *text, uint8_t mac[6]);
+--- a/main/main.c
++++ b/main/main.c
+@@ -13,6 +13,7 @@
+ #include "freertos/event_groups.h"
+ #include "esp_system.h"
+ #include "esp_wifi.h"
++#include "home_wifi_policy.h"
+ #include "esp_event.h"
+ #include "esp_log.h"
+ #include "nvs_flash.h"
+@@ -64,6 +65,7 @@
+ static void event_handler(void *arg, esp_event_base_t event_base,
+                           int32_t event_id, void *event_data)
+ {
++    if (home_wifi_policy_event(event_base, event_id, event_data)) return;
+     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
+         esp_wifi_connect();
+     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
+@@ -100,7 +102,13 @@
+     ESP_ERROR_CHECK(esp_event_handler_instance_register(
+         WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL, &instance_any_id));
+     ESP_ERROR_CHECK(esp_event_handler_instance_register(
+-        IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL, &instance_got_ip));
++        IP_EVENT,
++#ifdef CONFIG_HOME_WIFI_PREFERRED_AP_ENABLE
++        ESP_EVENT_ANY_ID,
++#else
++        IP_EVENT_STA_GOT_IP,
++#endif
++        &event_handler, NULL, &instance_got_ip));
+ 
+     wifi_config_t wifi_config = {
+         .sta = {
+@@ -129,7 +137,9 @@
+     }
+ 
+     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
++    bool wifi_policy_managed = home_wifi_policy_init(&wifi_config, g_nvs_config.node_id,
++                          s_wifi_event_group, WIFI_CONNECTED_BIT);
++    if (!wifi_policy_managed) ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
+ 
+ #if defined(CONFIG_IDF_TARGET_ESP32C6) && defined(CONFIG_C6_SOFTAP_HE_ENABLE)
+     /* ADR-110 B1/B2 cheap-unblock: bring up a soft-AP that advertises HE +
+@@ -141,19 +151,26 @@
+     }
+ #endif
+ 
+-    ESP_ERROR_CHECK(esp_wifi_start());
++    if (!wifi_policy_managed) ESP_ERROR_CHECK(esp_wifi_start());
+ 
+     ESP_LOGI(TAG, "WiFi STA initialized, connecting to SSID: %s", g_nvs_config.wifi_ssid);
+ 
+     /* Wait for connection */
+     EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
+         WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
+-        pdFALSE, pdFALSE, portMAX_DELAY);
++        pdFALSE, pdFALSE,
++#ifdef CONFIG_HOME_WIFI_PREFERRED_AP_ENABLE
++        home_wifi_policy_targeted() ? pdMS_TO_TICKS(60000) : portMAX_DELAY);
++#else
++        portMAX_DELAY);
++#endif
+ 
+     if (bits & WIFI_CONNECTED_BIT) {
+         ESP_LOGI(TAG, "Connected to WiFi");
+     } else if (bits & WIFI_FAIL_BIT) {
+         ESP_LOGE(TAG, "Failed to connect to WiFi after %d retries", MAX_RETRY);
++    } else {
++        ESP_LOGW(TAG, "WiFi startup wait expired; recovery continues");
+     }
+ }
+ 
+--- a/main/ota_update.c
++++ b/main/ota_update.c
+@@ -14,6 +14,7 @@
+ #include "esp_log.h"
+ #include "esp_ota_ops.h"
+ #include "esp_http_server.h"
++#include "home_wifi_policy.h"
+ #include "esp_app_desc.h"
+ #include "esp_timer.h"
+ #include "lwip/sockets.h"
+@@ -285,6 +286,9 @@
+         .user_ctx = NULL,
+     };
+     httpd_register_uri_handler(server, &upload_uri);
++    esp_err_t wifi_status_error = home_wifi_policy_register_http(server);
++    if (wifi_status_error != ESP_OK)
++        ESP_LOGW(TAG, "WiFi status registration failed: %s", esp_err_to_name(wifi_status_error));
+ 
+     ESP_LOGI(TAG, "OTA HTTP server started on port %d", OTA_PORT);
+     ESP_LOGI(TAG, "  GET  /ota/status — firmware version info");

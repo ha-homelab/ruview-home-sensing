@@ -1,0 +1,24 @@
+--- a/main/ota_update.c
++++ b/main/ota_update.c
+@@ -196,8 +196,7 @@
+         );
+ 
+     httpd_resp_set_type(req, "application/json");
+-    httpd_resp_send(req, response, len);
+-    return ESP_OK;
++    return httpd_resp_send(req, response, len);
+ }
+ 
+ /**
+--- a/main/wasm_upload.c
++++ b/main/wasm_upload.c
+@@ -415,8 +415,7 @@
+                      "},\"wifi\":%s}", wifi)) goto response_too_large;
+ 
+     httpd_resp_set_type(req, "application/json");
+-    httpd_resp_send(req, response, pos);
+-    return ESP_OK;
++    return httpd_resp_send(req, response, pos);
+ 
+ response_too_large:
+     httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Module response too large");

@@ -1,0 +1,68 @@
+--- a/main/main.c
++++ b/main/main.c
+@@ -104,6 +104,12 @@
+ 
+     wifi_config_t wifi_config = {
+         .sta = {
++#if defined(CONFIG_HOME_CSI_ASSOCIATED_ONLY) && defined(CONFIG_IDF_TARGET_ESP32S3)
++            /* Compare every matching AP before selecting the strongest signal.
++             * Fast scan can stop at a distant AP sharing the home SSID. */
++            .scan_method = WIFI_ALL_CHANNEL_SCAN,
++            .sort_method = WIFI_CONNECT_AP_BY_SIGNAL,
++#endif
+             /* WPA_PSK (not WPA2_PSK) so routers running WPA/WPA2-mixed
+              * compatibility mode aren't rejected with
+              * WIFI_REASON_NO_AP_FOUND_IN_AUTHMODE_THRESHOLD (#1050). */
+--- a/main/wasm_upload.c
++++ b/main/wasm_upload.c
+@@ -29,6 +29,7 @@
+ #include <stdio.h>
+ #include "esp_log.h"
+ #include "esp_heap_caps.h"
++#include "esp_wifi.h"
+ 
+ static const char *TAG = "wasm_upload";
+ 
+@@ -239,6 +240,24 @@
+     wasm_resource_info_t resources;
+     wasm_runtime_get_resources(&resources);
+ 
++    /* Read the current association only; this does not start a Wi-Fi scan. */
++    wifi_ap_record_t ap = {0};
++    esp_err_t ap_error = esp_wifi_sta_get_ap_info(&ap);
++    char wifi[160];
++    if (ap_error == ESP_OK) {
++        snprintf(wifi, sizeof(wifi),
++                 "{\"associated\":true,\"bssid\":\"%02x:%02x:%02x:%02x:%02x:%02x\","
++                 "\"channel\":%u,\"rssi_dbm\":%d,\"ap_info_error\":0}",
++                 ap.bssid[0], ap.bssid[1], ap.bssid[2],
++                 ap.bssid[3], ap.bssid[4], ap.bssid[5],
++                 (unsigned)ap.primary, (int)ap.rssi);
++    } else {
++        /* Never present zeroed or stale AP values as a live association. */
++        snprintf(wifi, sizeof(wifi),
++                 "{\"associated\":false,\"bssid\":null,\"channel\":null,"
++                 "\"rssi_dbm\":null,\"ap_info_error\":%d}", (int)ap_error);
++    }
++
+     /* Build JSON array (larger buffer for manifest fields). */
+     char response[2048];
+     int pos = 0;
+@@ -271,14 +290,15 @@
+     pos += snprintf(response + pos, sizeof(response) - pos,
+                     "],\"loaded\":%u,\"max\":%d,\"runtime\":{"
+                     "\"uptime_ms\":%llu,\"worker_stack_bytes\":%lu,\"worker_stack_min_free_bytes\":%lu,"
+-                    "\"internal_min_free_bytes\":%lu,\"internal_free_bytes\":%lu,\"internal_largest_free_block\":%lu}}",
++                    "\"internal_min_free_bytes\":%lu,\"internal_free_bytes\":%lu,\"internal_largest_free_block\":%lu},"
++                    "\"wifi\":%s}",
+                     count, WASM_MAX_MODULES,
+                     (unsigned long long)resources.uptime_ms,
+                     (unsigned long)resources.worker_stack_bytes,
+                     (unsigned long)resources.worker_stack_min_free_bytes,
+                     (unsigned long)resources.internal_min_free_bytes,
+                     (unsigned long)resources.internal_free_bytes,
+-                    (unsigned long)resources.internal_largest_free_block);
++                    (unsigned long)resources.internal_largest_free_block, wifi);
+ 
+     httpd_resp_set_type(req, "application/json");
+     httpd_resp_send(req, response, pos);

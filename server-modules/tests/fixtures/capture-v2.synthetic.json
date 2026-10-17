@@ -1,0 +1,127 @@
+{
+  "fixture": "synthetic schema guide only; raw/opening digests and byte count placeholders are intentionally NOT verification evidence",
+  "control_start": {
+    "schema": "ruview.capture.control.v2",
+    "op": "start",
+    "session_id": "11111111-1111-4111-8111-111111111111",
+    "node_ids": [
+      2
+    ],
+    "duration_ms": 1000,
+    "max_bytes": 1048576
+  },
+  "control_stop": {
+    "schema": "ruview.capture.control.v2",
+    "op": "stop",
+    "session_id": "11111111-1111-4111-8111-111111111111"
+  },
+  "control_status": {
+    "schema": "ruview.capture.control.v2",
+    "op": "status",
+    "session_id": "11111111-1111-4111-8111-111111111111"
+  },
+  "opening": {
+    "schema": "ruview.capture.opening.v2",
+    "session_id": "11111111-1111-4111-8111-111111111111",
+    "capture_id": "11111111-1111-4111-8111-111111111111",
+    "worker_run_id": "22222222-2222-4222-8222-222222222222",
+    "clock_id": "synthetic-boot/22222222-2222-4222-8222-222222222222",
+    "configuration_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "worker_start_clock": {
+      "utc_ns": 1791284390000001000,
+      "monotonic_ns": 1000
+    },
+    "frame_schema": "ruview.csi.frame.v2",
+    "source": "esp32",
+    "execution": "server",
+    "recognition_validated": false,
+    "node_ids": [
+      2
+    ],
+    "limits": {
+      "duration_ms": 1000,
+      "max_bytes": 1048576
+    },
+    "start_boundary": {
+      "clock": {
+        "utc_ns": 1791284400000000000,
+        "monotonic_ns": 10000000000
+      },
+      "ingress_sequence": 120
+    },
+    "deadline_monotonic_ns": 11000000000,
+    "raw_file": "raw.jsonl",
+    "scope": "selected admitted native1x64 packets; not lossless RF capture"
+  },
+  "terminal": {
+    "schema": "ruview.capture.terminal.v2",
+    "session_id": "11111111-1111-4111-8111-111111111111",
+    "capture_id": "11111111-1111-4111-8111-111111111111",
+    "worker_run_id": "22222222-2222-4222-8222-222222222222",
+    "clock_id": "synthetic-boot/22222222-2222-4222-8222-222222222222",
+    "configuration_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "frame_schema": "ruview.csi.frame.v2",
+    "node_ids": [
+      2
+    ],
+    "limits": {
+      "duration_ms": 1000,
+      "max_bytes": 1048576
+    },
+    "start_boundary": {
+      "clock": {
+        "utc_ns": 1791284400000000000,
+        "monotonic_ns": 10000000000
+      },
+      "ingress_sequence": 120
+    },
+    "end_boundary": {
+      "clock": {
+        "utc_ns": 1791284401000000000,
+        "monotonic_ns": 11000000000
+      },
+      "ingress_sequence": 122
+    },
+    "deadline_monotonic_ns": 11000000000,
+    "end_reason": "duration_elapsed",
+    "complete": true,
+    "counters": {
+      "admitted": 2,
+      "enqueued": 2,
+      "written": 2,
+      "queue_dropped": 0,
+      "writer_disconnected": 0,
+      "write_errors": 0,
+      "byte_limit_rejected": 0
+    },
+    "raw": {
+      "file": "raw.jsonl",
+      "bytes": 0,
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "frames": 2,
+      "fsynced": true,
+      "closed": true
+    },
+    "opening_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "writer_finished_clock": {
+      "utc_ns": 1791284401010000000,
+      "monotonic_ns": 11010000000
+    },
+    "failures": [],
+    "worker_start_clock": {
+      "utc_ns": 1791284390000001000,
+      "monotonic_ns": 1000
+    }
+  },
+  "frame_additions": {
+    "schema": "ruview.csi.frame.v2",
+    "session_id": "11111111-1111-4111-8111-111111111111",
+    "capture_id": "11111111-1111-4111-8111-111111111111",
+    "worker_run_id": "22222222-2222-4222-8222-222222222222",
+    "clock_id": "synthetic-boot/22222222-2222-4222-8222-222222222222",
+    "configuration_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "capture_sequence": 1,
+    "ingress_sequence": 121,
+    "raw_datagram_hex": "exact original148-byte datagram encoded lowercase hexadecimal; other native frame fields retained"
+  }
+}

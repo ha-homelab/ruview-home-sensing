@@ -1,0 +1,688 @@
+{
+  "upstream_commit": "e04f269f1a76eb6ed4e8cd33e2ccfeda6fd391a3",
+  "registered_modules": 64,
+  "medical_experimental_modules": 5,
+  "esp32_slots": 4,
+  "wire_event_bits": 8,
+  "inventory_method": "Static upstream module catalog; availability is not installation, accuracy, or runtime qualification.",
+  "modules": [
+    {
+      "name": "gesture",
+      "event_ids": [
+        1
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": true
+    },
+    {
+      "name": "coherence",
+      "event_ids": [
+        2
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": true
+    },
+    {
+      "name": "adversarial",
+      "event_ids": [
+        3
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": true
+    },
+    {
+      "name": "occupancy",
+      "event_ids": [
+        300,
+        301,
+        302
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "intrusion",
+      "event_ids": [
+        200,
+        201,
+        202
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": true
+    },
+    {
+      "name": "vital_trend",
+      "event_ids": [
+        101,
+        102,
+        103,
+        104,
+        105,
+        110,
+        111
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": true
+    },
+    {
+      "name": "sec_perimeter_breach",
+      "event_ids": [
+        210,
+        211,
+        212,
+        213
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": true
+    },
+    {
+      "name": "sec_weapon_detect",
+      "event_ids": [
+        220,
+        221,
+        222
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": true
+    },
+    {
+      "name": "sec_tailgating",
+      "event_ids": [
+        230,
+        231,
+        232
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": true
+    },
+    {
+      "name": "sec_loitering",
+      "event_ids": [
+        240,
+        241,
+        242
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": true
+    },
+    {
+      "name": "sec_panic_motion",
+      "event_ids": [
+        250,
+        251,
+        252
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": true
+    },
+    {
+      "name": "bld_hvac_presence",
+      "event_ids": [
+        310,
+        311,
+        312
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "bld_lighting_zones",
+      "event_ids": [
+        320,
+        321,
+        322
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "bld_elevator_count",
+      "event_ids": [
+        330,
+        331,
+        332,
+        333
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "bld_meeting_room",
+      "event_ids": [
+        340,
+        341,
+        342,
+        343
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "bld_energy_audit",
+      "event_ids": [
+        350,
+        351,
+        352
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "ret_queue_length",
+      "event_ids": [
+        400,
+        401,
+        402,
+        403
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "ret_dwell_heatmap",
+      "event_ids": [
+        410,
+        411,
+        412,
+        413
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "ret_customer_flow",
+      "event_ids": [
+        420,
+        421,
+        422,
+        423
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "ret_table_turnover",
+      "event_ids": [
+        430,
+        431,
+        432,
+        433
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "ret_shelf_engagement",
+      "event_ids": [
+        440,
+        441,
+        442,
+        443
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "ind_forklift_proximity",
+      "event_ids": [
+        500,
+        501,
+        502
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "ind_confined_space",
+      "event_ids": [
+        510,
+        511,
+        512,
+        513,
+        514
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "ind_clean_room",
+      "event_ids": [
+        520,
+        521,
+        522,
+        523
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "ind_livestock_monitor",
+      "event_ids": [
+        530,
+        531,
+        532,
+        533
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "ind_structural_vibration",
+      "event_ids": [
+        540,
+        541,
+        542,
+        543
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "exo_time_crystal",
+      "event_ids": [
+        680,
+        681,
+        682
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "exo_hyperbolic_space",
+      "event_ids": [
+        685,
+        686,
+        687
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "exo_dream_stage",
+      "event_ids": [
+        600,
+        601,
+        602,
+        603
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "exo_emotion_detect",
+      "event_ids": [
+        610,
+        611,
+        612,
+        613
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "exo_gesture_language",
+      "event_ids": [
+        620,
+        621,
+        622,
+        623
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "exo_music_conductor",
+      "event_ids": [
+        630,
+        631,
+        632,
+        633,
+        634
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "exo_plant_growth",
+      "event_ids": [
+        640,
+        641,
+        642,
+        643
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "exo_ghost_hunter",
+      "event_ids": [
+        650,
+        651,
+        652,
+        653
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "exo_rain_detect",
+      "event_ids": [
+        660,
+        661,
+        662
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "exo_breathing_sync",
+      "event_ids": [
+        670,
+        671,
+        672,
+        673
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "exo_happiness_score",
+      "event_ids": [
+        690,
+        691,
+        692,
+        693,
+        694
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "sig_coherence_gate",
+      "event_ids": [
+        710,
+        711,
+        712
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "sig_flash_attention",
+      "event_ids": [
+        700,
+        701,
+        702
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "sig_temporal_compress",
+      "event_ids": [
+        705,
+        706,
+        707
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "sig_sparse_recovery",
+      "event_ids": [
+        715,
+        716,
+        717
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "sig_mincut_person_match",
+      "event_ids": [
+        720,
+        721,
+        722
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "sig_optimal_transport",
+      "event_ids": [
+        725,
+        726,
+        727
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "lrn_dtw_gesture_learn",
+      "event_ids": [
+        730,
+        731,
+        732,
+        733
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "lrn_anomaly_attractor",
+      "event_ids": [
+        735,
+        736,
+        737,
+        738
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "lrn_meta_adapt",
+      "event_ids": [
+        740,
+        741,
+        742,
+        743
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "lrn_ewc_lifelong",
+      "event_ids": [
+        745,
+        746,
+        747,
+        748
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "spt_pagerank_influence",
+      "event_ids": [
+        760,
+        761,
+        762
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "spt_micro_hnsw",
+      "event_ids": [
+        765,
+        766,
+        767,
+        768
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "spt_spiking_tracker",
+      "event_ids": [
+        770,
+        771,
+        772,
+        773
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "tmp_pattern_sequence",
+      "event_ids": [
+        790,
+        791,
+        792,
+        793
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "tmp_temporal_logic_guard",
+      "event_ids": [
+        795,
+        796,
+        797
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "tmp_goap_autonomy",
+      "event_ids": [
+        800,
+        801,
+        802,
+        803
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "ais_prompt_shield",
+      "event_ids": [
+        820,
+        821,
+        822,
+        823
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "ais_behavioral_profiler",
+      "event_ids": [
+        825,
+        826,
+        827,
+        828
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "qnt_quantum_coherence",
+      "event_ids": [
+        850,
+        851,
+        852
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "qnt_interference_search",
+      "event_ids": [
+        855,
+        856,
+        857
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "aut_psycho_symbolic",
+      "event_ids": [
+        880,
+        881,
+        882,
+        883
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "aut_self_healing_mesh",
+      "event_ids": [
+        885,
+        886,
+        887,
+        888
+      ],
+      "upstream_medical_experimental": false,
+      "event_ids_fit_current_esp32_wire": false
+    },
+    {
+      "name": "med_seizure_detect",
+      "event_ids": [
+        140,
+        141,
+        142,
+        143
+      ],
+      "upstream_medical_experimental": true,
+      "event_ids_fit_current_esp32_wire": true
+    },
+    {
+      "name": "med_cardiac_arrhythmia",
+      "event_ids": [
+        110,
+        111,
+        112,
+        113
+      ],
+      "upstream_medical_experimental": true,
+      "event_ids_fit_current_esp32_wire": true
+    },
+    {
+      "name": "med_respiratory_distress",
+      "event_ids": [
+        120,
+        121,
+        122,
+        123
+      ],
+      "upstream_medical_experimental": true,
+      "event_ids_fit_current_esp32_wire": true
+    },
+    {
+      "name": "med_sleep_apnea",
+      "event_ids": [
+        100,
+        101,
+        102
+      ],
+      "upstream_medical_experimental": true,
+      "event_ids_fit_current_esp32_wire": true
+    },
+    {
+      "name": "med_gait_analysis",
+      "event_ids": [
+        130,
+        131,
+        132,
+        133,
+        134
+      ],
+      "upstream_medical_experimental": true,
+      "event_ids_fit_current_esp32_wire": true
+    }
+  ]
+}

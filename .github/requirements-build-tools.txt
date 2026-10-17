@@ -1,0 +1,6 @@
+# General validation supports Linux/X64 and an optional Linux/ARM64 runner.
+# Wheels published at https://pypi.org/project/cmake/3.31.10/#files
+cmake==3.31.10 \
+    --hash=sha256:3c17bb24dba15f8ecc3fd706afe04264410ef88796f4115c119327c961d5dc57 \
+    --hash=sha256:2f766bb46367e5e0559fa33184653754bce044583a06014dcaebf8e6dff8a1f1 \
+    --hash=sha256:a4a5615f31f692c9b9aa8b365704e4b76172348af6fa40e16fea3f118bb01194

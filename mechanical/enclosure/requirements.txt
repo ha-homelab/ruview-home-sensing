@@ -1,0 +1,4 @@
+cadquery==2.6.1
+trimesh==4.8.3
+matplotlib==3.10.7
+scipy==1.16.3

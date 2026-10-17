@@ -1,0 +1,157 @@
+--- a/src/gesture.rs
++++ b/src/gesture.rs
+@@ -21,10 +21,10 @@
+ /// Sakoe-Chiba band width (constrains warping path).
+ const BAND_WIDTH: usize = 5;
+ 
+-/// Two shared row credits include work on both sides of a template boundary.
+-/// The shipped templates have lengths 12, 8, 8 and 10: at most 22 DP cells
+-/// and 24 row-clear stores per callback. This is not a wall-time guarantee.
+-const ROWS_PER_FRAME: usize = 2;
++/// One shared row credit bounds work even at a template boundary.
++/// The shipped templates have lengths 12, 8, 8 and 10: at most 11 DP cells
++/// and 12 row-clear stores per callback. This is not a wall-time guarantee.
++const ROWS_PER_FRAME: usize = 1;
+ const LONGEST_TEMPLATE: usize = 12;
+ const SNAPSHOT_LEN: usize = LONGEST_TEMPLATE + BAND_WIDTH;
+ 
+@@ -298,8 +298,8 @@
+ 
+         job.active = false;
+         // Publish once, after comparing every eligible template. Cooldown starts
+-        // at publication, not capture. A mature 58-row job takes 29 callbacks
+-        // (up to 28 extra intervals, ~1.4 s at 20 Hz). Failed jobs capture a new
++        // at publication, not capture. A mature 58-row job takes 58 callbacks
++        // (up to 57 extra intervals, ~2.85 s at 20 Hz). Failed jobs capture a new
+         // snapshot on the next callback; successful jobs wait the original 40
+         // frame cooldown before capture. No backlog of intermediate windows.
+         if job.best_id.is_some() {
+@@ -537,7 +537,7 @@
+         let mut detector = GestureDetector::new();
+         let mut previous_detection = None;
+         let mut late_detections = 0;
+-        for frame in 1..=300 {
++        for frame in 1..=500 {
+             // A fixed low-cost synthetic fixture exercises reachability, not
+             // motion accuracy; upstream's threshold also accepts this signal.
+             if detector.process_frame(&[1.0]).is_some() {
+@@ -593,9 +593,9 @@
+     fn step(det: &mut GestureDetector) -> Option<u8> {
+         det.work = WorkCount::default();
+         let result = det.advance_job();
+-        assert!(det.work.rows <= 2);
+-        assert!(det.work.cells <= 22);
+-        assert!(det.work.clears <= 24);
++        assert!(det.work.rows <= 1);
++        assert!(det.work.cells <= 11);
++        assert!(det.work.clears <= 12);
+         result
+     }
+ 
+@@ -625,7 +625,7 @@
+                 while det.job.active {
+                     result = step(&mut det);
+                     calls += 1;
+-                    assert!(calls <= 29);
++                    assert!(calls <= 58);
+                     if det.job.active { assert!(result.is_none()); }
+                 }
+                 for (got, want) in det.job.distances.iter().zip(distances) {
+@@ -644,19 +644,19 @@
+         det.start_job();
+         let mut totals = (0, 0, 0);
+         let mut transitions_with_work = 0;
+-        for call in 1..=29 {
++        for call in 1..=58 {
+             let before = det.job.template;
+             let result = step(&mut det);
+             totals.0 += det.work.rows;
+             totals.1 += det.work.cells;
+             totals.2 += det.work.clears;
+             if det.job.template > before && det.job.row > 0 { transitions_with_work += 1; }
+-            assert_eq!(det.job.active, call < 29);
+-            assert_eq!(result.is_some(), call == 29);
+-            if call < 29 { assert_eq!(det.work.rows, 2); }
++            assert_eq!(det.job.active, call < 58);
++            assert_eq!(result.is_some(), call == 58);
++            if call < 58 { assert_eq!(det.work.rows, 1); }
+         }
+         assert_eq!(totals, (58, 358, 562));
+-        assert!(transitions_with_work >= 2);
++        assert_eq!(transitions_with_work, 0); // One credit cannot execute both sides.
+         assert_eq!(det.cooldown, 40);
+     }
+ 
+@@ -665,11 +665,11 @@
+         let mut det = with_window(&[0.0; MAX_WINDOW_LEN]);
+         let wanted = expected(&det, &[0.0; SNAPSHOT_LEN]).1;
+         let mut result = None;
+-        for frame in 0..29 {
++        for frame in 0..58 {
+             result = det.process_frame(&[frame as f32 * 64.0]);
+             assert_eq!(det.job.observation, [0.0; SNAPSHOT_LEN]);
+-            assert!(det.work.rows <= 2 && det.work.cells <= 22 && det.work.clears <= 24);
+-            if frame < 28 { assert!(result.is_none()); }
++            assert!(det.work.rows <= 1 && det.work.cells <= 11 && det.work.clears <= 12);
++            if frame < 57 { assert!(result.is_none()); }
+         }
+         assert_eq!(result, wanted);
+         assert_eq!(det.window[(det.window_idx + MAX_WINDOW_LEN - 1) % MAX_WINDOW_LEN], 64.0);
+@@ -685,26 +685,26 @@
+                 assert!(!det.job.active);
+                 assert_eq!(det.cooldown, 40);
+             }
+-            assert!(det.work.rows <= 2 && det.work.cells <= 22 && det.work.clears <= 24);
++            assert!(det.work.rows <= 1 && det.work.cells <= 11 && det.work.clears <= 12);
+         }
+         // The first 8-sample job has only two eligible templates (16 rows).
+-        // Later jobs need 29 callbacks, after the 40-frame cooldown.
+-        assert_eq!(publications, [16, 84, 152, 220, 288]);
++        // Later jobs need 58 callbacks, after the 40-frame cooldown.
++        assert_eq!(publications, [24, 121, 218]);
+     }
+ 
+     #[test]
+     fn unmatched_job_starts_newest_snapshot_only_on_next_callback() {
+         let mut det = with_window(&[64.0; MAX_WINDOW_LEN]);
+-        for frame in 1..=29 {
++        for frame in 1..=58 {
+             assert!(det.process_frame(&[frame as f32 * 64.0]).is_none());
+-            assert_eq!(det.job.active, frame < 29);
++            assert_eq!(det.job.active, frame < 58);
+             assert_eq!(det.cooldown, 0);
+         }
+         assert_eq!(det.job.observation, [64.0; SNAPSHOT_LEN]);
+         assert!(det.process_frame(&[0.0]).is_none());
+         assert!(det.job.active);
+-        assert_eq!(det.job.row, 2);
+-        assert_eq!(det.job.observation[SNAPSHOT_LEN - 1], -1856.0);
++        assert_eq!(det.job.row, 1);
++        assert_eq!(det.job.observation[SNAPSHOT_LEN - 1], -3712.0);
+     }
+ 
+     #[test]
+@@ -717,7 +717,7 @@
+         assert_eq!(det.work.rows, 0);
+         det.process_frame(&[100.0]);
+         assert!(det.job.active);
+-        assert_eq!(det.job.row, 2);
++        assert_eq!(det.job.row, 1);
+         assert_eq!(det.job.observation[SNAPSHOT_LEN - 1], 100.0);
+         det = GestureDetector::new();
+         assert!(!det.job.active);
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -812,10 +812,10 @@
+             assert_eq!(state.coherence.gate_state(), gate);
+             assert_eq!(state.adversarial.total_anomalies(), anomalies);
+             let mut fresh = GestureDetector::new();
+-            for frame in 1..=16 {
++            for frame in 1..=24 {
+                 let got = state.gesture.process_frame(&[1.0]);
+                 assert_eq!(got, fresh.process_frame(&[1.0]));
+-                assert_eq!(got.is_some(), frame == 16);
++                assert_eq!(got.is_some(), frame == 24);
+             }
+             // The second restart also clears the just-established cooldown.
+         }

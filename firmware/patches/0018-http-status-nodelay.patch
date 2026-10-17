@@ -1,0 +1,40 @@
+--- a/main/ota_update.c
++++ b/main/ota_update.c
+@@ -23,6 +23,7 @@
+ #include "esp_wifi.h"
+ #endif
+ #include "lwip/sockets.h"
++#include <netinet/tcp.h>
+ #include "nvs_flash.h"
+ #include "nvs.h"
+ 
+@@ -389,6 +390,21 @@
+ 
+ #endif /* CONFIG_HOME_RUNTIME_RECOVERY_V1 */
+ 
++/* ESP-IDF sends the response header, terminator and body separately. Disable
++ * Nagle on each accepted socket so a short status/identity response cannot
++ * wait behind the peer's delayed ACK. The HTTP server owns socket closure. */
++static esp_err_t ota_http_open(httpd_handle_t server, int socket_fd)
++{
++    (void)server;
++    const int enabled = 1;
++    if (socket_fd < 0 || setsockopt(socket_fd, IPPROTO_TCP, TCP_NODELAY,
++                                  &enabled, sizeof(enabled)) != 0) {
++        ESP_LOGW(TAG, "Cannot disable Nagle for HTTP session");
++        return ESP_FAIL;
++    }
++    return ESP_OK;
++}
++
+ /** Internal: start the HTTP server and register OTA endpoints. */
+ static esp_err_t ota_start_server(httpd_handle_t *out_handle)
+ {
+@@ -402,6 +418,7 @@
+ #endif
+     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+     config.server_port = OTA_PORT;
++    config.open_fn = ota_http_open;
+     /* Module lifecycle endpoints register numeric IDs with trailing wildcards. */
+     config.uri_match_fn = httpd_uri_match_wildcard;
+     /* Signed WASM parsing/compilation shares this task with OTA. Keep its
