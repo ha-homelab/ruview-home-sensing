@@ -222,6 +222,12 @@ class DeadlineSocket(socket.socket):
 def fetch_worker(path, upstream_port, allowed_paths=PATHS):
     if allowed_paths not in (PATHS, ACTIVITY_PATHS) or path not in allowed_paths:
         raise ValueError("Unsupported upstream path")
+    # Forward a fixed request target, never bytes supplied by the HTTP client.
+    target = {
+        "/health": "/health",
+        "/v1/latest": "/v1/latest",
+        "/v1/activity": "/v1/activity",
+    }[path]
     deadline = time.monotonic() + UPSTREAM_TIMEOUT
     connection = http.client.HTTPConnection("127.0.0.1", upstream_port)
     upstream = DeadlineSocket(socket.AF_INET, socket.SOCK_STREAM)
@@ -229,7 +235,7 @@ def fetch_worker(path, upstream_port, allowed_paths=PATHS):
         upstream.set_deadline(deadline)
         upstream.connect(("127.0.0.1", upstream_port))
         connection.sock = upstream
-        connection.request("GET", path, headers={"Connection": "close"})
+        connection.request("GET", target, headers={"Connection": "close"})
         response = connection.getresponse()
         if response.length is not None and response.length > MAX_BODY:
             raise ValueError("Worker response exceeds body limit")
@@ -260,6 +266,7 @@ def send_socket_error(request, status):
     try:
         request.sendall(response)
     except OSError:
+        # The peer may already have disconnected; there is no response to retry.
         pass
 
 
@@ -273,12 +280,14 @@ def accepts_gzip(value):
         if parameters:
             if len(parameters) != 1:
                 return False
-            weight = re.fullmatch(
-                r"\s*q\s*=\s*(0(?:\.[0-9]{0,3})?|1(?:\.0{0,3})?)\s*",
-                parameters[0],
-                re.IGNORECASE,
-            )
-            if weight is None or float(weight[1]) == 0:
+            name, separator, raw_weight = parameters[0].partition("=")
+            if separator != "=" or name.strip().lower() != "q":
+                return False
+            # Strip linear-time whitespace before the bounded numeric grammar.
+            weight = raw_weight.strip()
+            if not re.fullmatch(r"0(?:\.[0-9]{0,3})?|1(?:\.0{0,3})?", weight):
+                return False
+            if float(weight) == 0:
                 return False
         accepted = True
     return accepted

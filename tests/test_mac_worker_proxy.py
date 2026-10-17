@@ -11,6 +11,8 @@ import json
 import os
 import select
 import socket
+import subprocess
+import sys
 import threading
 import time
 import unittest
@@ -403,7 +405,13 @@ class MacWorkerProxyTests(unittest.TestCase):
                     self.assertEqual(len(origin.requests), 2)
 
     def test_gzip_requires_explicit_positive_well_formed_permission(self):
-        for value in ("gzip", "br, gzip;q=0.5", "GZip ; Q=1.000", "gzip;q=0.001"):
+        for value in (
+            "gzip",
+            "br, gzip;q=0.5",
+            "GZip ; Q=1.000",
+            "gzip;q=0.001",
+            "gzip; \tq \t= \t0.5 \t",
+        ):
             with self.subTest(accepted=value):
                 self.assertTrue(PROXY.accepts_gzip(value))
         for value in (
@@ -421,9 +429,44 @@ class MacWorkerProxyTests(unittest.TestCase):
             "gzip;q=1.001",
             "gzip;q=0.1234",
             "gzip;q=1;q=0",
+            "gzip;q==1",
+            "gzip;q=0. 5",
+            "gzip;other=1",
         ):
             with self.subTest(declined=value):
                 self.assertFalse(PROXY.accepts_gzip(value))
+
+    def test_gzip_adversarial_whitespace_has_bounded_processing(self):
+        subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "import runpy, sys; "
+                "check = runpy.run_path(sys.argv[1])['accepts_gzip']; "
+                "assert not check('gzip;q=' + ' ' * 65000 + 'x'); "
+                "assert check('gzip;q=' + ' ' * 65000 + '0.5')",
+                str(Path(PROXY.__file__)),
+            ],
+            check=True,
+            timeout=5,
+            capture_output=True,
+        )
+
+    def test_direct_fetch_rejects_untrusted_targets_before_connecting(self):
+        with patch.object(PROXY, "DeadlineSocket") as socket_type:
+            for path in (
+                "http://127.0.0.1:1/health",
+                "//other.example/health",
+                "/health?url=http://other.example",
+                "/health#fragment",
+                "/health/../internal",
+                "/%68ealth",
+                "/health\r\nHost: other.example",
+                "/v1/activity",
+            ):
+                with self.subTest(path=path), self.assertRaises(ValueError):
+                    PROXY.fetch_worker(path, 15016)
+            socket_type.assert_not_called()
 
     def test_identity_clients_and_zero_gzip_weight_keep_original_body(self):
         body = b'{ "unchanged": 1.00 }\n'
