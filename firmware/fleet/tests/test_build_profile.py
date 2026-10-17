@@ -83,6 +83,30 @@ class BuildProfileTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "replace different"):
                 fetch.copy_build_inputs(output, plan_path, overlay_path, "0.8.8.7")
 
+    def test_preferred_fetch_authenticates_overlay_before_creating_context(self):
+        _, overlay = self.fixture(preferred=True)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            overlay_path = root / "overlay"
+            overlay_path.write_bytes(overlay)
+            overlay_path.chmod(0o600)
+            output = root / "context"
+            with self.assertRaisesRegex(ValueError, "approval mismatch"):
+                fetch.copy_build_inputs(
+                    output,
+                    preferred_ap_overlay=overlay_path,
+                    preferred_ap_overlay_sha256="0" * 64,
+                )
+            self.assertFalse(output.exists())
+            fetch.copy_build_inputs(
+                output,
+                preferred_ap_overlay=overlay_path,
+                preferred_ap_overlay_sha256=build.sha(overlay),
+            )
+            self.assertTrue((output / "fleet-build/build_profile.py").is_file())
+            self.assertFalse((output / "fleet-build/profile.json").exists())
+            self.assertFalse((output / "sdkconfig.home-node2-preferred-ap").exists())
+
     def test_recovery_protocol_requires_explicit_version_and_overlay(self):
         plan, overlay = self.fixture(preferred=True)
         raw = json.dumps(plan).encode()

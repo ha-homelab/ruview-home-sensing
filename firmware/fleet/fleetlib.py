@@ -15,10 +15,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
-from scripts.installation_identity import (  # noqa: E402,F401
-    InstallationContext,
-    load_installation_context,
-)
+from scripts import installation_identity  # noqa: E402
+
+# These names are part of the fleet tooling's shared import surface.
+InstallationContext = installation_identity.InstallationContext
+load_installation_context = installation_identity.load_installation_context
 
 ESPT_VERSION = "5.1.0"
 

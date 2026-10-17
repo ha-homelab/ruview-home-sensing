@@ -78,12 +78,9 @@ def copy_build_inputs(
         )
     profile_path = ROOT / "fleet/build_profile.py"
     profile = None
-    if all(supplied) or all(preferred):
-        spec = importlib.util.spec_from_file_location(
-            "fleet_build_profile", profile_path
-        )
-        helper = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(helper)
+    spec = importlib.util.spec_from_file_location("fleet_build_profile", profile_path)
+    helper = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(helper)
     if all(preferred):
         if preferred_ap_overlay.resolve().is_relative_to(output.resolve()):
             raise ValueError(

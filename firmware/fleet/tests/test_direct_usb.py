@@ -408,7 +408,7 @@ class DirectTests(unittest.TestCase):
             for i, (old, new) in enumerate(zip(before, esp.memory, strict=True))
             if old != new
         }
-        self.assertTrue(changed <= permitted)
+        self.assertLessEqual(changed, permitted)
         self.assertEqual(esp.memory[0x8000:0x9000], before[0x8000:0x9000])
         self.assertEqual(esp.memory[0xF000:0x11000], before[0xF000:0x11000])
 
@@ -586,7 +586,7 @@ class DirectTests(unittest.TestCase):
             )
         self.assertEqual(calls, ["reserved", "begin"])
 
-    def test_failed_install_closes_without_reset_and_retains_private_error(self):
+    def assert_failed_install_closes_without_reset(self, error):
         import esptool
 
         esp, context, _ = self.fixture()
@@ -604,19 +604,36 @@ class DirectTests(unittest.TestCase):
             patch.object(
                 esptool.cmds,
                 "write_flash",
-                side_effect=OSError("synthetic private token"),
+                side_effect=error,
             ),
         ):
             result = direct.device_action(args, context)
         self.assertEqual(connect.call_args.kwargs["connect_mode"], "no-reset")
         self.assertFalse(result["complete"])
         self.assertTrue(result["write_attempted"])
+        self.assertEqual(result["error_type"], type(error).__name__)
+        self.assertEqual(json.loads((output / "result.json").read_bytes()), result)
         self.assertNotIn("synthetic private token", json.dumps(result))
         self.assertIn(
             "synthetic private token", (output / "serial.private.log").read_text()
         )
         self.assertEqual(esp.calls[-1], "close")
         self.assertNotIn("RESET-UNEXPECTED", esp.calls)
+
+    def test_failed_install_closes_without_reset_and_retains_private_error(self):
+        self.assert_failed_install_closes_without_reset(
+            OSError("synthetic private token")
+        )
+
+    def test_interrupted_install_preserves_uncertain_write_evidence_without_reset(self):
+        self.assert_failed_install_closes_without_reset(
+            KeyboardInterrupt("synthetic private token")
+        )
+
+    def test_exit_during_install_preserves_uncertain_write_evidence_without_reset(self):
+        self.assert_failed_install_closes_without_reset(
+            SystemExit("synthetic private token")
+        )
 
     def test_real_esptool_compressed_block_fatal_error_cannot_retry(self):
         import esptool.loader
@@ -759,6 +776,42 @@ class DirectTests(unittest.TestCase):
         result = json.loads(stdout.getvalue())
         self.assertEqual(result["error_type"], "ValueError")
         self.assertNotIn("synthetic", stdout.getvalue())
+
+    def test_cli_prints_only_boolean_outcomes_not_private_result_fields(self):
+        for index, prepared in enumerate((True, False, "synthetic private token")):
+            with self.subTest(prepared=prepared):
+                result = {
+                    "prepared": prepared,
+                    "complete": False,
+                    "expected_mac": MAC,
+                    "candidate_sha256": "a" * 64,
+                    "private_details": "synthetic private token",
+                    "write_attempted": "synthetic private token",
+                }
+                args = argparse.Namespace(
+                    action="prepare",
+                    output=self.root / f"status-{index}",
+                    **self.site_args,
+                )
+                stdout = io.StringIO()
+                with (
+                    patch.object(
+                        argparse.ArgumentParser, "parse_args", return_value=args
+                    ),
+                    patch.object(direct, "prepare", return_value=result),
+                    contextlib.redirect_stdout(stdout),
+                ):
+                    self.assertEqual(direct.main(), 0 if prepared is True else 1)
+                status = json.loads(stdout.getvalue())
+                self.assertEqual(status["prepared"], prepared is True)
+                self.assertFalse(status["write_attempted"])
+                for private in (
+                    MAC,
+                    "a" * 64,
+                    "synthetic private token",
+                    "private_details",
+                ):
+                    self.assertNotIn(private, stdout.getvalue())
 
 
 if __name__ == "__main__":

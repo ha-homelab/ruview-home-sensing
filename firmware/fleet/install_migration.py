@@ -205,7 +205,7 @@ def load_inputs(
         installation_identity_sha256,
     )
     review_raw = private_read(review_path, 131072)
-    review_path = private_path(review_path, existing=True)
+    private_path(review_path, existing=True)
     review = planner.strict_json(review_raw)
     require(
         set(review)

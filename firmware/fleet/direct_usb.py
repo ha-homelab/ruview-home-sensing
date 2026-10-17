@@ -846,7 +846,9 @@ def device_action(args, context=None):
                 args.installation_identity_sha256,
             )
             result["complete"] = True
-        except BaseException as error:
+        except (Exception, KeyboardInterrupt, SystemExit) as error:
+            # Cancellation still needs a durable uncertain-write record and
+            # serial close without reset, just like a device/parser failure.
             result["error_type"] = type(error).__name__
             traceback.print_exc()  # Private log only: parsers can mention NVS data.
         finally:
@@ -860,6 +862,17 @@ def device_action(args, context=None):
     save(output / "result.json", result)
     sync_directory(output)
     return result
+
+
+def public_status(result):
+    """Only boolean outcomes leave the private evidence directory."""
+    return {
+        "prepared": result.get("prepared") is True,
+        "complete": result.get("complete") is True,
+        "write_attempted": result.get("write_attempted") is True,
+        "write_verified": result.get("write_verified") is True,
+        "details": "See private evidence in the selected output directory",
+    }
 
 
 def main():
@@ -915,8 +928,9 @@ def main():
                 else None
             )
             result = device_action(args, context)
-        print(json.dumps(result, indent=2))
-        return 0 if result.get("prepared") or result.get("complete") else 1
+        status = public_status(result)
+        print(json.dumps(status, indent=2))
+        return 0 if status["prepared"] or status["complete"] else 1
     except Exception as error:
         # Offline validation may involve private NVS. Never expose error values.
         if output is not None:

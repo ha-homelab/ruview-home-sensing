@@ -352,7 +352,9 @@ class FleetTests(unittest.TestCase):
             from esptool.util import FatalError
             from serial import SerialException
         except ImportError:
-            self.skipTest("Pinned esptool5.1.0 environment required")
+            raise unittest.SkipTest(
+                "Pinned esptool5.1.0 environment required"
+            ) from None
         raw, data, report, plan = self.application_fixture()
         calls = []
 
@@ -407,7 +409,9 @@ class FleetTests(unittest.TestCase):
         try:
             import esptool.cmds  # noqa: F401
         except ImportError:
-            self.skipTest("Pinned esptool5.1.0 environment required")
+            raise unittest.SkipTest(
+                "Pinned esptool5.1.0 environment required"
+            ) from None
         with tempfile.TemporaryDirectory() as directory:
             candidate = Path(directory) / "application.bin"
             candidate.write_bytes(b"reviewed bytes")
