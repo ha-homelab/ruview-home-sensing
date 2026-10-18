@@ -1,4 +1,4 @@
 # CPython 3.13, linux/amd64, Alpine/musl only. Same NumPy version as requirements.txt.
-# PyPI: numpy-2.5.3-cp313-cp313-musllinux_1_2_x86_64.whl (18,465,724 bytes).
-numpy==2.5.3 \
-    --hash=sha256:1302b90c0e52281681b2975adfe8a860cb7b12216a27b4b0b4207c44bf7bccf0
+# PyPI: numpy-2.5.4-cp313-cp313-musllinux_1_2_x86_64.whl (18,474,904 bytes).
+numpy==2.5.4 \
+    --hash=sha256:b86966fbe4ad7de710422175572bcdc75fdedadfb54bc6fab7deabccddd7780b
