@@ -10,10 +10,10 @@ RUN pip install --no-cache-dir --require-hashes --only-binary=:all: \
 
 FROM --platform=linux/amd64 python:3.14-alpine@sha256:f6a589d43c42b9e7f7dc67a12d37132491f362859a5d750607710cc56da3bc72
 WORKDIR /app
-COPY --from=dependencies /dependencies/ /usr/local/lib/python3.13/site-packages/
+COPY --from=dependencies /dependencies/ /opt/python-dependencies/
 COPY ruview_http.py ./
 COPY assumed_activity/ /app/assumed_activity/
 USER 10001:10001
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/opt/python-dependencies
 EXPOSE 5017
 ENTRYPOINT ["python", "-m", "assumed_activity"]
