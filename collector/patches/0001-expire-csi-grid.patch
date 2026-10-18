@@ -1,0 +1,358 @@
+--- a/v2/crates/wifi-densepose-sensing-server/src/main.rs
++++ b/v2/crates/wifi-densepose-sensing-server/src/main.rs
+@@ -15,6 +15,7 @@
+ mod engine_bridge;
+ mod field_bridge;
+ mod field_localize;
++mod grid_gate;
+ mod model_format;
+ mod multistatic_bridge;
+ mod mediatek_csi;
+@@ -1061,7 +1062,7 @@
+     /// HE-SU 256-bin frames with HT 64-bin frames on one socket; mixing
+     /// the two symbol grids in `frame_history` corrupts variance/baseline
+     /// statistics. See [`NodeState::accept_grid`].
+-    active_grid: Option<(u16, wifi_densepose_hardware::PpduType)>,
++    grid_gate: grid_gate::GridGate<(u16, wifi_densepose_hardware::PpduType)>,
+     /// Header-only recent raw grid observations used to choose one stable,
+     /// comparable calibration stream. No CSI amplitudes are retained here.
+     raw_grid_observations: VecDeque<RawGridObservation>,
+@@ -1437,7 +1438,7 @@
+                 ),
+             ),
+             last_novelty_score: None,
+-            active_grid: None,
++            grid_gate: grid_gate::GridGate::new(),
+             raw_grid_observations: VecDeque::with_capacity(
+                 CALIBRATION_GRID_EVIDENCE_CAPACITY,
+             ),
+@@ -1532,20 +1533,10 @@
+                     && evidence.max_gap_s < CALIBRATION_GRID_MAX_GAP_S
+                     && evidence.latest_age_s < CALIBRATION_GRID_MAX_GAP_S
+             })
+-            // Density first, to agree with `accept_grid`. That gate locks each
+-            // node onto the densest grid it has seen and rejects sparser
+-            // frames from the feature path -- on an ESP32-C6 the ~16% HT
+-            // 64-bin minority alongside HE-SU 256-bin. Ordering selection by
+-            // gap first picked exactly that minority: it is sparse, so its
+-            // arrivals look smooth, while the grid the node actually keeps
+-            // using scores worse on gap.
+-            //
+-            // Measured: a capture bound 64sc on node 11, every node then
+-            // locked onto 256sc, the bound grid went stale with no frame for
+-            // five minutes, frame_count froze at 10,997 and the capture could
+-            // never finalize -- `collecting` forever with no error surfaced.
+-            // A wider grid that the node will keep emitting beats a narrower
+-            // one that admission is designed to discard.
++            // Prefer density only among sustained, rate-qualified streams.
++            // Calibration has its own exact-grid path before live inference
++            // admission. A later inference-grid switch must never rebind or
++            // clear this frozen field-model stream.
+             .min_by(|(left_grid, left), (right_grid, right)| {
+                 right_grid
+                     .n_subcarriers
+@@ -1576,31 +1567,42 @@
+         self.field_model_latest_seen = Some(now);
+     }
+ 
+-    /// ADR-110 / issue #1005 grid gate: decide whether a frame on `grid`
+-    /// may enter this node's feature path, and update `active_grid`.
+-    ///
+-    /// Returns `true` to accept. Policy: lock onto the densest grid seen.
+-    /// On a grid *upgrade* (more subcarriers — e.g. the first HE-SU 256-bin
+-    /// frame after HT 64-bin history) the rolling amplitude history and
+-    /// motion baseline are cleared so HT and HE symbol grids are never
+-    /// mixed in one window. Sparser-grid frames (the ~16% HT minority an
+-    /// ESP32-C6 keeps emitting alongside HE) are rejected from the feature
+-    /// path; the caller still records the arrival for fps/liveness.
+-    fn accept_grid(&mut self, grid: (u16, wifi_densepose_hardware::PpduType)) -> bool {
+-        match self.active_grid {
+-            None => {
+-                self.active_grid = Some(grid);
++    /// Admit only one sustained symbol grid into this node's feature path.
++    /// Raw evidence and the exact frozen calibration grid remain independent.
++    fn accept_grid(
++        &mut self,
++        grid: (u16, wifi_densepose_hardware::PpduType),
++        now: std::time::Instant,
++    ) -> bool {
++        match self.grid_gate.admit(grid, grid.0, now) {
++            grid_gate::Admission::Reject => false,
++            grid_gate::Admission::Continue => true,
++            grid_gate::Admission::Switch => {
++                self.reset_grid_inference_state();
+                 true
+             }
+-            Some(active) if active == grid => true,
+-            Some((active_n, _)) if grid.0 > active_n => {
+-                self.active_grid = Some(grid);
+-                self.frame_history.clear();
+-                self.baseline_motion = 0.0;
+-                self.baseline_frames = 0;
+-                true
+-            }
+-            Some(_) => false,
++        }
++    }
++
++    /// A change of grid invalidates every derived inference window, including
++    /// native host vitals, smoothing, novelty and cached features. Preserve
++    /// transport observations, firmware vitals and the independently bound
++    /// calibration history; none of these owns the live feature grid.
++    fn reset_grid_inference_state(&mut self) {
++        let old = std::mem::replace(self, Self::new());
++        self.grid_gate = old.grid_gate;
++        self.raw_grid_observations = old.raw_grid_observations;
++        self.field_model_history = old.field_model_history;
++        self.field_model_latest_sequence = old.field_model_latest_sequence;
++        self.field_model_latest_seen = old.field_model_latest_seen;
++        self.last_frame_time = old.last_frame_time;
++        self.edge_vitals = old.edge_vitals;
++        self.latest_sync = old.latest_sync;
++        self.latest_sync_at = old.latest_sync_at;
++        self.csi_fps_ema = old.csi_fps_ema;
++        self.csi_fps_samples = old.csi_fps_samples;
++        if old.feature_history.is_none() {
++            self.feature_history = None;
+         }
+     }
+ 
+@@ -2289,6 +2291,13 @@
+                 })
+     }
+ 
++    /// A live replacement grid does not renew the frozen calibration input.
++    fn bound_calibration_input_is_fresh(&self) -> bool {
++        self.calibration_grid_binding.is_some_and(|binding| {
++            self.calibration_grid_is_fresh(binding, std::time::Instant::now())
++        })
++    }
++
+     fn field_model_holdout_ready(
+         &self,
+         binding: CalibrationGridBinding,
+@@ -2385,7 +2394,9 @@
+         source_tick: u64,
+         observed_at_unix_ms: u64,
+     ) -> Option<CalibratedPresenceEvidence> {
+-        if !self.explicit_calibration_fresh_at(observed_at_unix_ms) {
++        if !self.explicit_calibration_fresh_at(observed_at_unix_ms)
++            || !self.bound_calibration_input_is_fresh()
++        {
+             return None;
+         }
+         let receipt = self.calibration_model_receipt.as_ref()?;
+@@ -2415,7 +2426,9 @@
+         // A persisted bootstrap model has negative-only authority. Its only
+         // allowed occupancy effect is the explicit empty-background suppression
+         // in `bootstrap_empty_prior_applies`; it must never infer positive count.
+-        if self.bootstrap_baseline_active {
++        // A fresh model receipt cannot authorize scoring an old input window.
++        // Keep the ordinary uncalibrated estimate when its exact grid is stale.
++        if self.bootstrap_baseline_active || !self.bound_calibration_input_is_fresh() {
+             return score_to_person_count(self.smoothed_person_score, self.prev_person_count);
+         }
+         match self.field_model.as_ref() {
+@@ -2776,6 +2789,74 @@
+         assert_eq!(evidence.presence, evidence.person_count > 0);
+     }
+ 
++    #[test]
++    fn fresh_fallback_csi_cannot_refresh_stale_frozen_calibration() {
++        let mut state = state_with_receipt();
++        state.calibration_grid_binding.as_mut().unwrap().grid.n_subcarriers = 128;
++        state.smoothed_person_score = 0.9;
++        state.prev_person_count = 2;
++        assert!(state.calibrated_presence_evidence(5, 77, 1_500).is_some());
++        assert_eq!(state.person_count_at(1_500), 0, "fresh learned empty baseline");
++        let now = std::time::Instant::now();
++        let node = state.node_states.get_mut(&5).unwrap();
++        node.field_model_latest_seen = Some(now - ESP32_OFFLINE_TIMEOUT);
++        assert!(node.accept_grid((64, wifi_densepose_hardware::PpduType::HtLegacy), now));
++        node.observe_accepted_csi_frame(99, false, now);
++        node.frame_history.push_back(vec![12.0; 64]);
++        assert_eq!(node.latest_accepted_csi_at, Some(now));
++        assert_eq!(node.field_model_history.len(), 50);
++        assert!(state.calibrated_presence_evidence(5, 99, 1_500).is_none());
++        assert_eq!(state.person_count_at(1_500),
++            score_to_person_count(state.smoothed_person_score, state.prev_person_count));
++        assert_eq!(state.calibration_grid_binding.unwrap().grid.n_subcarriers, 128);
++    }
++
++    #[tokio::test]
++    async fn stale_bound_grid_cannot_authorize_cached_edge_vitals_via_fallback_count() {
++        let mut state = state_with_receipt();
++        let now_ms = chrono::Utc::now().timestamp_millis().max(0) as u64;
++        state.field_model = Some(finalized_model(now_ms));
++        state.calibration_model_receipt.as_mut().unwrap().completed_at_unix_ms = now_ms;
++        state.smoothed_person_score = 0.0;
++        state.prev_person_count = 0;
++        assert_eq!(state.person_count_at(now_ms), 0, "fresh learned empty baseline");
++        state.edge_vitals = Some(Esp32VitalsPacket {
++            node_id: 5,
++            presence: true,
++            fall_detected: false,
++            motion: false,
++            breathing_rate_bpm: 15.0,
++            heartrate_bpm: 72.0,
++            rssi: -42,
++            n_persons: 1,
++            person_count_valid: true,
++            motion_energy: 0.0,
++            presence_score: 0.9,
++            timestamp_ms: 42,
++        });
++        let now = std::time::Instant::now();
++        let node = state.node_states.get_mut(&5).unwrap();
++        node.field_model_latest_seen = Some(now - ESP32_OFFLINE_TIMEOUT);
++        node.observe_accepted_csi_frame(99, false, now);
++        assert!(state.explicit_calibration_fresh_at(now_ms));
++        assert_eq!(state.person_count_at(now_ms), 1, "uncalibrated fallback minimum");
++        let Json(body) = edge_vitals_endpoint(State(Arc::new(RwLock::new(state)))).await;
++        assert_eq!(body["status"], "abstained");
++        assert!(body["edge_vitals"].is_null());
++    }
++
++    #[test]
++    fn missing_bound_node_cannot_score_shared_history_as_calibrated() {
++        let mut state = state_with_receipt();
++        state.smoothed_person_score = 0.9;
++        state.prev_person_count = 2;
++        state.node_states.remove(&5);
++        assert!(!state.frame_history.is_empty());
++        assert!(state.calibrated_presence_evidence(5, 99, 1_500).is_none());
++        assert_eq!(state.person_count_at(1_500),
++            score_to_person_count(state.smoothed_person_score, state.prev_person_count));
++    }
++
+     /// Absence must mean "not calibrated", never "the path is broken", so pair
+     /// each refusal with the positive case above.
+     #[test]
+@@ -7752,12 +7833,8 @@
+     }
+ 
+ 
+-    /// `accept_grid` locks a node onto the densest grid it has seen and
+-    /// rejects sparser frames from the feature path -- on an ESP32-C6 the ~16%
+-    /// HT 64-bin minority alongside HE-SU 256-bin. Selection must agree, or it
+-    /// binds a grid the node is about to stop emitting. Measured consequence:
+-    /// a capture bound 64sc, every node locked onto 256sc, the bound grid went
+-    /// stale and the capture hung in `collecting` with frame_count frozen.
++    /// Prefer a sustained dense stream over a sustained sparse minority.
++    /// Calibration is still bound independently from live feature admission.
+     #[test]
+     fn calibration_grid_selection_prefers_the_grid_the_node_keeps_emitting() {
+         let mut node = NodeState::new();
+@@ -7845,6 +7922,75 @@
+             .field_model_history
+             .is_empty());
+         assert!(state.calibration_last_sequences.is_empty());
++    }
++
++    #[test]
++    fn grid_expiry_preserves_frozen_calibration_and_clears_inference_windows() {
++        let mut state = AppStateInner::minimal();
++        state.field_model = Some(
++            FieldModel::new(field_bridge::single_link_config()).expect("field model"),
++        );
++        bind_test_calibration(&mut state);
++        let t = std::time::Instant::now();
++        let ppdu = wifi_densepose_hardware::PpduType::HtLegacy;
++        let node = state.node_states.get_mut(&5).expect("node");
++        assert!(node.accept_grid((128, ppdu), t));
++        node.frame_history.push_back(vec![9.0; 128]);
++        node.baseline_motion = 42.0;
++        node.baseline_frames = 30;
++        node.smoothed_person_score = 0.9;
++        node.prev_person_count = 2;
++        node.smoothed_motion = 77.0;
++        node.current_motion_level = "active".into();
++        node.latest_classification_confidence = Some(0.9);
++        node.smoothed_hr = 90.0;
++        node.hr_buffer.push_back(90.0);
++        node.motion_energy_history.push_back(77.0);
++        node.latest_accepted_csi_at = Some(t);
++        node.latest_csi_sequence = Some(9);
++        node.update_novelty(&[9.0; 128]);
++
++        // The frozen 64-bin calibration stream continues through the live
++        // 128-bin gate. Neither rejected raw traffic nor the grid selector
++        // may refresh accepted inference freshness before actual admission.
++        for i in 1..=30_u32 {
++            let now = t + std::time::Duration::from_millis(u64::from(i) * 100);
++            assert!(state.maybe_feed_calibration_frame(5, test_grid(), i, &[0.25; 64], now));
++            let node = state.node_states.get_mut(&5).expect("node");
++            node.observe_raw_grid(test_grid(), now);
++            let admitted = node.accept_grid((64, ppdu), now);
++            if i < 30 {
++                assert!(!admitted);
++                assert_eq!(node.latest_accepted_csi_at, Some(t));
++                assert_eq!(node.frame_history.back().unwrap().len(), 128);
++            } else {
++                assert!(admitted);
++                assert!(node.frame_history.is_empty());
++                assert_eq!(node.baseline_motion, 0.0);
++                assert_eq!(node.baseline_frames, 0);
++                assert_eq!(node.smoothed_person_score, 0.0);
++                assert_eq!(node.prev_person_count, 0);
++                assert_eq!(node.smoothed_motion, 0.0);
++                assert!(node.latest_classification_confidence.is_none());
++                assert_eq!(node.smoothed_hr, 0.0);
++                assert!(node.hr_buffer.is_empty());
++                assert!(node.motion_energy_history.is_empty());
++                assert!(node.last_novelty_score.is_none());
++                assert!(node.latest_accepted_csi_at.is_none());
++                assert!(node.latest_csi_sequence.is_none());
++                node.observe_accepted_csi_frame(i, false, now);
++                node.frame_history.push_back(vec![0.25; 64]);
++            }
++            assert_eq!(node.field_model_history.len(), i as usize);
++            assert!(node.field_model_history.iter().all(|frame| frame.len() == 64));
++            assert_eq!(node.field_model_latest_sequence, Some(i));
++        }
++        assert_eq!(state.calibration_grid_binding.unwrap().grid, test_grid());
++        assert_eq!(state.field_model.as_ref().unwrap().calibration_frame_count(), 30);
++        assert!(!state.maybe_feed_calibration_frame(
++            5, CsiGridKey { n_subcarriers: 128, ppdu_type: 0 },
++            31, &[9.0; 128], t + std::time::Duration::from_millis(3100),
++        ));
+     }
+ 
+     #[test]
+@@ -9358,6 +9504,7 @@
+     let s = state.read().await;
+     let observed_at_unix_ms = chrono::Utc::now().timestamp_millis().max(0) as u64;
+     let explicit_single_occupant = s.explicit_calibration_fresh_at(observed_at_unix_ms)
++        && s.bound_calibration_input_is_fresh()
+         && s.person_count_at(observed_at_unix_ms) == 1;
+     if !explicit_single_occupant {
+         return Json(serde_json::json!({
+@@ -10323,22 +10470,22 @@
+                     // with HT 64-bin frames on the same socket. HT-LTF and
+                     // HE-LTF symbol grids are not bin-comparable, so a frame
+                     // on a different grid than the node's rolling window must
+-                    // not enter the feature path. Policy (NodeState::accept_grid):
+-                    // lock onto the densest grid seen, clear+re-warm on
+-                    // upgrade, skip sparser-grid frames (arrival still
+-                    // recorded for fps/liveness).
++                    // not enter the feature path. Admission requires recent
++                    // sustained evidence before promotion and permits fallback
++                    // after the active grid expires. Every switch resets the
++                    // derived inference state without rebinding calibration.
+                     let grid_accepted = s
+                         .node_states
+                         .entry(frame.node_id)
+                         .or_insert_with(NodeState::new)
+-                        .accept_grid(frame.grid());
++                        .accept_grid(frame.grid(), observed_at);
+                     if !grid_accepted {
+                         debug!(
+                             "node {}: skipping {}-subcarrier {:?} frame (active grid {:?})",
+                             frame.node_id,
+                             frame.n_subcarriers,
+                             frame.ppdu_type,
+-                            s.node_states.get(&frame.node_id).and_then(|ns| ns.active_grid),
++                            s.node_states.get(&frame.node_id).and_then(|ns| ns.grid_gate.active()),
+                         );
+                         if let Some(ns) = s.node_states.get_mut(&frame.node_id) {
+                             ns.observe_csi_frame_arrival(std::time::Instant::now());

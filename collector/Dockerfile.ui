@@ -1,0 +1,8 @@
+# UI-only overlay: preserve the qualified home-grid.2 executable and base layers.
+ARG BASE_IMAGE
+FROM --platform=linux/arm64 ${BASE_IMAGE}
+COPY ui/DashboardTab.js /app/ui/components/DashboardTab.js
+COPY ui/services/health.service.js /app/ui/services/health.service.js
+COPY ui/home-floor/ /app/ui/home-floor/
+LABEL org.opencontainers.image.version="0.3.5-home-grid.2-ui.3" \
+      io.ha-homelab.ruview.ui="receiver-map;legacy-zone-placeholder-hidden;recoverable-health-status"

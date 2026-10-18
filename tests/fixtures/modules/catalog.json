@@ -1,0 +1,50 @@
+{
+  "schema": "ruview.qualification-packages.v1",
+  "packages": [
+    {
+      "profile": "home-signal",
+      "name": "home-signal",
+      "file": "home-signal.rvf",
+      "package_sha256": "1048fe754f630a2c3beeca185cfb9b309a033a5451a3ffc36d36281fa663459d",
+      "wasm_sha256": "ff745e2564fa033591834d57fb4f7e22694888bc9950b01aa8049d437324d028",
+      "package_bytes": 14975,
+      "wasm_bytes": 14783
+    },
+    {
+      "profile": "home-signal-v2",
+      "name": "home-signal-v2",
+      "file": "home-signal-v2.rvf",
+      "package_sha256": "0801e8689ef8c46910225d8ddda6a5d6ea9e0efd435296642118b576c392aa95",
+      "wasm_sha256": "c6b4f8e9d3a86790a59d5eb8f0649e2b132b5d43dd6befbbb968f94b85575c25",
+      "package_bytes": 14844,
+      "wasm_bytes": 14652
+    },
+    {
+      "profile": "home-signal-v3",
+      "name": "home-signal-v3",
+      "file": "home-signal-v3.rvf",
+      "package_sha256": "fc7ed3f2ab7976839ede42a3274334bcb358c6b0b199b5a9072929322c62ecf7",
+      "wasm_sha256": "1c232dda8282ea956ed217dad22f58b120b41e9fe89edc110ef25536ad4159c6",
+      "package_bytes": 16018,
+      "wasm_bytes": 15826
+    },
+    {
+      "profile": "home-signal-v4",
+      "name": "home-signal-v4",
+      "file": "home-signal-v4.rvf",
+      "package_sha256": "268ca9b5cc40233fafd9b710759e4b1f7f41a4b70e346e759d16d4e1c417e554",
+      "wasm_sha256": "d620b70f7880798cdabd11314358ac9423bff4f5131e2e73c7a7f760f61347d4",
+      "package_bytes": 16018,
+      "wasm_bytes": 15826
+    },
+    {
+      "profile": "home-signal-v5",
+      "name": "home-signal-v5",
+      "file": "home-signal-v5.rvf",
+      "package_sha256": "e9fde2c902c8aac39b34671adc04da6b995781966f1de2c13545f4c377e678ad",
+      "wasm_sha256": "67b7d701424656bfb611af96a743278a1016413cb403e03c03902832982e5a84",
+      "package_bytes": 16017,
+      "wasm_bytes": 15825
+    }
+  ]
+}

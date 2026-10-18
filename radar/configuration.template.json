@@ -1,0 +1,24 @@
+{
+  "schema": "ruview.ld2450.configuration.v1",
+  "model": "HLK-LD2450",
+  "sensor_id": null,
+  "hardware_confirmed": false,
+  "hardware_identity": null,
+  "serial_endpoint_id": null,
+  "firmware_version": null,
+  "tracking_mode": null,
+  "coordinate_frame": "example_lab_xz_metres",
+  "floorplan_sha256": null,
+  "ttl_ms": 1000,
+  "survey": {
+    "status": "proposed",
+    "mounting": null,
+    "axis_convention": "x_right_y_forward__yaw_from_plan_x_toward_z",
+    "axes_verified": false,
+    "origin_xz_m": null,
+    "yaw_deg": null,
+    "mounting_height_m": null,
+    "transform_uncertainty_m": null,
+    "evidence_sha256": null
+  }
+}

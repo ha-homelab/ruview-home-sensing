@@ -1,0 +1,1023 @@
+[
+  {
+    "algorithm": "adversarial",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": true,
+    "required_cadence_hz": 0,
+    "reason": "raw_csi_experimental",
+    "source_path": "src/adversarial.rs",
+    "events": {
+      "3": {
+        "event_name": "ANOMALY_DETECTED",
+        "value_type": "flag",
+        "units": "boolean_numeric",
+        "meaning": "Raw-signal anomaly heuristic; not a verified threat"
+      }
+    }
+  },
+  {
+    "algorithm": "ais_behavioral_profiler",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/ais_behavioral_profiler.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "ais_prompt_shield",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": true,
+    "required_cadence_hz": 0,
+    "reason": "raw_csi_experimental",
+    "source_path": "src/ais_prompt_shield.rs",
+    "events": {
+      "820": {
+        "event_name": "REPLAY_ATTACK",
+        "value_type": "flag",
+        "units": "boolean_numeric",
+        "meaning": "Repeated feature hash heuristic; not proof of a replay attack"
+      },
+      "821": {
+        "event_name": "INJECTION_DETECTED",
+        "value_type": "metric",
+        "units": "ratio",
+        "meaning": "Fraction of sharply changing amplitudes; not proof of injection"
+      },
+      "822": {
+        "event_name": "JAMMING_DETECTED",
+        "value_type": "metric",
+        "units": "dB_proxy",
+        "meaning": "Amplitude SNR proxy; not proof of jamming"
+      },
+      "823": {
+        "event_name": "SIGNAL_INTEGRITY",
+        "value_type": "metric",
+        "units": "ratio",
+        "meaning": "Heuristic signal integrity"
+      }
+    }
+  },
+  {
+    "algorithm": "aut_psycho_symbolic",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/aut_psycho_symbolic.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "aut_self_healing_mesh",
+    "algorithm_version": "0.3.0+home-fleet.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "evaluated_only_in_fleet_scope",
+    "source_path": "src/aut_self_healing_mesh.rs",
+    "events": {},
+    "fleet_selected": true,
+    "execution_scope": "fleet",
+    "fleet_events": {
+      "885": {
+        "event_name": "NODE_DEGRADED",
+        "value_type": "index",
+        "units": "cohort_index",
+        "meaning": "Native quality-graph cut-side index; subject_node_id maps it to the actual receiver, not proof of device failure"
+      },
+      "886": {
+        "event_name": "MESH_RECONFIGURE",
+        "value_type": "metric",
+        "units": "quality_graph_cut_weight",
+        "meaning": "Advisory low min-cut of edges min(node_quality_i,node_quality_j); no routing or configuration action"
+      },
+      "887": {
+        "event_name": "COVERAGE_SCORE",
+        "value_type": "metric",
+        "units": "ratio",
+        "meaning": "Mean of native EMA-smoothed receiver coherence qualities; not physical room or radio coverage"
+      },
+      "888": {
+        "event_name": "HEALING_COMPLETE",
+        "value_type": "metric",
+        "units": "quality_graph_cut_weight",
+        "meaning": "Native quality graph crossed its recovery threshold; not evidence of network healing or sensing accuracy"
+      }
+    }
+  },
+  {
+    "algorithm": "bld_elevator_count",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "uncommissioned_cabin_baseline_and_variance_to_people_mapping",
+    "source_path": "src/bld_elevator_count.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "bld_energy_audit",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/bld_energy_audit.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "bld_hvac_presence",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/bld_hvac_presence.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "bld_lighting_zones",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": true,
+    "required_cadence_hz": 20,
+    "reason": "raw_csi_experimental",
+    "source_path": "src/bld_lighting_zones.rs",
+    "events": {
+      "320": {
+        "event_name": "LIGHT_ON",
+        "value_type": "encoded",
+        "units": "group_or_group_plus_score",
+        "meaning": "Upstream lighting recommendation for a subcarrier group; never actuated"
+      },
+      "321": {
+        "event_name": "LIGHT_DIM",
+        "value_type": "encoded",
+        "units": "group_or_group_plus_score",
+        "meaning": "Upstream dim recommendation; never actuated"
+      },
+      "322": {
+        "event_name": "LIGHT_OFF",
+        "value_type": "encoded",
+        "units": "group_or_group_plus_score",
+        "meaning": "Upstream off recommendation; never actuated"
+      }
+    }
+  },
+  {
+    "algorithm": "bld_meeting_room",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/bld_meeting_room.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "coherence",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": true,
+    "required_cadence_hz": 0,
+    "reason": "raw_csi_experimental",
+    "source_path": "src/coherence.rs",
+    "events": {
+      "2": {
+        "event_name": "COHERENCE_SCORE",
+        "value_type": "metric",
+        "units": "ratio",
+        "meaning": "Subcarrier phase coherence; not evidence of a person"
+      }
+    }
+  },
+  {
+    "algorithm": "exo_breathing_sync",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/exo_breathing_sync.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "exo_dream_stage",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/exo_dream_stage.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "exo_emotion_detect",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/exo_emotion_detect.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "exo_gesture_language",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/exo_gesture_language.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "exo_ghost_hunter",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/exo_ghost_hunter.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "exo_happiness_score",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/exo_happiness_score.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "exo_hyperbolic_space",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "uncommissioned_projection_and_room_reference_vectors",
+    "source_path": "src/exo_hyperbolic_space.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "exo_music_conductor",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": true,
+    "required_cadence_hz": 20,
+    "reason": "raw_csi_experimental",
+    "source_path": "src/exo_music_conductor.rs",
+    "events": {
+      "630": {
+        "event_name": "CONDUCTOR_BPM",
+        "value_type": "metric",
+        "units": "beats_per_minute",
+        "meaning": "20Hz-qualified autocorrelation tempo hypothesis; not a vital sign"
+      },
+      "631": {
+        "event_name": "BEAT_POSITION",
+        "value_type": "enum",
+        "units": "beat_index",
+        "meaning": "Heuristic beat phase 1 through 4"
+      },
+      "632": {
+        "event_name": "DYNAMIC_LEVEL",
+        "value_type": "metric",
+        "units": "midi_velocity",
+        "meaning": "Motion-derived dynamic level"
+      },
+      "633": {
+        "event_name": "GESTURE_CUTOFF",
+        "value_type": "flag",
+        "units": "boolean_numeric",
+        "meaning": "Motion cutoff hypothesis"
+      },
+      "634": {
+        "event_name": "GESTURE_FERMATA",
+        "value_type": "flag",
+        "units": "boolean_numeric",
+        "meaning": "Still-motion fermata hypothesis"
+      }
+    }
+  },
+  {
+    "algorithm": "exo_plant_growth",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/exo_plant_growth.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "exo_rain_detect",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/exo_rain_detect.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "exo_time_crystal",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": true,
+    "required_cadence_hz": 20,
+    "reason": "raw_csi_experimental",
+    "source_path": "src/exo_time_crystal.rs",
+    "events": {
+      "680": {
+        "event_name": "CRYSTAL_DETECTED",
+        "value_type": "enum",
+        "units": "period_multiplier",
+        "meaning": "Autocorrelation period multiplier; not a physical time crystal claim"
+      },
+      "681": {
+        "event_name": "CRYSTAL_STABILITY",
+        "value_type": "metric",
+        "units": "ratio",
+        "meaning": "Period persistence heuristic"
+      },
+      "682": {
+        "event_name": "COORDINATION_INDEX",
+        "value_type": "metric",
+        "units": "score",
+        "meaning": "Autocorrelation coordination heuristic; not person count"
+      }
+    }
+  },
+  {
+    "algorithm": "gesture",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": true,
+    "required_cadence_hz": 20,
+    "reason": "raw_csi_experimental",
+    "source_path": "src/gesture.rs",
+    "events": {
+      "1": {
+        "event_name": "GESTURE_DETECTED",
+        "value_type": "enum",
+        "units": "gesture_template_id",
+        "meaning": "Built-in DTW template index; recognition not validated"
+      }
+    }
+  },
+  {
+    "algorithm": "ind_clean_room",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/ind_clean_room.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "ind_confined_space",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/ind_confined_space.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "ind_forklift_proximity",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/ind_forklift_proximity.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "ind_livestock_monitor",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/ind_livestock_monitor.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "ind_structural_vibration",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/ind_structural_vibration.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "intrusion",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": true,
+    "required_cadence_hz": 20,
+    "reason": "raw_csi_experimental",
+    "source_path": "src/intrusion.rs",
+    "events": {
+      "200": {
+        "event_name": "INTRUSION_ALERT",
+        "value_type": "metric",
+        "units": "score",
+        "meaning": "Phase/amplitude disturbance heuristic; not verified intrusion"
+      },
+      "201": {
+        "event_name": "INTRUSION_ZONE",
+        "value_type": "enum",
+        "units": "subcarrier_group",
+        "meaning": "Disturbed subcarrier group; not room position"
+      },
+      "202": {
+        "event_name": "INTRUSION_ARMED",
+        "value_type": "flag",
+        "units": "boolean_numeric",
+        "meaning": "Heuristic quiet-baseline armed state"
+      },
+      "203": {
+        "event_name": "INTRUSION_DISARMED",
+        "value_type": "flag",
+        "units": "boolean_numeric",
+        "meaning": "Heuristic disarmed state"
+      }
+    }
+  },
+  {
+    "algorithm": "lrn_anomaly_attractor",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": true,
+    "required_cadence_hz": 0,
+    "reason": "raw_csi_experimental",
+    "source_path": "src/lrn_anomaly_attractor.rs",
+    "events": {
+      "735": {
+        "event_name": "ATTRACTOR_TYPE",
+        "value_type": "enum",
+        "units": "attractor_code",
+        "meaning": "Mathematical attractor class; not occupancy classification"
+      },
+      "736": {
+        "event_name": "LYAPUNOV_EXPONENT",
+        "value_type": "metric",
+        "units": "per_frame_log_ratio",
+        "meaning": "Trajectory divergence exponent per processed frame"
+      },
+      "737": {
+        "event_name": "BASIN_DEPARTURE",
+        "value_type": "metric",
+        "units": "radius_ratio",
+        "meaning": "Departure from a learned mathematical trajectory basin"
+      },
+      "738": {
+        "event_name": "LEARNING_COMPLETE",
+        "value_type": "flag",
+        "units": "boolean_numeric",
+        "meaning": "Unlabeled trajectory baseline learned"
+      }
+    }
+  },
+  {
+    "algorithm": "lrn_dtw_gesture_learn",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": true,
+    "required_cadence_hz": 20,
+    "reason": "raw_csi_experimental",
+    "source_path": "src/lrn_dtw_gesture_learn.rs",
+    "events": {
+      "730": {
+        "event_name": "GESTURE_LEARNED",
+        "value_type": "enum",
+        "units": "template_id",
+        "meaning": "Self-learned unlabeled phase trajectory template; not a named gesture"
+      },
+      "731": {
+        "event_name": "GESTURE_MATCHED",
+        "value_type": "enum",
+        "units": "template_id",
+        "meaning": "Unlabeled learned-template match; not validated gesture recognition"
+      },
+      "732": {
+        "event_name": "MATCH_DISTANCE",
+        "value_type": "metric",
+        "units": "dtw_distance",
+        "meaning": "Phase trajectory distance to learned template"
+      },
+      "733": {
+        "event_name": "TEMPLATE_COUNT",
+        "value_type": "count",
+        "units": "templates",
+        "meaning": "Number of locally self-learned unlabeled templates"
+      }
+    }
+  },
+  {
+    "algorithm": "lrn_ewc_lifelong",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "missing_independent_target_zone_labels_and_trained_model",
+    "source_path": "src/lrn_ewc_lifelong.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "lrn_meta_adapt",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "missing_independent_true_false_positive_feedback",
+    "source_path": "src/lrn_meta_adapt.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "med_cardiac_arrhythmia",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "medical_experimental_disabled_unvalidated",
+    "source_path": "src/med_cardiac_arrhythmia.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "med_gait_analysis",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "medical_experimental_disabled_unvalidated",
+    "source_path": "src/med_gait_analysis.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "med_respiratory_distress",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "medical_experimental_disabled_unvalidated",
+    "source_path": "src/med_respiratory_distress.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "med_seizure_detect",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "medical_experimental_disabled_unvalidated",
+    "source_path": "src/med_seizure_detect.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "med_sleep_apnea",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "medical_experimental_disabled_unvalidated",
+    "source_path": "src/med_sleep_apnea.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "occupancy",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": true,
+    "required_cadence_hz": 0,
+    "reason": "raw_csi_experimental",
+    "source_path": "src/occupancy.rs",
+    "events": {
+      "300": {
+        "event_name": "ZONE_OCCUPIED",
+        "value_type": "encoded",
+        "units": "group_plus_score",
+        "meaning": "Integer subcarrier group plus fractional score; not room occupancy"
+      },
+      "301": {
+        "event_name": "ZONE_COUNT",
+        "value_type": "count",
+        "units": "subcarrier_groups",
+        "meaning": "Number of heuristically active subcarrier groups; not person count"
+      },
+      "302": {
+        "event_name": "ZONE_TRANSITION",
+        "value_type": "encoded",
+        "units": "group_plus_flag",
+        "meaning": "Subcarrier group plus 0.5 when heuristically active"
+      }
+    }
+  },
+  {
+    "algorithm": "qnt_interference_search",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/qnt_interference_search.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "qnt_quantum_coherence",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": true,
+    "required_cadence_hz": 0,
+    "reason": "raw_csi_experimental",
+    "source_path": "src/qnt_quantum_coherence.rs",
+    "events": {
+      "850": {
+        "event_name": "ENTANGLEMENT_ENTROPY",
+        "value_type": "metric",
+        "units": "nats",
+        "meaning": "Quantum-inspired phase entropy; not measured quantum entanglement"
+      },
+      "851": {
+        "event_name": "DECOHERENCE_EVENT",
+        "value_type": "metric",
+        "units": "nats",
+        "meaning": "Jump in phase entropy"
+      },
+      "852": {
+        "event_name": "BLOCH_DRIFT",
+        "value_type": "metric",
+        "units": "score",
+        "meaning": "Drift in phase-derived Bloch representation"
+      }
+    }
+  },
+  {
+    "algorithm": "ret_customer_flow",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": true,
+    "required_cadence_hz": 20,
+    "reason": "raw_csi_experimental",
+    "source_path": "src/ret_customer_flow.rs",
+    "events": {
+      "420": {
+        "event_name": "INGRESS",
+        "value_type": "count",
+        "units": "heuristic_crossings",
+        "meaning": "Cumulative inferred ingress; not a verified count"
+      },
+      "421": {
+        "event_name": "EGRESS",
+        "value_type": "count",
+        "units": "heuristic_crossings",
+        "meaning": "Cumulative inferred egress; not a verified count"
+      },
+      "422": {
+        "event_name": "NET_OCCUPANCY",
+        "value_type": "count",
+        "units": "heuristic_crossings",
+        "meaning": "Difference of inferred ingress and egress; not verified occupancy"
+      },
+      "423": {
+        "event_name": "HOURLY_TRAFFIC",
+        "value_type": "encoded",
+        "units": "ingress_times_1000_plus_egress",
+        "meaning": "Upstream hourly inferred crossings encoding"
+      }
+    }
+  },
+  {
+    "algorithm": "ret_dwell_heatmap",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/ret_dwell_heatmap.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "ret_queue_length",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/ret_queue_length.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "ret_shelf_engagement",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/ret_shelf_engagement.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "ret_table_turnover",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/ret_table_turnover.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "sec_loitering",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/sec_loitering.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "sec_panic_motion",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/sec_panic_motion.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "sec_perimeter_breach",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": true,
+    "required_cadence_hz": 20,
+    "reason": "raw_csi_experimental",
+    "source_path": "src/sec_perimeter_breach.rs",
+    "events": {
+      "210": {
+        "event_name": "PERIMETER_BREACH",
+        "value_type": "metric",
+        "units": "score",
+        "meaning": "Maximum subcarrier group energy; not verified perimeter breach"
+      },
+      "211": {
+        "event_name": "APPROACH_DETECTED",
+        "value_type": "enum",
+        "units": "subcarrier_group",
+        "meaning": "Approach heuristic in a subcarrier group"
+      },
+      "212": {
+        "event_name": "DEPARTURE_DETECTED",
+        "value_type": "enum",
+        "units": "subcarrier_group",
+        "meaning": "Departure heuristic in a subcarrier group"
+      },
+      "213": {
+        "event_name": "ZONE_TRANSITION",
+        "value_type": "encoded",
+        "units": "upstream_transition_code",
+        "meaning": "Heuristic subcarrier-group transition; not physical coordinates"
+      }
+    }
+  },
+  {
+    "algorithm": "sec_tailgating",
+    "algorithm_version": "0.3.0+home-server.2",
+    "selected": true,
+    "required_cadence_hz": 20,
+    "reason": "raw_motion_peak_clusters_experimental",
+    "source_path": "src/sec_tailgating.rs",
+    "events": {
+      "230": {
+        "event_name": "MOTION_PEAK_CLUSTER",
+        "value_type": "count",
+        "units": "motion_peaks",
+        "meaning": "Multiple motion-energy peaks in one temporal cluster; not people, passage authorization or verified tailgating"
+      },
+      "231": {
+        "event_name": "SINGLE_MOTION_PEAK_ENERGY",
+        "value_type": "metric",
+        "units": "phase_variance_proxy",
+        "meaning": "Maximum host motion energy of one peak after the quiet window; not a person count or verified passage"
+      },
+      "232": {
+        "event_name": "MULTIPLE_MOTION_PEAKS",
+        "value_type": "count",
+        "units": "motion_peaks",
+        "meaning": "Peak count from the same cluster as event230; correlated output, not additional people or an independent detection"
+      }
+    }
+  },
+  {
+    "algorithm": "sec_weapon_detect",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/sec_weapon_detect.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "sig_coherence_gate",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": true,
+    "required_cadence_hz": 0,
+    "reason": "raw_csi_experimental",
+    "source_path": "src/sig_coherence_gate.rs",
+    "events": {
+      "710": {
+        "event_name": "GATE_DECISION",
+        "value_type": "enum",
+        "units": "gate_code",
+        "meaning": "Signal gate: -1 recalibrate, 0 reject, 1 predict-only, 2 accept; diagnostic only"
+      },
+      "711": {
+        "event_name": "COHERENCE_SCORE",
+        "value_type": "metric",
+        "units": "ratio",
+        "meaning": "Inter-frame phase coherence"
+      },
+      "712": {
+        "event_name": "RECALIBRATE_NEEDED",
+        "value_type": "metric",
+        "units": "variance",
+        "meaning": "Signal variance drift requesting heuristic recalibration"
+      }
+    }
+  },
+  {
+    "algorithm": "sig_flash_attention",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": true,
+    "required_cadence_hz": 0,
+    "reason": "raw_csi_experimental",
+    "source_path": "src/sig_flash_attention.rs",
+    "events": {
+      "700": {
+        "event_name": "ATTENTION_PEAK_SC",
+        "value_type": "enum",
+        "units": "subcarrier_group",
+        "meaning": "Attention peak group; not an antenna or physical position"
+      },
+      "701": {
+        "event_name": "ATTENTION_SPREAD",
+        "value_type": "metric",
+        "units": "nats",
+        "meaning": "Subcarrier attention entropy"
+      },
+      "702": {
+        "event_name": "SPATIAL_FOCUS_ZONE",
+        "value_type": "metric",
+        "units": "subcarrier_group_centroid",
+        "meaning": "Attention centroid among groups; not room coordinates"
+      }
+    }
+  },
+  {
+    "algorithm": "sig_mincut_person_match",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/sig_mincut_person_match.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "sig_optimal_transport",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": true,
+    "required_cadence_hz": 0,
+    "reason": "raw_csi_experimental",
+    "source_path": "src/sig_optimal_transport.rs",
+    "events": {
+      "725": {
+        "event_name": "WASSERSTEIN_DISTANCE",
+        "value_type": "metric",
+        "units": "amplitude_distance",
+        "meaning": "Sliced amplitude-distribution distance"
+      },
+      "726": {
+        "event_name": "DISTRIBUTION_SHIFT",
+        "value_type": "metric",
+        "units": "amplitude_distance",
+        "meaning": "Heuristic amplitude-distribution shift"
+      },
+      "727": {
+        "event_name": "SUBTLE_MOTION",
+        "value_type": "metric",
+        "units": "amplitude_distance",
+        "meaning": "Heuristic subtle amplitude change"
+      }
+    }
+  },
+  {
+    "algorithm": "sig_sparse_recovery",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": true,
+    "required_cadence_hz": 0,
+    "reason": "raw_csi_experimental",
+    "source_path": "src/sig_sparse_recovery.rs",
+    "events": {
+      "715": {
+        "event_name": "RECOVERY_COMPLETE",
+        "value_type": "count",
+        "units": "subcarriers",
+        "meaning": "Subcarriers recovered in private algorithm scratch; raw CSI is unchanged"
+      },
+      "716": {
+        "event_name": "RECOVERY_ERROR",
+        "value_type": "metric",
+        "units": "residual",
+        "meaning": "Sparse recovery residual"
+      },
+      "717": {
+        "event_name": "DROPOUT_RATE",
+        "value_type": "metric",
+        "units": "ratio",
+        "meaning": "Zero-amplitude subcarrier fraction"
+      }
+    }
+  },
+  {
+    "algorithm": "sig_temporal_compress",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": true,
+    "required_cadence_hz": 0,
+    "reason": "raw_csi_experimental",
+    "source_path": "src/sig_temporal_compress.rs",
+    "events": {
+      "705": {
+        "event_name": "COMPRESSION_RATIO",
+        "value_type": "metric",
+        "units": "ratio",
+        "meaning": "Estimated compression ratio for selected phase/amplitude features"
+      },
+      "706": {
+        "event_name": "TIER_TRANSITION",
+        "value_type": "enum",
+        "units": "compression_tier",
+        "meaning": "Feature history quantization tier"
+      },
+      "707": {
+        "event_name": "HISTORY_DEPTH_HOURS",
+        "value_type": "metric",
+        "units": "hours_estimated",
+        "meaning": "Upstream EMA-cadence estimate of retained feature history; not elapsed wall time"
+      }
+    }
+  },
+  {
+    "algorithm": "spt_micro_hnsw",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "missing_labeled_reference_library",
+    "source_path": "src/spt_micro_hnsw.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "spt_pagerank_influence",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/spt_pagerank_influence.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "spt_spiking_tracker",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": true,
+    "required_cadence_hz": 50,
+    "reason": "raw_csi_experimental",
+    "source_path": "src/spt_spiking_tracker.rs",
+    "events": {
+      "770": {
+        "event_name": "TRACK_UPDATE",
+        "value_type": "enum",
+        "units": "subcarrier_group",
+        "meaning": "Spiking output neuron group; not a physical person track"
+      },
+      "771": {
+        "event_name": "TRACK_VELOCITY",
+        "value_type": "metric",
+        "units": "group_transitions_per_frame",
+        "meaning": "Upstream transition-speed EMA; not metres per second"
+      },
+      "772": {
+        "event_name": "SPIKE_RATE",
+        "value_type": "metric",
+        "units": "spike_rate_per_frame",
+        "meaning": "Mean output-neuron spike statistic"
+      },
+      "773": {
+        "event_name": "TRACK_LOST",
+        "value_type": "enum",
+        "units": "subcarrier_group",
+        "meaning": "Lost activity group; not verified person departure"
+      }
+    }
+  },
+  {
+    "algorithm": "tmp_goap_autonomy",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "missing_world_state_and_action_contract",
+    "source_path": "src/tmp_goap_autonomy.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "tmp_pattern_sequence",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/tmp_pattern_sequence.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "tmp_temporal_logic_guard",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "missing_verified_fall_intrusion_seizure_and_gait_evidence",
+    "source_path": "src/tmp_temporal_logic_guard.rs",
+    "events": {}
+  },
+  {
+    "algorithm": "vital_trend",
+    "algorithm_version": "0.3.0+home-server.1",
+    "selected": false,
+    "required_cadence_hz": null,
+    "reason": "requires_unavailable_presence_person_count_or_vital_inputs",
+    "source_path": "src/vital_trend.rs",
+    "events": {}
+  }
+]

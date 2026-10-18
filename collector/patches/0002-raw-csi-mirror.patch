@@ -1,0 +1,43 @@
+--- a/v2/crates/wifi-densepose-sensing-server/src/main.rs
++++ b/v2/crates/wifi-densepose-sensing-server/src/main.rs
+@@ -16,6 +16,7 @@
+ mod field_bridge;
+ mod field_localize;
+ mod grid_gate;
++mod raw_csi_mirror;
+ mod model_format;
+ mod multistatic_bridge;
+ mod mediatek_csi;
+@@ -9970,6 +9971,16 @@
+         }
+     };
+
++    let mut raw_mirror = match raw_csi_mirror::RawCsiMirror::from_environment() {
++        Ok(value) => value,
++        Err(reason) => {
++            warn!("Raw CSI mirror disabled: {reason}");
++            None
++        }
++    };
++    if raw_mirror.is_some() {
++        info!("Optional raw CSI mirror enabled; primary ingestion remains independent");
++    }
+     let mut buf = vec![0u8; wifi_densepose_hardware::rtl8720f::RTL8720F_RADAR_MAX_FRAME_LEN];
+     loop {
+         match socket.recv_from(&mut buf).await {
+@@ -9982,6 +9993,15 @@
+                         allowlist.dropped()
+                     );
+                     continue;
++                }
++                // Mirror only already source-admitted raw CSI. A full/offline
++                // downstream socket drops its copy without delaying ingestion.
++                if let Some(mirror) = raw_mirror.as_mut() {
++                    mirror.forward(&buf[..len]);
++                    if let Some(counts) = mirror.report_due() {
++                        info!("Raw CSI mirror eligible={} sent={} dropped={}",
++                            counts.eligible, counts.sent, counts.dropped);
++                    }
+                 }
+                 if len > 0 && buf[0] == b'{' {
+                     match serde_json::from_slice::<wifi_densepose_hardware::vendor_rf::VendorRfEvent>(&buf[..len])

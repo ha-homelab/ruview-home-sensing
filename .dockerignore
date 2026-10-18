@@ -1,0 +1,11 @@
+*
+!bridge.py
+!module_observations.py
+!ruview_http.py
+!requirements.txt
+!requirements-public.txt
+!Dockerfile
+!assumed_activity/
+!assumed_activity/*.py
+!assumed_activity/requirements.txt
+!assumed_activity/Dockerfile

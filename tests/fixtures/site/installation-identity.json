@@ -1,0 +1,56 @@
+{
+  "schema": "ruview.installation-identity.v2",
+  "fleet_ipv4_network": "10.77.0.0/24",
+  "fleet_first_host": 120,
+  "receivers": [
+    {
+      "node_id": 1,
+      "ip": "10.77.0.120",
+      "station_mac": "02:aa:bb:00:00:01"
+    },
+    {
+      "node_id": 2,
+      "ip": "10.77.0.121",
+      "station_mac": "02:aa:bb:00:00:02"
+    },
+    {
+      "node_id": 3,
+      "ip": "10.77.0.122",
+      "station_mac": "02:aa:bb:00:00:03"
+    }
+  ],
+  "restore_node": "example-worker",
+  "bridge_repository": "registry.example.invalid/bridge",
+  "coordinate_frame": "fictional_lab_xz_metres",
+  "policy": {
+    "fleet_size": 10,
+    "receiver_ids": [
+      1,
+      2,
+      3
+    ],
+    "receiver_versions": {
+      "1": [
+        "0.8.8.10",
+        "0.8.8.11",
+        "0.8.8.12"
+      ],
+      "2": [
+        "0.8.8.5",
+        "0.8.8.6",
+        "0.8.8.7",
+        "0.8.8.8",
+        "0.8.8.10",
+        "0.8.8.11",
+        "0.8.8.12"
+      ],
+      "3": [
+        "0.8.8.10",
+        "0.8.8.11",
+        "0.8.8.12"
+      ]
+    },
+    "restore_image_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "wasm_public_key_hex": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  }
+}

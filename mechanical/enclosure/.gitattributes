@@ -1,0 +1,6 @@
+generated/** linguist-generated=true
+generated/**/*.step -diff
+generated/**/*.stl -diff
+generated/**/*.zip -diff
+images/*.png binary
+requirements.lock linguist-generated=true

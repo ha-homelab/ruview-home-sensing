@@ -1,0 +1,218 @@
+--- a/main/ota_update.c
++++ b/main/ota_update.c
+@@ -214,6 +214,8 @@
+ {
+     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+     config.server_port = OTA_PORT;
++    /* Module lifecycle endpoints register numeric IDs with trailing wildcards. */
++    config.uri_match_fn = httpd_uri_match_wildcard;
+     /* Signed WASM parsing/compilation shares this task with OTA. Keep its
+      * native call stack separate from the interpreter/guest stack budgets. */
+     config.stack_size = 12288;
+--- a/main/wasm_runtime.c
++++ b/main/wasm_runtime.c
+@@ -62,8 +62,13 @@
+     uint32_t            event_count;
+     uint32_t            error_count;
+     uint32_t            total_us;     /**< Cumulative execution time. */
+-    uint32_t            max_us;       /**< Worst-case single frame. */
++    uint32_t            max_us;       /**< Worst measured frame/timer callback. */
+     uint32_t            budget_faults;/**< Budget exceeded count. */
++    /* Wall-clock callback diagnostics, retained until slot release/reload. */
++    uint32_t            max_frame_us;
++    uint32_t            max_timer_us;
++    uint32_t            frame_overruns; /**< Cumulative, saturates at UINT32_MAX. */
++    uint32_t            timer_overruns; /**< Cumulative, saturates at UINT32_MAX. */
+ 
+     /* Pending output events for this frame. */
+     wasm_event_t        events[WASM_MAX_EVENTS];
+@@ -787,6 +792,7 @@
+         /* Update telemetry. */
+         slot->frame_count++;
+         slot->total_us += elapsed_us;
++        if (elapsed_us > slot->max_frame_us) slot->max_frame_us = elapsed_us;
+         if (elapsed_us > slot->max_us) {
+             slot->max_us = elapsed_us;
+         }
+@@ -795,6 +801,7 @@
+         uint32_t budget = (slot->manifest_budget_us > 0)
+                         ? slot->manifest_budget_us : WASM_FRAME_BUDGET_US;
+         if (elapsed_us > budget) {
++            if (slot->frame_overruns < UINT32_MAX) slot->frame_overruns++;
+             slot->budget_faults++;
+             ESP_LOGW(TAG, "WASM[%u] budget exceeded: %lu us > %lu us (fault #%lu)",
+                      i, (unsigned long)elapsed_us, (unsigned long)budget,
+@@ -846,8 +853,10 @@
+         uint32_t elapsed_us = (uint32_t)(esp_timer_get_time() - t_start);
+         uint32_t budget = slot->manifest_budget_us > 0
+                         ? slot->manifest_budget_us : WASM_FRAME_BUDGET_US;
++        if (elapsed_us > slot->max_timer_us) slot->max_timer_us = elapsed_us;
+         if (elapsed_us > slot->max_us) slot->max_us = elapsed_us;
+         if (elapsed_us > budget) {
++            if (slot->timer_overruns < UINT32_MAX) slot->timer_overruns++;
+             slot->budget_faults++;
+             if (slot->budget_faults >= 10) slot->state = WASM_MODULE_ERROR;
+         }
+@@ -909,6 +918,10 @@
+         info[i].total_us = s_slots[i].total_us;
+         info[i].max_us = s_slots[i].max_us;
+         info[i].budget_faults = s_slots[i].budget_faults;
++        info[i].max_frame_us = s_slots[i].max_frame_us;
++        info[i].max_timer_us = s_slots[i].max_timer_us;
++        info[i].frame_overruns = s_slots[i].frame_overruns;
++        info[i].timer_overruns = s_slots[i].timer_overruns;
+         memcpy(info[i].module_name, s_slots[i].module_name, 32);
+         info[i].capabilities = s_slots[i].capabilities;
+         info[i].manifest_budget_us = s_slots[i].manifest_budget_us;
+--- a/main/wasm_runtime.h
++++ b/main/wasm_runtime.h
+@@ -109,8 +109,13 @@
+     uint32_t            event_count;/**< Total events emitted. */
+     uint32_t            error_count;/**< Runtime errors encountered. */
+     uint32_t            total_us;   /**< Cumulative execution time (us). */
+-    uint32_t            max_us;     /**< Worst-case single frame (us). */
++    uint32_t            max_us;     /**< Worst measured frame/timer callback (us). */
+     uint32_t            budget_faults; /**< Times frame budget was exceeded. */
++    /* Wall-clock callback diagnostics, retained until slot release/reload. */
++    uint32_t            max_frame_us;
++    uint32_t            max_timer_us;
++    uint32_t            frame_overruns; /**< Cumulative, saturates at UINT32_MAX. */
++    uint32_t            timer_overruns; /**< Cumulative, saturates at UINT32_MAX. */
+     /* RVF manifest metadata (zeroed if loaded as raw WASM). */
+     char                module_name[32]; /**< From RVF manifest. */
+     uint32_t            capabilities;    /**< RVF_CAP_* bitmask. */
+--- a/main/wasm_upload.c
++++ b/main/wasm_upload.c
+@@ -27,6 +27,7 @@
+ 
+ #include <string.h>
+ #include <stdio.h>
++#include <stdarg.h>
+ #include "esp_log.h"
+ #include "esp_heap_caps.h"
+ #include "esp_wifi.h"
+@@ -232,6 +233,21 @@
+     }
+ }
+ 
++/* Check every append before advancing; snprintf returns the required size on
++ * truncation, which must never become the next buffer offset. */
++static bool append_json(char *buffer, size_t capacity, size_t *used,
++                        const char *format, ...)
++{
++    if (*used >= capacity) return false;
++    va_list args;
++    va_start(args, format);
++    int written = vsnprintf(buffer + *used, capacity - *used, format, args);
++    va_end(args);
++    if (written < 0 || (size_t)written >= capacity - *used) return false;
++    *used += (size_t)written;
++    return true;
++}
++
+ static esp_err_t wasm_list_handler(httpd_req_t *req)
+ {
+     wasm_module_info_t info[WASM_MAX_MODULES];
+@@ -258,23 +274,25 @@
+                  "\"rssi_dbm\":null,\"ap_info_error\":%d}", (int)ap_error);
+     }
+ 
+-    /* Build JSON array (larger buffer for manifest fields). */
+-    char response[2048];
+-    int pos = 0;
+-    pos += snprintf(response + pos, sizeof(response) - pos,
+-                    "{\"modules\":[");
++    /* Four maximum-width slot records fit with callback diagnostics.
++     * HTTP owns a 12 KiB stack; this buffer consumes 4 KiB of it. */
++    char response[4096];
++    size_t pos = 0;
++    if (!append_json(response, sizeof(response), &pos,
++                    "{\"modules\":[")) goto response_too_large;
+ 
+     for (uint8_t i = 0; i < WASM_MAX_MODULES; i++) {
+-        if (i > 0) pos += snprintf(response + pos, sizeof(response) - pos, ",");
++        if (i > 0 && !append_json(response, sizeof(response), &pos, ",")) goto response_too_large;
+         uint32_t mean_us = (info[i].frame_count > 0)
+                            ? (info[i].total_us / info[i].frame_count) : 0;
+         const char *name = info[i].module_name[0] ? info[i].module_name : "";
+-        pos += snprintf(response + pos, sizeof(response) - pos,
++        if (!append_json(response, sizeof(response), &pos,
+                         "{\"id\":%u,\"state\":\"%s\",\"name\":\"%s\","
+                         "\"binary_size\":%lu,\"caps\":\"0x%04lx\","
+                         "\"frame_count\":%lu,\"event_count\":%lu,\"error_count\":%lu,"
+                         "\"mean_us\":%lu,\"max_us\":%lu,\"budget_us\":%lu,"
+-                        "\"budget_faults\":%lu}",
++                        "\"budget_faults\":%lu,\"max_frame_us\":%lu,\"max_timer_us\":%lu,"
++                        "\"frame_overruns\":%lu,\"timer_overruns\":%lu}",
+                         info[i].id, state_name(info[i].state), name,
+                         (unsigned long)info[i].binary_size,
+                         (unsigned long)info[i].capabilities,
+@@ -284,10 +302,14 @@
+                         (unsigned long)mean_us,
+                         (unsigned long)info[i].max_us,
+                         (unsigned long)info[i].manifest_budget_us,
+-                        (unsigned long)info[i].budget_faults);
+-    }
+-
+-    pos += snprintf(response + pos, sizeof(response) - pos,
++                        (unsigned long)info[i].budget_faults,
++                        (unsigned long)info[i].max_frame_us,
++                        (unsigned long)info[i].max_timer_us,
++                        (unsigned long)info[i].frame_overruns,
++                        (unsigned long)info[i].timer_overruns)) goto response_too_large;
++    }
++
++    if (!append_json(response, sizeof(response), &pos,
+                     "],\"loaded\":%u,\"max\":%d,\"runtime\":{"
+                     "\"uptime_ms\":%llu,\"worker_stack_bytes\":%lu,\"worker_stack_min_free_bytes\":%lu,"
+                     "\"internal_min_free_bytes\":%lu,\"internal_free_bytes\":%lu,\"internal_largest_free_block\":%lu},"
+@@ -298,24 +320,39 @@
+                     (unsigned long)resources.worker_stack_min_free_bytes,
+                     (unsigned long)resources.internal_min_free_bytes,
+                     (unsigned long)resources.internal_free_bytes,
+-                    (unsigned long)resources.internal_largest_free_block, wifi);
++                    (unsigned long)resources.internal_largest_free_block, wifi)) goto response_too_large;
+ 
+     httpd_resp_set_type(req, "application/json");
+     httpd_resp_send(req, response, pos);
+     return ESP_OK;
+-}
+-
+-/* ======================================================================
+- * POST /wasm/start — Start module by ID (parsed from query string)
++
++response_too_large:
++    httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Module response too large");
++    return ESP_FAIL;
++}
++
++/* ======================================================================
++ * POST /wasm/start/<id> — Start module by canonical decimal path ID
+  * ====================================================================== */
+ 
+ static int parse_module_id_from_uri(const char *uri, const char *prefix)
+ {
+-    const char *id_str = uri + strlen(prefix);
+-    if (*id_str == '\0') return -1;
+-    int id = atoi(id_str);
+-    if (id < 0 || id >= WASM_MAX_MODULES) return -1;
+-    return id;
++    if (!uri || !prefix) return -1;
++    size_t prefix_len = strlen(prefix);
++    if (strncmp(uri, prefix, prefix_len) != 0) return -1;
++    const char *id_str = uri + prefix_len;
++    if (*id_str == '\0' || (*id_str == '0' && id_str[1] != '\0')) return -1;
++    unsigned id = 0;
++    for (; *id_str; ++id_str) {
++        if (*id_str < '0' || *id_str > '9') return -1;
++        unsigned digit = (unsigned)(*id_str - '0');
++        /* Range-check before multiplication so long inputs cannot overflow. */
++        if (id > (WASM_MAX_MODULES - 1U) / 10U ||
++            (id == (WASM_MAX_MODULES - 1U) / 10U &&
++             digit > (WASM_MAX_MODULES - 1U) % 10U)) return -1;
++        id = id * 10U + digit;
++    }
++    return (int)id;
+ }
+ 
+ static esp_err_t wasm_start_handler(httpd_req_t *req)

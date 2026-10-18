@@ -1,0 +1,25 @@
+--- a/main/nvs_config.c
++++ b/main/nvs_config.c
+@@ -7,6 +7,7 @@
+  */
+ 
+ #include "nvs_config.h"
++#include "home_wasm_pubkey.h"
+ 
+ #include <string.h>
+ #include "esp_log.h"
+@@ -274,7 +275,13 @@
+                  cfg->wasm_pubkey[0], cfg->wasm_pubkey[1],
+                  cfg->wasm_pubkey[30], cfg->wasm_pubkey[31]);
+     } else if (cfg->wasm_verify) {
+-        ESP_LOGW(TAG, "wasm_verify=1 but no wasm_pubkey in NVS — uploads will be rejected");
++#if RUVIEW_WASM_PUBLIC_KEY_CONFIGURED
++        memcpy(cfg->wasm_pubkey, HOME_WASM_PUBLIC_KEY, 32);
++        cfg->wasm_pubkey_valid = 1;
++        ESP_LOGI(TAG, "Using configured Ed25519 public key for WASM uploads");
++#else
++        ESP_LOGW(TAG, "No WASM verification key configured; uploads are rejected");
++#endif
+     }
+ 
+     /* ADR-060: CSI channel override. */

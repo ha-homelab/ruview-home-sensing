@@ -1,0 +1,43 @@
+# Read authoritative GitHub metadata only; never execute PR code with BOT_PAT.
+name: Auto Merge PRs
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled, edited, converted_to_draft]
+  pull_request_review:
+    types: [submitted, dismissed]
+  workflow_run:
+    workflows: [Public validation, Auto Approve PRs]
+    types: [completed]
+  status:
+  check_run:
+    types: [completed]
+  workflow_dispatch:
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+permissions:
+  contents: read
+jobs:
+  auto-merge:
+    if: >-
+      ((github.event_name == 'pull_request_target' || github.event_name == 'pull_request_review') &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       contains(fromJSON('["4alvit","californiantiramisu","dependabot[bot]","renovate[bot]"]'), github.event.pull_request.user.login)) ||
+      (contains(fromJSON('["workflow_run","status","check_run","schedule","workflow_dispatch"]'), github.event_name) &&
+       github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
+    concurrency:
+      group: automerge-reviewed-${{ github.repository }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: victron-venus/venus-os-ci-toolkit/.github/workflows/auto-merge.yml@21a366f200f0371a10a6de7ad6ca263af230b842
+    with:
+      runner-labels: '["ubuntu-24.04"]'
+      # The reviewer account's merge-author email privacy is not verified.
+      pr-author: 4alvit,dependabot[bot],renovate[bot]
+      reviewed-merge: true
+      reviewed-single-pass: true
+      allow-dependabot-actions-review: true
+      required-status-checks: Public CI gate,CodeQL
+    secrets:
+      BOT_PAT: ${{ secrets.BOT_PAT }}

@@ -1,0 +1,2 @@
+# Offline supervised baseline only. The CSI pairing CLI uses the standard library.
+numpy==2.5.3

@@ -1,0 +1,2 @@
+# Commissioning tools only; not installed in the runtime bridge image.
+websockets==17.2

@@ -1,0 +1,66 @@
+{
+  "identities_valid": true,
+  "placements_valid": true,
+  "positions": {
+    "1": [
+      1,
+      -1,
+      1.5
+    ],
+    "2": [
+      7,
+      -1,
+      1.5
+    ],
+    "3": [
+      4,
+      -5,
+      1.5
+    ]
+  },
+  "settings": {
+    "CSI_SOURCE": "esp32",
+    "MODELS_DIR": "/app/data/models",
+    "RUST_LOG": "info",
+    "RUVIEW_BIND_ADDR": "0.0.0.0",
+    "RUVIEW_DATA_DIR": "/app/data",
+    "RUVIEW_INSTALLATION_ID": "home-ruview",
+    "RUVIEW_INSTALLATION_NAME": "Home RuView",
+    "RUVIEW_MODULES_URL": "",
+    "RUVIEW_MQTT_HOST": "mosquitto.homeassistant.svc.cluster.local",
+    "RUVIEW_NODE_IDS": "1,2,3",
+    "RUVIEW_NODE_PLACEMENTS": "{\"1\":{\"configured_room\":\"lab_west\",\"measurement_location\":\"configured_room\",\"valid\":true},\"2\":{\"configured_room\":\"lab_east\",\"measurement_location\":\"configured_room\",\"valid\":true},\"3\":{\"configured_room\":\"lab_north\",\"measurement_location\":\"configured_room\",\"valid\":true}}",
+    "RUVIEW_NO_MDNS": "true",
+    "RUVIEW_RAW_CSI_MIRROR": "192.0.2.1:5015",
+    "RUVIEW_RAW_CSI_MIRROR_NODE_IDS": "1,2,3",
+    "RUVIEW_UDP_ALLOW": "10.77.0.120,10.77.0.121,10.77.0.122,10.77.0.128/29,10.77.0.136/31",
+    "RUVIEW_UDP_BIND": "0.0.0.0",
+    "RUVIEW_URL": "http://127.0.0.1:3000",
+    "RUVIEW_WS_URL": "ws://127.0.0.1:3001/ws/sensing",
+    "SENSING_ALLOWED_HOSTS": "example-collector,collector.example.invalid,10.77.1.10,ruview,ruview.ruview.svc,ruview.ruview.svc.cluster.local",
+    "SENSING_NODE_POSITIONS": "1:1.0000,-1.0000,1.5000;2:7.0000,-1.0000,1.5000;3:4.0000,-5.0000,1.5000"
+  },
+  "targets": [
+    {
+      "enabled": false,
+      "firmware_version": null,
+      "ip": "10.77.0.120",
+      "node_id": 1,
+      "restore_generation": null
+    },
+    {
+      "enabled": true,
+      "firmware_version": "0.8.8.8",
+      "ip": "10.77.0.121",
+      "node_id": 2,
+      "restore_generation": "node2-v3-fixture-01"
+    },
+    {
+      "enabled": false,
+      "firmware_version": null,
+      "ip": "10.77.0.122",
+      "node_id": 3,
+      "restore_generation": null
+    }
+  ]
+}

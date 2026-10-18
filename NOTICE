@@ -1,0 +1,38 @@
+RuView Home Sensing
+
+Original code, documentation and CAD: Copyright (c) 2026 ha-homelab contributors, MIT.
+
+This repository contains patches and build recipes for pinned public third-party
+sources. Their original licenses are not replaced by the repository MIT license.
+
+- RuView / wifi-densepose: ruvnet/RuView, pinned in collector/source-lock.json and
+  firmware/upstream-files.json. MIT at the pinned repository revisions; the
+  WASM edge crate declares MIT OR Apache-2.0. Source preparation retains the
+  applicable upstream license text. The exact root license, including
+  Copyright (c) 2024 rUv, is also retained in LICENSES/RuView-MIT.txt for
+  upstream source fragments included in local patches. Its SHA-256 is
+  f6f0fbda447f9374dd06cab17b764c485352f57f4d491471128a0525c10287c8
+  at both pinned revisions.
+- ESP-IDF NVS tooling: Espressif Systems, Apache-2.0. See
+  firmware/vendor/esp-idf-nvs/LICENSE and SOURCE.json.
+- ESP-IDF bootloader reference excerpts: Apache-2.0. See
+  firmware/fleet/boot-rule-reference/LICENSE and source file notices.
+- Monocypher: BSD-2-Clause OR CC0-1.0. See
+  firmware/vendor/monocypher/LICENCE.md and SOURCE.json.
+- WASM3 compatibility patch: wasm3/wasm3 at
+  6b8bcb1e07bf26ebef09a7211b0a37a446eafd52, MIT. The exact license and
+  copyright notice accompany the patch in LICENSES/WASM3-MIT.txt.
+- Wisp pilot: albert-canfield/wisp, MIT at the pinned source revision. Its
+  preparer verifies and retains LICENSE with the fetched source. The exact
+  license at 56813ac91a0fe696dae20e1fec468d33fc1e60ed also accompanies
+  the adapted build recipe in LICENSES/Wisp-MIT.txt.
+- Home Assistant bridge: ha-homelab/ruview-home-assistant, MIT, separately
+  distributed and checksum-pinned in requirements-public.txt.
+
+Python, Rust, browser and CAD dependencies retain their respective licenses.
+Lockfiles identify build dependencies; transitive licenses must accompany any
+redistributed binary/container distribution. This source release does not
+redistribute model weights, an upstream firmware binary or a built container.
+
+The enclosure documentation links to a manufacturer's dimensional reference.
+The reference drawing is not redistributed and is not licensed by this project.

@@ -1,0 +1,8 @@
+# Synthetic example only; replace identities from independently reviewed records.
+# Runtime activation also requires both the configured node ID and station MAC.
+# No SSID, password, OTA key or signing material belongs in this file.
+CONFIG_HOME_WIFI_PREFERRED_AP_ENABLE=y
+CONFIG_HOME_WIFI_PREFERRED_NODE_ID=2
+CONFIG_HOME_WIFI_PREFERRED_STA_MAC="02:00:00:00:00:02"
+CONFIG_HOME_WIFI_PREFERRED_BSSID="02:00:00:00:01:02"
+# CONFIG_LED_GAMMA_VIZ is not set

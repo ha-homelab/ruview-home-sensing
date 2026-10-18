@@ -1,0 +1,208 @@
+{
+  "schema_version": 1,
+  "upstream_commit": "e04f269f1a76eb6ed4e8cd33e2ccfeda6fd391a3",
+  "purpose": "Independent fictional CI qualification; never an installed authorization or fallback.",
+  "packages": [
+    {
+      "name": "home-signal-v3",
+      "file": "home-signal-v3.rvf",
+      "sha256": "fc7ed3f2ab7976839ede42a3274334bcb358c6b0b199b5a9072929322c62ecf7",
+      "wasm_sha256": "1c232dda8282ea956ed217dad22f58b120b41e9fe89edc110ef25536ad4159c6",
+      "wasm_bytes": 15826,
+      "algorithms": [
+        "gesture",
+        "coherence",
+        "adversarial"
+      ],
+      "wire_event_ids": [
+        1,
+        2,
+        3,
+        10
+      ],
+      "package_event_ids": [
+        10
+      ],
+      "event_map": [
+        {
+          "algorithm": "gesture",
+          "event_id": 1,
+          "wire_event_id": 1
+        },
+        {
+          "algorithm": "coherence",
+          "event_id": 2,
+          "wire_event_id": 2
+        },
+        {
+          "algorithm": "adversarial",
+          "event_id": 3,
+          "wire_event_id": 3
+        },
+        {
+          "algorithm": "$package",
+          "event_id": 10,
+          "wire_event_id": 10
+        }
+      ],
+      "capabilities": "0x6b",
+      "max_frame_us": 10000,
+      "linear_memory_min_bytes": 131072,
+      "linear_memory_max_bytes": 131072,
+      "guest_stack_bytes": 32768,
+      "deployment": "qualified_for_auto_restore",
+      "recognition_accuracy_qualified": false,
+      "qualified_node_ids": [
+        2
+      ],
+      "qualified_firmware_versions": [
+        "0.8.8.8"
+      ],
+      "qualified_boot_restore_targets": [
+        {
+          "node_id": 1,
+          "mac": "02:aa:bb:00:00:01",
+          "ip": "10.77.0.120",
+          "firmware_version": "0.8.8.10",
+          "restore_mode": "boot_bound_v1"
+        },
+        {
+          "node_id": 2,
+          "mac": "02:aa:bb:00:00:02",
+          "ip": "10.77.0.121",
+          "firmware_version": "0.8.8.10",
+          "restore_mode": "boot_bound_v1"
+        }
+      ]
+    },
+    {
+      "name": "home-signal-v4",
+      "file": "home-signal-v4.rvf",
+      "sha256": "268ca9b5cc40233fafd9b710759e4b1f7f41a4b70e346e759d16d4e1c417e554",
+      "wasm_sha256": "d620b70f7880798cdabd11314358ac9423bff4f5131e2e73c7a7f760f61347d4",
+      "wasm_bytes": 15826,
+      "algorithms": [
+        "gesture",
+        "coherence",
+        "adversarial"
+      ],
+      "wire_event_ids": [
+        1,
+        2,
+        3,
+        10
+      ],
+      "package_event_ids": [
+        10
+      ],
+      "event_map": [
+        {
+          "algorithm": "gesture",
+          "event_id": 1,
+          "wire_event_id": 1
+        },
+        {
+          "algorithm": "coherence",
+          "event_id": 2,
+          "wire_event_id": 2
+        },
+        {
+          "algorithm": "adversarial",
+          "event_id": 3,
+          "wire_event_id": 3
+        },
+        {
+          "algorithm": "$package",
+          "event_id": 10,
+          "wire_event_id": 10
+        }
+      ],
+      "capabilities": "0x6b",
+      "max_frame_us": 10000,
+      "linear_memory_min_bytes": 131072,
+      "linear_memory_max_bytes": 131072,
+      "guest_stack_bytes": 32768,
+      "deployment": "qualified_for_auto_restore",
+      "recognition_accuracy_qualified": false,
+      "qualified_node_ids": [],
+      "qualified_firmware_versions": [],
+      "qualified_boot_restore_targets": [
+        {
+          "node_id": 3,
+          "mac": "02:aa:bb:00:00:03",
+          "ip": "10.77.0.122",
+          "firmware_version": "0.8.8.10",
+          "restore_mode": "boot_bound_v1"
+        }
+      ]
+    },
+    {
+      "name": "home-signal-v5",
+      "file": "home-signal-v5.rvf",
+      "sha256": "e9fde2c902c8aac39b34671adc04da6b995781966f1de2c13545f4c377e678ad",
+      "wasm_sha256": "67b7d701424656bfb611af96a743278a1016413cb403e03c03902832982e5a84",
+      "wasm_bytes": 15825,
+      "algorithms": [
+        "gesture",
+        "coherence",
+        "adversarial"
+      ],
+      "wire_event_ids": [
+        1,
+        2,
+        3,
+        10
+      ],
+      "package_event_ids": [
+        10
+      ],
+      "event_map": [
+        {
+          "algorithm": "gesture",
+          "event_id": 1,
+          "wire_event_id": 1
+        },
+        {
+          "algorithm": "coherence",
+          "event_id": 2,
+          "wire_event_id": 2
+        },
+        {
+          "algorithm": "adversarial",
+          "event_id": 3,
+          "wire_event_id": 3
+        },
+        {
+          "algorithm": "$package",
+          "event_id": 10,
+          "wire_event_id": 10
+        }
+      ],
+      "capabilities": "0x6b",
+      "max_frame_us": 10000,
+      "linear_memory_min_bytes": 131072,
+      "linear_memory_max_bytes": 131072,
+      "guest_stack_bytes": 32768,
+      "deployment": "qualified_for_auto_restore",
+      "recognition_accuracy_qualified": false,
+      "qualified_node_ids": [],
+      "qualified_firmware_versions": [],
+      "qualified_boot_restore_targets": [
+        {
+          "node_id": 2,
+          "mac": "02:aa:bb:00:00:02",
+          "ip": "10.77.0.121",
+          "firmware_version": "0.8.8.10",
+          "restore_mode": "boot_bound_v1"
+        },
+        {
+          "node_id": 3,
+          "mac": "02:aa:bb:00:00:03",
+          "ip": "10.77.0.122",
+          "firmware_version": "0.8.8.10",
+          "restore_mode": "boot_bound_v1"
+        }
+      ]
+    }
+  ]
+}

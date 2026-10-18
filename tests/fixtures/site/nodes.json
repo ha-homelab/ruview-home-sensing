@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "lan_cidr": "10.77.0.0/24",
+  "gateway": "10.77.0.1",
+  "collector": "192.0.2.10",
+  "nodes": [
+    {
+      "name": "ruview-01",
+      "ip": "10.77.0.120",
+      "mac": "02:aa:bb:00:00:01",
+      "firmware_node_id": 1,
+      "identity_verified": true,
+      "floor": "upper",
+      "room": "lab_west",
+      "floorplan_marker_id": "ruview_lab_1",
+      "current_placement": {
+        "valid": true,
+        "measurement_location": "configured_room"
+      },
+      "wasm_modules_enabled": false,
+      "wasm_qualified_firmware_version": "0.8.8.10",
+      "wasm_restore_mode": "boot_bound_v1",
+      "wasm_restore_package_sha256": "dbeec0170af02b2d95b898f935abc09fe36ee37360e4fe45de037259c5aeb014",
+      "current_module_state": {
+        "runtime_qualified": false,
+        "previous_review_state": {
+          "runtime_qualified": true
+        }
+      }
+    },
+    {
+      "name": "ruview-02",
+      "ip": "10.77.0.121",
+      "mac": "02:aa:bb:00:00:02",
+      "firmware_node_id": 2,
+      "identity_verified": true,
+      "floor": "upper",
+      "room": "lab_east",
+      "floorplan_marker_id": "ruview_lab_2",
+      "current_placement": {
+        "valid": true,
+        "measurement_location": "configured_room"
+      },
+      "wasm_modules_enabled": false,
+      "wasm_qualified_firmware_version": "0.8.8.10",
+      "wasm_restore_mode": "boot_bound_v1",
+      "wasm_restore_package_sha256": "1f6d6671af0b4bb5731d3b8aff8f3653605fb512c56c70485f9e36610c302114",
+      "current_module_state": {
+        "runtime_qualified": false,
+        "previous_review_state": {
+          "runtime_qualified": true
+        }
+      }
+    },
+    {
+      "name": "ruview-03",
+      "ip": "10.77.0.122",
+      "mac": "02:aa:bb:00:00:03",
+      "firmware_node_id": 3,
+      "identity_verified": true,
+      "floor": "upper",
+      "room": "lab_north",
+      "floorplan_marker_id": "ruview_lab_3",
+      "current_placement": {
+        "valid": true,
+        "measurement_location": "configured_room"
+      },
+      "wasm_modules_enabled": false,
+      "wasm_qualified_firmware_version": "0.8.8.10",
+      "wasm_restore_mode": "boot_bound_v1",
+      "wasm_restore_package_sha256": "c25edd9be1165a95937695820da6c8c9fceb5a02ba8d42dfb6da377b6bfcbfc2",
+      "current_module_state": {
+        "runtime_qualified": false,
+        "previous_review_state": {
+          "runtime_qualified": true
+        }
+      }
+    },
+    {
+      "name": "ruview-04",
+      "ip": "10.77.0.123",
+      "mac": null,
+      "firmware_node_id": null,
+      "identity_verified": false
+    },
+    {
+      "name": "ruview-05",
+      "ip": "10.77.0.124",
+      "mac": null,
+      "firmware_node_id": null,
+      "identity_verified": false
+    },
+    {
+      "name": "ruview-06",
+      "ip": "10.77.0.125",
+      "mac": null,
+      "firmware_node_id": null,
+      "identity_verified": false
+    },
+    {
+      "name": "ruview-07",
+      "ip": "10.77.0.126",
+      "mac": null,
+      "firmware_node_id": null,
+      "identity_verified": false
+    },
+    {
+      "name": "ruview-08",
+      "ip": "10.77.0.127",
+      "mac": null,
+      "firmware_node_id": null,
+      "identity_verified": false
+    },
+    {
+      "name": "ruview-09",
+      "ip": "10.77.0.128",
+      "mac": null,
+      "firmware_node_id": null,
+      "identity_verified": false
+    },
+    {
+      "name": "ruview-10",
+      "ip": "10.77.0.129",
+      "mac": null,
+      "firmware_node_id": null,
+      "identity_verified": false
+    }
+  ]
+}

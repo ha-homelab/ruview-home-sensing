@@ -1,0 +1,25 @@
+--- a/main/csi_collector.c
++++ b/main/csi_collector.c
+@@ -197,8 +197,9 @@
+     /* Frequency MHz (LE u32) */
+     memcpy(&buf[8], &freq_mhz, 4);
+ 
+-    /* Sequence number (LE u32) */
+-    uint32_t seq = s_sequence++;
++    /* Pending sequence number (LE u32). Serialization is not a send attempt:
++     * the callback advances it only after final cadence admission. */
++    uint32_t seq = s_sequence;
+     memcpy(&buf[12], &seq, 4);
+ 
+     /* RSSI (i8) */
+@@ -314,6 +315,10 @@
+          * We only need 20-50 Hz for the sensing pipeline. */
+         int64_t now = esp_timer_get_time();
+         if ((now - s_last_send_us) >= CSI_MIN_SEND_INTERVAL_US) {
++            /* Consume the serialized sequence for every attempted send, even
++             * a failure or sender backoff. Intentional cadence skips consume
++             * none, while genuine transport gaps remain visible downstream. */
++            s_sequence++;
+             int ret = stream_sender_send(frame_buf, frame_len);
+             if (ret > 0) {
+                 s_send_ok++;

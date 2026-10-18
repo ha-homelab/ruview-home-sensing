@@ -1,0 +1,97 @@
+--- a/main/ota_update.c
++++ b/main/ota_update.c
+@@ -15,6 +15,8 @@
+ #include "esp_ota_ops.h"
+ #include "esp_http_server.h"
+ #include "esp_app_desc.h"
++#include "esp_timer.h"
++#include "lwip/sockets.h"
+ #include "nvs_flash.h"
+ #include "nvs.h"
+ 
+@@ -22,6 +24,11 @@
+ 
+ /** OTA HTTP server port. */
+ #define OTA_PORT 8032
++
++/* Keep one stalled upload from monopolizing the HTTP server task. These are
++ * elapsed wall-clock limits, checked between synchronous receive/flash calls. */
++#define OTA_RECEIVE_IDLE_US (15LL * 1000000)
++#define OTA_RECEIVE_TOTAL_US (300LL * 1000000)
+ 
+ /** NVS namespace and key for the OTA pre-shared key. */
+ #define OTA_NVS_NAMESPACE "security"
+@@ -134,6 +141,17 @@
+         return ESP_FAIL;
+     }
+ 
++    /* Only this authorized upload uses short receives. An error returns
++     * ESP_FAIL, closing the HTTP session; success reboots after the response. */
++    struct timeval receive_timeout = {.tv_sec = 1, .tv_usec = 0};
++    int fd = httpd_req_to_sockfd(req);
++    if (fd < 0 || setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO,
++                            &receive_timeout, sizeof(receive_timeout)) != 0) {
++        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR,
++                            "Cannot bound OTA receive time");
++        return ESP_FAIL;
++    }
++    int64_t transfer_started_us = esp_timer_get_time();
+     esp_ota_handle_t ota_handle;
+     esp_err_t err = esp_ota_begin(update_partition, OTA_WITH_SEQUENTIAL_WRITES, &ota_handle);
+     if (err != ESP_OK) {
+@@ -147,12 +165,21 @@
+     char buf[1024];
+     int received = 0;
+     int total = 0;
++    int64_t last_progress_us = esp_timer_get_time();
+ 
+     while (total < req->content_len) {
+-        received = httpd_req_recv(req, buf, sizeof(buf));
++        int64_t now_us = esp_timer_get_time();
++        if (now_us - transfer_started_us >= OTA_RECEIVE_TOTAL_US ||
++            now_us - last_progress_us >= OTA_RECEIVE_IDLE_US) goto receive_deadline;
++        size_t remaining = (size_t)(req->content_len - total);
++        size_t chunk_size = remaining < sizeof(buf) ? remaining : sizeof(buf);
++        received = httpd_req_recv(req, buf, chunk_size);
++        now_us = esp_timer_get_time();
++        if (now_us - transfer_started_us >= OTA_RECEIVE_TOTAL_US ||
++            now_us - last_progress_us >= OTA_RECEIVE_IDLE_US) goto receive_deadline;
+         if (received <= 0) {
+             if (received == HTTPD_SOCK_ERR_TIMEOUT) {
+-                continue;  /* Retry on timeout. */
++                continue;  /* Retry only within both elapsed-time limits. */
+             }
+             ESP_LOGE(TAG, "OTA receive error at byte %d", total);
+             esp_ota_abort(ota_handle);
+@@ -161,6 +188,7 @@
+             return ESP_FAIL;
+         }
+ 
++        last_progress_us = now_us;
+         err = esp_ota_write(ota_handle, buf, received);
+         if (err != ESP_OK) {
+             ESP_LOGE(TAG, "esp_ota_write failed at byte %d: %s",
+@@ -179,6 +207,10 @@
+         }
+     }
+ 
++    /* A final synchronous flash write can itself cross the total deadline. */
++    if (esp_timer_get_time() - transfer_started_us >= OTA_RECEIVE_TOTAL_US)
++        goto receive_deadline;
++
+     err = esp_ota_end(ota_handle);
+     if (err != ESP_OK) {
+         ESP_LOGE(TAG, "esp_ota_end failed: %s", esp_err_to_name(err));
+@@ -207,6 +239,12 @@
+     esp_restart();
+ 
+     return ESP_OK;  /* Never reached. */
++
++receive_deadline:
++    ESP_LOGW(TAG, "OTA receive deadline at byte %d", total);
++    esp_ota_abort(ota_handle);
++    httpd_resp_send_err(req, HTTPD_408_REQ_TIMEOUT, "OTA receive deadline exceeded");
++    return ESP_FAIL;
+ }
+ 
+ /** Internal: start the HTTP server and register OTA endpoints. */

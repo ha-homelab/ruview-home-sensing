@@ -1,0 +1,5 @@
+FROM scratch
+COPY rootfs/ /
+USER 65532:65532
+EXPOSE 5015/udp 5016/tcp
+ENTRYPOINT ["/app/ruview-server-modules"]

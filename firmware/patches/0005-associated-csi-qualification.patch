@@ -1,0 +1,77 @@
+--- a/main/Kconfig.projbuild
++++ b/main/Kconfig.projbuild
+@@ -38,6 +38,16 @@
+         range 1 13
+         help
+             WiFi channel to listen on for CSI data.
++
++    config HOME_CSI_ASSOCIATED_ONLY
++        bool "Capture CSI from associated traffic without promiscuous mode"
++        default n
++        help
++            Home N16R8 qualification mode. Keep CSI enabled and generate
++            connected-station traffic with the existing gateway self-ping,
++            but avoid the Wi-Fi sniffer RX path implicated in the observed
++            pre-module panic. Ambient multi-station capture is unavailable.
++            Validate real CSI yield and stability before commissioning.
+ 
+     config CSI_SELF_PING_HZ
+         int "Connected-STA CSI probe rate (Hz)"
+--- a/main/csi_collector.c
++++ b/main/csi_collector.c
+@@ -410,12 +410,15 @@
+  * Promiscuous mode callback — required for CSI to fire on all received frames.
+  * We don't need the packet content, just the CSI triggered by reception.
+  */
++#ifndef CONFIG_HOME_CSI_ASSOCIATED_ONLY
+ static void wifi_promiscuous_cb(void *buf, wifi_promiscuous_pkt_type_t type)
+ {
+     /* No-op: CSI callback is registered separately and fires in parallel. */
+     (void)buf;
+     (void)type;
+ }
++
++#endif
+ 
+ /* ---- RuView#521/#954: connected-STA CSI traffic source (additive) ----
+  *
+@@ -572,6 +575,12 @@
+         ESP_LOGI(TAG, "WiFi modem sleep disabled (WIFI_PS_NONE) for CSI capture");
+     }
+ 
++#ifdef CONFIG_HOME_CSI_ASSOCIATED_ONLY
++    /* CSI also runs on traffic received by the associated station. Keep the
++     * existing gateway self-ping as its source without entering sniffer RX. */
++    ESP_ERROR_CHECK(esp_wifi_set_promiscuous(false));
++    ESP_LOGI(TAG, "Home CSI: associated traffic only; promiscuous capture disabled");
++#else
+     /* Enable promiscuous mode — required for reliable CSI callbacks.
+      * Without this, CSI only fires on frames destined to this station,
+      * which may be very infrequent on a quiet network. */
+@@ -591,6 +600,7 @@
+     ESP_ERROR_CHECK(esp_wifi_set_promiscuous_filter(&filt));
+ 
+     ESP_LOGI(TAG, "Promiscuous mode enabled (MGMT-only, RuView#396)");
++#endif
+ 
+ #if CONFIG_SOC_WIFI_HE_SUPPORT
+     /* Wi-Fi 6 targets (e.g. ESP32-C6): wifi_csi_config_t is wifi_csi_acquire_config_t
+@@ -760,6 +770,10 @@
+ 
+ void csi_collector_enable_data_capture(void)
+ {
++#ifdef CONFIG_HOME_CSI_ASSOCIATED_ONLY
++    /* main() calls this for headless boards; do not silently re-enable capture. */
++    ESP_LOGI(TAG, "Home CSI: ambient DATA capture remains disabled");
++#else
+     /* MGMT-only (RuView#396) starves the CSI callback on display-less boards
+      * (RuView#521/#893): beacons alone are sparse, yield collapses to 0 pps.
+      * Without a display there is no QSPI/SPI-flash cache contention with the
+@@ -773,6 +787,7 @@
+     } else {
+         ESP_LOGW(TAG, "Failed to enable DATA-frame CSI capture: %s", esp_err_to_name(err));
+     }
++#endif
+ }
+ 
+ void csi_collector_start_hop_timer(void)

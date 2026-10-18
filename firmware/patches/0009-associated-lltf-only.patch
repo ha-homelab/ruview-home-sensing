@@ -1,0 +1,19 @@
+--- a/main/csi_collector.c
++++ b/main/csi_collector.c
+@@ -628,8 +628,16 @@
+ #else
+     wifi_csi_config_t csi_config = {
+         .lltf_en = true,
++#if defined(CONFIG_HOME_CSI_ASSOCIATED_ONLY) && defined(CONFIG_IDF_TARGET_ESP32S3)
++        /* Keep one 64-pair LLTF, including for HT20/STBC packets. Combining
++         * all three LTFs gives 192 pairs, beyond the edge DSP's 128-pair limit.
++         * This selection follows Espressif's csi_recv_router S3 example. */
++        .htltf_en = false,
++        .stbc_htltf2_en = false,
++#else
+         .htltf_en = true,
+         .stbc_htltf2_en = true,
++#endif
+         .ltf_merge_en = true,
+         .channel_filter_en = false,
+         .manu_scale = false,

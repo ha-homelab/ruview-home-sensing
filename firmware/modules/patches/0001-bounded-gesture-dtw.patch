@@ -1,0 +1,266 @@
+--- a/src/gesture.rs
++++ b/src/gesture.rs
+@@ -160,12 +160,10 @@
+                 continue;
+             }
+ 
+-            // Use only the tail of the observation (matching template length + margin).
+-            let obs_start = if self.window_len > tmpl.len + 10 {
+-                self.window_len - tmpl.len - 10
+-            } else {
+-                0
+-            };
++            // The endpoint must remain within the same Sakoe-Chiba band as
++            // the recurrence. A +10 tail with BAND_WIDTH=5 made every template
++            // unreachable after warmup, even though the full DTW still ran.
++            let obs_start = self.window_len.saturating_sub(tmpl.len + BAND_WIDTH);
+             let obs_slice = &obs[obs_start..self.window_len];
+ 
+             let dist = dtw_distance(obs_slice, &tmpl.values[..tmpl.len]);
+@@ -189,49 +187,52 @@
+     let n = a.len();
+     let m = b.len();
+ 
+-    if n == 0 || m == 0 {
++    if n == 0 || m == 0 || n > MAX_WINDOW_LEN || m > MAX_TEMPLATE_LEN {
+         return f32::MAX;
+     }
+ 
+-    // Use a flat array on stack (max 60 × 40 = 2400 entries).
+-    // For WASM, this uses linear memory which is fine.
+-    const MAX_N: usize = MAX_WINDOW_LEN;
+-    const MAX_M: usize = MAX_TEMPLATE_LEN;
+-    let mut cost = [[f32::MAX; MAX_M]; MAX_N];
+-
+-    cost[0][0] = fabsf(a[0] - b[0]);
++    let path_len = (n + m) as f32;
++    if n.abs_diff(m) > BAND_WIDTH {
++        // This endpoint was never visited by the original full matrix.
++        // Preserve its normalized sentinel instead of computing unused cells.
++        return f32::MAX / path_len;
++    }
++
++    // Only the preceding row is needed. These 320 bytes replace a 9,600-byte
++    // matrix initialized once per template on every non-cooldown frame.
++    let mut row_a = [f32::MAX; MAX_TEMPLATE_LEN];
++    let mut row_b = [f32::MAX; MAX_TEMPLATE_LEN];
++    let (mut previous, mut current) = (&mut row_a, &mut row_b);
+ 
+     for i in 0..n {
+-        for j in 0..m {
+-            // Sakoe-Chiba band constraint.
+-            let diff = if i > j { i - j } else { j - i };
+-            if diff > BAND_WIDTH {
+-                continue;
+-            }
+-
++        // Clear the actual template width so stale out-of-band values from
++        // two rows ago cannot become predecessors. Swap references, not rows.
++        current[..m].fill(f32::MAX);
++        let first = i.saturating_sub(BAND_WIDTH);
++        let end = (i + BAND_WIDTH + 1).min(m);
++        for j in first..end {
+             let c = fabsf(a[i] - b[j]);
+-
+             if i == 0 && j == 0 {
+-                cost[i][j] = c;
++                current[j] = c;
+             } else {
++                // Keep the original comparison order and f32 operations.
+                 let mut min_prev = f32::MAX;
+-                if i > 0 && cost[i - 1][j] < min_prev {
+-                    min_prev = cost[i - 1][j];
+-                }
+-                if j > 0 && cost[i][j - 1] < min_prev {
+-                    min_prev = cost[i][j - 1];
+-                }
+-                if i > 0 && j > 0 && cost[i - 1][j - 1] < min_prev {
+-                    min_prev = cost[i - 1][j - 1];
+-                }
+-                cost[i][j] = c + min_prev;
+-            }
+-        }
+-    }
+-
+-    // Normalize by path length.
+-    let path_len = (n + m) as f32;
+-    cost[n - 1][m - 1] / path_len
++                if i > 0 && previous[j] < min_prev {
++                    min_prev = previous[j];
++                }
++                if j > 0 && current[j - 1] < min_prev {
++                    min_prev = current[j - 1];
++                }
++                if i > 0 && j > 0 && previous[j - 1] < min_prev {
++                    min_prev = previous[j - 1];
++                }
++                current[j] = c + min_prev;
++            }
++        }
++        core::mem::swap(&mut previous, &mut current);
++    }
++
++    previous[m - 1] / path_len
+ }
+ 
+ #[cfg(test)]
+@@ -333,3 +334,102 @@
+         assert_eq!(det.window_len, MAX_WINDOW_LEN);
+     }
+ }
++
++// Deployment regression tests: these validate arithmetic and lifecycle behavior,
++// not gesture accuracy or ESP32 timing. The full matrix is a reference only.
++#[cfg(test)]
++mod bounded_dtw_tests {
++    use super::*;
++
++    fn reference(a: &[f32], b: &[f32]) -> f32 {
++        let (n, m) = (a.len(), b.len());
++        if n == 0 || m == 0 { return f32::MAX; }
++        let mut cost = [[f32::MAX; MAX_TEMPLATE_LEN]; MAX_WINDOW_LEN];
++        cost[0][0] = fabsf(a[0] - b[0]);
++        for i in 0..n {
++            for j in 0..m {
++                if i.abs_diff(j) > BAND_WIDTH { continue; }
++                let c = fabsf(a[i] - b[j]);
++                if i == 0 && j == 0 {
++                    cost[i][j] = c;
++                } else {
++                    let mut min_prev = f32::MAX;
++                    if i > 0 && cost[i - 1][j] < min_prev { min_prev = cost[i - 1][j]; }
++                    if j > 0 && cost[i][j - 1] < min_prev { min_prev = cost[i][j - 1]; }
++                    if i > 0 && j > 0 && cost[i - 1][j - 1] < min_prev { min_prev = cost[i - 1][j - 1]; }
++                    cost[i][j] = c + min_prev;
++                }
++            }
++        }
++        cost[n - 1][m - 1] / (n + m) as f32
++    }
++
++    #[test]
++    fn rolling_rows_match_full_matrix_bits_for_every_supported_length() {
++        for seed in 0..4_u32 {
++            let mut state = 0x9e3779b9_u32 ^ seed;
++            let mut a = [0.0_f32; MAX_WINDOW_LEN];
++            let mut b = [0.0_f32; MAX_TEMPLATE_LEN];
++            for value in a.iter_mut().chain(b.iter_mut()) {
++                state = state.wrapping_mul(1664525).wrapping_add(1013904223);
++                *value = match seed {
++                    0 => 0.0,
++                    1 => if state & 1 == 0 { -3.0 } else { 3.0 },
++                    2 => (state >> 16) as f32 / 8192.0 - 4.0,
++                    _ => if state & 1 == 0 { f32::MAX } else { -f32::MAX },
++                };
++            }
++            for n in 1..=MAX_WINDOW_LEN {
++                for m in 1..=MAX_TEMPLATE_LEN {
++                    assert_eq!(dtw_distance(&a[..n], &b[..m]).to_bits(),
++                               reference(&a[..n], &b[..m]).to_bits(),
++                               "seed={seed} n={n} m={m}");
++                }
++            }
++        }
++    }
++
++    #[test]
++    fn band_endpoints_and_unreachable_sentinel_are_preserved() {
++        let data = [0.25_f32; MAX_WINDOW_LEN];
++        for (n, m) in [(13, 8), (8, 13), (14, 8), (8, 14), (60, 40)] {
++            assert_eq!(dtw_distance(&data[..n], &data[..m]).to_bits(),
++                       reference(&data[..n], &data[..m]).to_bits());
++        }
++        assert_eq!(dtw_distance(&data[..13], &data[..8]), 0.0);
++        assert!(dtw_distance(&data[..14], &data[..8]) > DTW_THRESHOLD);
++        assert_eq!(dtw_distance(&[], &data[..1]), f32::MAX);
++        assert_eq!(dtw_distance(&data[..1], &[]), f32::MAX);
++        assert_eq!(dtw_distance(&data, &data[..41]), f32::MAX);
++    }
++
++    #[test]
++    fn matching_remains_reachable_after_cooldown_and_ring_wrap() {
++        let mut detector = GestureDetector::new();
++        let mut previous_detection = None;
++        let mut late_detections = 0;
++        for frame in 1..=300 {
++            // A fixed low-cost synthetic fixture exercises reachability, not
++            // motion accuracy; upstream's threshold also accepts this signal.
++            if detector.process_frame(&[1.0]).is_some() {
++                if let Some(previous) = previous_detection {
++                    assert!(frame - previous >= 40, "cooldown changed");
++                }
++                if frame > MAX_WINDOW_LEN { late_detections += 1; }
++                previous_detection = Some(frame);
++            }
++        }
++        assert_eq!(detector.window_len, MAX_WINDOW_LEN);
++        assert!(late_detections >= 4, "mature windows must not disable matching");
++    }
++
++    #[test]
++    fn unmatched_mature_windows_keep_processing_without_cooldown() {
++        let mut detector = GestureDetector::new();
++        for frame in 0..500 {
++            assert!(detector.process_frame(&[frame as f32 * 64.0]).is_none());
++            assert_eq!(detector.cooldown, 0);
++        }
++        assert_eq!(detector.window_len, MAX_WINDOW_LEN);
++    }
++}
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -776,3 +776,54 @@
+         );
+     }
+ }
++
++// These cross the later anomaly-baseline transition as well as gesture warmup.
++// Native tests exercise the paths; only a hardware trial establishes the 10 ms budget.
++#[cfg(test)]
++mod home_signal_warmup_tests {
++    use super::{adversarial::AnomalyDetector, coherence::CoherenceMonitor, gesture::GestureDetector};
++
++    #[test]
++    fn combined_flatline_path_runs_past_thousand_frames() {
++        let mut gesture = GestureDetector::new();
++        let mut coherence = CoherenceMonitor::new();
++        let mut anomaly = AnomalyDetector::new();
++        let mut mature_matches = 0;
++        for frame in 1..=1200 {
++            let phases = [0.25_f32; 32];
++            let amplitudes = [1.0_f32; 32];
++            if gesture.process_frame(&phases).is_some() && frame > 100 {
++                mature_matches += 1;
++            }
++            let score = coherence.process_frame(&phases);
++            assert!(score.is_finite() && (0.0..=1.000001).contains(&score));
++            let detected = anomaly.process_frame(&phases, &amplitudes);
++            assert_eq!(detected, frame > 100 && (frame - 101) % 20 == 0,
++                       "flatline transition/cooldown frame={frame}");
++        }
++        assert!(mature_matches > 0);
++        assert_eq!(anomaly.total_anomalies(), 55);
++    }
++
++    #[test]
++    fn combined_energy_spikes_after_baseline_keep_all_channels_finite() {
++        let mut gesture = GestureDetector::new();
++        let mut coherence = CoherenceMonitor::new();
++        let mut anomaly = AnomalyDetector::new();
++        for frame in 1..=1200 {
++            let spike = frame > 100 && frame % 100 == 1;
++            let mut phases = [0.0_f32; 32];
++            let mut amplitudes = [0.0_f32; 32];
++            for i in 0..32 {
++                phases[i] = frame as f32 * 0.001 + i as f32 * 0.01;
++                amplitudes[i] = (1.0 + i as f32 * 0.05) * if spike { 8.0 } else { 1.0 };
++            }
++            let _ = gesture.process_frame(&phases);
++            let score = coherence.process_frame(&phases);
++            assert!(score.is_finite() && (0.0..=1.000001).contains(&score));
++            assert_eq!(anomaly.process_frame(&phases, &amplitudes), spike,
++                       "post-baseline spike frame={frame}");
++        }
++        assert_eq!(anomaly.total_anomalies(), 11);
++    }
++}

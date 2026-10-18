@@ -1,0 +1,37 @@
+.env
+.env.*
+!.env.example
+.terraform/
+*.tfstate*
+*.tfplan
+*.tfvars
+*.tfvars.json
+__pycache__/
+.venv/
+.ruff_cache/
+artifacts/
+private/
+*.pcap
+*.bin
+/collector/ui/home-floor/floor-config.js
+/config/nodes.json
+/config/placements.json
+/config/assumed-activity.json
+/config/assumed-activity-receivers.json
+/config/assumed-activity-runtime.json
+# Retired discovery snapshots are retained in the private operator archive.
+/config/observed-nodes.json
+/config/aidot-candidates.json
+/firmware/modules/manifest.json
+/collector/ui/home-floor/home-floor.js
+
+# Reviewed legacy radio identities live in protected operator storage.
+/firmware/sdkconfig.home-node2-preferred-ap
+
+/tools/runner-expressions/node_modules/
+
+# Generated outputs are distributed only after explicit artifact review.
+/mechanical/enclosure/generated/
+/dist/
+/build/
+/*.egg-info/

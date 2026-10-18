@@ -1,0 +1,60 @@
+--- a/src/sec_tailgating.rs
++++ b/src/sec_tailgating.rs
+@@ -57,8 +57,10 @@
+     peak_max: f32,
+     /// Frames spent in current peak.
+     peak_frames: u8,
+-    /// Peaks detected in current passage window.
+-    peaks_in_window: u8,
++    /// Peaks detected in current passage window. A u32 covers every possible
++    /// peak in the worker's bounded million-frame epoch; saturation is a
++    /// defensive fallback for callers without that lifecycle bound.
++    peaks_in_window: u32,
+     /// Peak energies recorded.
+     peak_energies: [f32; MAX_PEAKS],
+     /// Frames since last peak ended (for window timeout).
+@@ -150,7 +152,7 @@
+                         if idx < MAX_PEAKS {
+                             self.peak_energies[idx] = self.peak_max;
+                         }
+-                        self.peaks_in_window += 1;
++                        self.peaks_in_window = self.peaks_in_window.saturating_add(1);
+                         self.state = PeakState::Watching;
+                         self.frames_since_peak = 0;
+                     } else {
+@@ -239,6 +241,35 @@
+     }
+ 
+     #[test]
++    fn test_more_than_255_peaks_preserve_exact_cluster_count() {
++        let mut det = TailgateDetector::new();
++        for _ in 0..300 {
++            // Three real-shaped frames meet the native peak debounce.
++            for energy in [5.0, 5.0, 0.0] {
++                assert!(det.process_frame(energy, -1, -1, 0.1).is_empty());
++            }
++        }
++        assert_eq!(det.peaks_in_window, 300);
++        let mut events = Vec::new();
++        for _ in 0..TAILGATE_WINDOW {
++            events.extend_from_slice(det.process_frame(0.0, -1, -1, 0.1));
++        }
++        assert_eq!(events, vec![(EVENT_TAILGATE_DETECTED, 300.0), (EVENT_MULTI_PASSAGE, 300.0)]);
++    }
++
++    #[test]
++    fn test_peak_count_saturates_for_callers_without_epoch_bounds() {
++        let mut det = TailgateDetector::new();
++        det.state = PeakState::InPeak;
++        det.peak_max = 5.0;
++        det.peak_frames = MIN_PEAK_FRAMES;
++        det.peaks_in_window = u32::MAX;
++        det.process_frame(0.0, -1, -1, 0.1);
++        assert_eq!(det.peaks_in_window, u32::MAX);
++        assert!(det.state == PeakState::Watching);
++    }
++
++    #[test]
+     fn test_init() {
+         let det = TailgateDetector::new();
+         assert_eq!(det.frame_count(), 0);

@@ -1,0 +1,175 @@
+--- a/main/wasm_runtime.c
++++ b/main/wasm_runtime.c
+@@ -90,6 +90,8 @@
+ static const float *s_cur_variances;
+ static uint16_t     s_cur_n_sc;
+ static const edge_vitals_pkt_t *s_cur_vitals;
++static edge_vitals_pkt_t s_last_vitals;
++static int64_t s_last_vitals_us;
+ static uint8_t      s_cur_slot_id;  /**< Slot being executed (for emit_event). */
+ 
+ /* Phase history accessed via edge_processing.h accessors. */
+@@ -211,7 +213,8 @@
+     m3ApiGetArg(int32_t, event_type);
+     m3ApiGetArg(float, value);
+ 
+-    if (!slot_has_cap(RVF_CAP_EMIT_EVENTS)) {
++    if (!slot_has_cap(RVF_CAP_EMIT_EVENTS) || event_type < 0 ||
++        event_type > UINT8_MAX || !isfinite(value)) {
+         m3ApiSuccess();
+     }
+ 
+@@ -238,7 +241,7 @@
+     /* Safety: bounds-check against WASM memory. */
+     uint32_t mem_size = 0;
+     uint8_t *mem = m3_GetMemory(runtime, &mem_size, 0);
+-    if (mem && ptr >= 0 && len > 0 && (uint32_t)(ptr + len) <= mem_size) {
++    if (mem && ptr >= 0 && len > 0 && (uint32_t)ptr <= mem_size && (uint32_t)len <= mem_size - (uint32_t)ptr) {
+         char log_buf[128];
+         int copy_len = (len > 127) ? 127 : len;
+         memcpy(log_buf, mem + ptr, copy_len);
+@@ -265,7 +268,8 @@
+     uint8_t *mem = m3_GetMemory(runtime, &mem_size, 0);
+ 
+     if (mem && buf_ptr >= 0 && max_len > 0 &&
+-        (uint32_t)(buf_ptr + max_len * sizeof(float)) <= mem_size) {
++        (uint32_t)buf_ptr <= mem_size &&
++        (uint32_t)max_len <= (mem_size - (uint32_t)buf_ptr) / sizeof(float)) {
+         /* Get phase history via accessor. */
+         const float *history_buf = NULL;
+         uint16_t history_len = 0, history_idx = 0;
+@@ -438,6 +442,21 @@
+              WASM_MAX_MODULES, WASM_ARENA_SIZE / 1024, WASM_FRAME_BUDGET_US);
+ 
+     return ESP_OK;
++}
++
++/* Caller owns s_mutex. Preserve the reusable arena on every failure path. */
++static void release_slot(wasm_slot_t *slot)
++{
++    uint8_t *arena = slot->arena;
++    /* m3_LoadModule transfers ownership only after a successful load. */
++    if (slot->module && slot->module->runtime == NULL) {
++        m3_FreeModule(slot->module);
++    }
++    if (slot->runtime) m3_FreeRuntime(slot->runtime);
++    if (slot->binary && slot->binary != arena) free(slot->binary);
++    memset(slot, 0, sizeof(*slot));
++    slot->arena = arena;
++    slot->state = WASM_MODULE_EMPTY;
+ }
+ 
+ esp_err_t wasm_runtime_load(const uint8_t *wasm_data, uint32_t wasm_len,
+@@ -496,8 +515,7 @@
+     /* Create WASM3 runtime. */
+     slot->runtime = m3_NewRuntime(s_env, WASM_STACK_SIZE, NULL);
+     if (slot->runtime == NULL) {
+-        free(slot->binary);
+-        slot->binary = NULL;
++        release_slot(slot);
+         xSemaphoreGive(s_mutex);
+         ESP_LOGE(TAG, "Failed to create WASM3 runtime for slot %d", slot_id);
+         return ESP_ERR_NO_MEM;
+@@ -508,9 +526,7 @@
+                                       slot->binary, wasm_len);
+     if (result) {
+         ESP_LOGE(TAG, "WASM parse error (slot %d): %s", slot_id, result);
+-        m3_FreeRuntime(slot->runtime);
+-        free(slot->binary);
+-        memset(slot, 0, sizeof(wasm_slot_t));
++        release_slot(slot);
+         xSemaphoreGive(s_mutex);
+         return ESP_ERR_INVALID_STATE;
+     }
+@@ -519,9 +535,7 @@
+     result = m3_LoadModule(slot->runtime, slot->module);
+     if (result) {
+         ESP_LOGE(TAG, "WASM load error (slot %d): %s", slot_id, result);
+-        m3_FreeRuntime(slot->runtime);
+-        free(slot->binary);
+-        memset(slot, 0, sizeof(wasm_slot_t));
++        release_slot(slot);
+         xSemaphoreGive(s_mutex);
+         return ESP_ERR_INVALID_STATE;
+     }
+@@ -530,9 +544,7 @@
+     result = link_host_api(slot->module);
+     if (result) {
+         ESP_LOGE(TAG, "WASM link error (slot %d): %s", slot_id, result);
+-        m3_FreeRuntime(slot->runtime);
+-        free(slot->binary);
+-        memset(slot, 0, sizeof(wasm_slot_t));
++        release_slot(slot);
+         xSemaphoreGive(s_mutex);
+         return ESP_ERR_INVALID_STATE;
+     }
+@@ -573,6 +585,8 @@
+         return ESP_ERR_INVALID_STATE;
+     }
+ 
++    s_cur_slot_id = module_id;
++    slot->n_events = 0;
+     /* Call on_init if available. */
+     if (slot->fn_on_init) {
+         M3Result result = m3_CallV(slot->fn_on_init);
+@@ -625,20 +639,8 @@
+         return ESP_ERR_INVALID_STATE;
+     }
+ 
+-    if (slot->runtime) {
+-        m3_FreeRuntime(slot->runtime);
+-    }
+-
+-    /* Keep the arena allocated (fixed, reusable). Only free dynamic fallback. */
+-    uint8_t *arena_save = slot->arena;
+-    if (slot->binary && slot->binary != slot->arena) {
+-        free(slot->binary);
+-    }
+-
++    release_slot(slot);
+     ESP_LOGI(TAG, "WASM module %u unloaded", module_id);
+-    memset(slot, 0, sizeof(wasm_slot_t));
+-    slot->state = WASM_MODULE_EMPTY;
+-    slot->arena = arena_save;  /* Restore arena pointer. */
+ 
+     xSemaphoreGive(s_mutex);
+     return ESP_OK;
+@@ -648,6 +650,12 @@
+                            const float *variances, uint16_t n_sc,
+                            const edge_vitals_pkt_t *vitals)
+ {
++    /* Never block CSI DSP behind an HTTP module operation or timer callback. */
++    if (s_mutex == NULL || xSemaphoreTake(s_mutex, 0) != pdTRUE) return;
++    if (vitals) {
++        s_last_vitals = *vitals;
++        s_last_vitals_us = esp_timer_get_time();
++    }
+     /* Set current frame data for host imports. */
+     s_cur_phases = phases;
+     s_cur_amplitudes = amplitudes;
+@@ -722,10 +730,16 @@
+     s_cur_amplitudes = NULL;
+     s_cur_variances = NULL;
+     s_cur_vitals = NULL;
++    xSemaphoreGive(s_mutex);
+ }
+ 
+ void wasm_runtime_on_timer(void)
+ {
++    /* esp_timer and DSP tasks must never enter one interpreter concurrently. */
++    if (s_mutex == NULL || xSemaphoreTake(s_mutex, 0) != pdTRUE) return;
++    int64_t age_us = esp_timer_get_time() - s_last_vitals_us;
++    s_cur_vitals = s_last_vitals_us > 0 && age_us >= 0 && age_us <= 1500000
++                 ? &s_last_vitals : NULL;
+     for (uint8_t i = 0; i < WASM_MAX_MODULES; i++) {
+         wasm_slot_t *slot = &s_slots[i];
+         if (slot->state != WASM_MODULE_RUNNING || slot->fn_on_timer == NULL) {
+@@ -745,6 +759,8 @@
+             send_wasm_output(i);
+         }
+     }
++    s_cur_vitals = NULL;
++    xSemaphoreGive(s_mutex);
+ }
+ 
+ void wasm_runtime_get_info(wasm_module_info_t *info, uint8_t *count)

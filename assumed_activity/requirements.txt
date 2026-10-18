@@ -1,0 +1,2 @@
+# The HTTP compatibility module is supplied by the same public adapter wheel.
+-r ../requirements.txt
