@@ -744,7 +744,6 @@ def main():
     parser.add_argument("--max-seconds", type=int, default=30)
     parser.add_argument("--expected-coordinate-frame")
     args = parser.parse_args()
-    runner = None
     try:
         with os.fdopen(open_regular(args.config), "rb") as source:
             data = source.read(MAX_CONFIG + 1)
