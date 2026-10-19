@@ -35,7 +35,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    uses: victron-venus/venus-os-ci-toolkit/.github/workflows/auto-approve-reusable.yml@21a366f200f0371a10a6de7ad6ca263af230b842
+    uses: victron-venus/venus-os-ci-toolkit/.github/workflows/auto-approve-reusable.yml@6b2d99519d513d2b871d2a845ddd6134dea4af2c
     with:
       runner-labels: '["ubuntu-24.04"]'
       pull-request-number: ${{ inputs.pull-request-number || '' }}
