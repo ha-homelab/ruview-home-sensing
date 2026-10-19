@@ -84,6 +84,23 @@ class MetadataCallerTests(unittest.TestCase):
                     )
                 )
 
+    def test_workflow_and_composite_pins_remain_independently_fixed(self):
+        toolkit = "victron-venus/venus-os-ci-toolkit/"
+        for path, expected, other in (
+            (
+                ".github/workflows/security-scan.yml",
+                WORKFLOWS.TOOLKIT,
+                WORKFLOWS.TOOLKIT_ACTIONS,
+            ),
+            ("actions/setup-python", WORKFLOWS.TOOLKIT_ACTIONS, WORKFLOWS.TOOLKIT),
+        ):
+            with self.subTest(path=path):
+                accepted = f"uses: {toolkit}{path}@{expected}\n".encode()
+                self.assertEqual(WORKFLOWS.workflow_errors("ci.yml", accepted), [])
+                for changed in (other, "a" * 40, "main"):
+                    rejected = f"uses: {toolkit}{path}@{changed}\n".encode()
+                    self.assertTrue(WORKFLOWS.workflow_errors("ci.yml", rejected))
+
     def test_main_checks_yaml_as_well_as_yml_files(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
