@@ -25,9 +25,9 @@ class NativeRuntimeTests(unittest.TestCase):
         packages = NATIVE.read_lock(NATIVE.LOCK)
         self.assertEqual(len(packages), 11)
         self.assertLess(sum(p["size"] for p in packages), 3 * 1024 * 1024)
-        self.assertTrue(
-            {"libgl1", "libx11-6", "libxrender1", "fonts-dejavu-core"}
-            <= {p["name"] for p in packages}
+        self.assertLessEqual(
+            {"libgl1", "libx11-6", "libxrender1", "fonts-dejavu-core"},
+            {p["name"] for p in packages},
         )
 
     def test_untrusted_archive_origin_is_rejected(self):

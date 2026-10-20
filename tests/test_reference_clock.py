@@ -395,6 +395,7 @@ print(json.dumps({"child_pid":child}),flush=True)
                         try:
                             os.kill(child, signal.SIGKILL)
                         except ProcessLookupError:
+                            # The process-group assertion may already have reaped it.
                             pass
                     probe.close()
 

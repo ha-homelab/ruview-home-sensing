@@ -29,13 +29,13 @@ PACKAGE = (
 
 
 class FakeDevice:
-    def __init__(self, data=PACKAGE, profile=UPLOAD.HOME_SIGNAL):
+    def __init__(self, data=PACKAGE, profile=UPLOAD.HOME_SIGNAL, *, version="0.8.8.5"):
         self.data = data
         self.profile = profile
         self.calls = []
         self.uptime = 100000
         self.loaded = False
-        self.version = "0.8.8.5"
+        self.version = version
         self.partition = "ota_1"
         self.control_code = 403
         self.valid_error = None
@@ -130,8 +130,7 @@ class FakeDevice:
 
 class RecoveryDevice(FakeDevice):
     def __init__(self, data=PACKAGE, profile=UPLOAD.HOME_SIGNAL):
-        super().__init__(data, profile)
-        self.version = "0.8.8.10"
+        super().__init__(data, profile, version="0.8.8.10")
         self.nonce = "1" * 32
         self.status_overrides = {}
         self.runtime_overrides = {}
