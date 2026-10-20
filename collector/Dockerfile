@@ -32,6 +32,8 @@ ENV PKG_CONFIG_ALLOW_CROSS_aarch64_unknown_linux_gnu=1 \
 FROM toolchain AS build
 WORKDIR /source/v2
 COPY source/ /source/
+RUN cargo tree --locked -p wifi-densepose-sensing-server --features mqtt --target aarch64-unknown-linux-gnu --edges normal,build --prefix none --format '{p} features=[{f}]' \
+ && cargo tree --locked -p wifi-densepose-sensing-server --features mqtt --target x86_64-unknown-linux-gnu --edges normal,build,dev --prefix none --format '{p} features=[{f}]'
 RUN cargo test --locked -j 4 -p wifi-densepose-sensing-server --bin sensing-server --features mqtt grid_gate:: \
  && cargo test --locked -j 4 -p wifi-densepose-sensing-server --bin sensing-server --features mqtt raw_csi_mirror:: \
  && cargo test --locked -j 4 -p wifi-densepose-sensing-server --bin sensing-server --features mqtt bootstrap_vital_publication_tests:: \
