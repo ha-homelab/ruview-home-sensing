@@ -14,7 +14,7 @@ python scripts/test-installed-wheel.py dist/ruview_home_sensing-0.4.0rc1-py3-non
 
 The archive includes `RELEASE-MANIFEST.json` with the public repository, exact revision and file inventory. A consumer independently reviews and pins the archive digest, then validates the manifest and all member bytes before extraction or execution. A tag or manifest downloaded alongside an unpinned archive is not independent approval. Reject unexpected members, links, traversal paths, oversized files and modified extracted caches.
 
-Install the existing public bridge from its separately pinned distribution. This repository contains compatibility imports, not a second bridge implementation. The current dependency remains v0.1.0; a future upgrade needs its own integration review.
+Install the existing public bridge from its separately pinned distribution. This repository contains compatibility imports, not a second bridge implementation. The current dependency is the digest-pinned v0.1.2 release, including its verified TLS context. The installed-adapter check verifies the wheel identity and compatibility imports; future upgrades need the same integration checks.
 
 ## Installation data stays outside the distribution
 

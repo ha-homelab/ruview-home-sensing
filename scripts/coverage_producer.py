@@ -19,9 +19,11 @@ from urllib.parse import urlsplit
 if __package__:
     from .module_manifest import load_module_manifest
     from .site_context import FILES, load_site_context
+    from .transport_security import http_opener
 else:
     from module_manifest import load_module_manifest
     from site_context import FILES, load_site_context
+    from transport_security import http_opener
 
 NODE_IDS = (1, 2, 3)
 # Only this installed firmware's read-only runtime endpoint has been reviewed.
@@ -345,9 +347,7 @@ class ReadOnlyHTTP:
         self.origin = origin_url(origin)
         self.token = token
         self.nodes = nodes
-        self.opener = urllib.request.build_opener(
-            urllib.request.ProxyHandler({}), NoRedirect()
-        )
+        self.opener = http_opener(NoRedirect())
 
     def get(self, endpoint, timeout):
         require(0 < timeout <= 5, "invalid_http_timeout")

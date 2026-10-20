@@ -11,8 +11,10 @@ from websockets.asyncio.client import connect
 
 if __package__:
     from .site_context import load_site_context
+    from .transport_security import websocket_options
 else:
     from site_context import load_site_context
+    from transport_security import websocket_options
 
 
 async def run(args):
@@ -34,7 +36,12 @@ async def run(args):
         raise ValueError("Expected a floor and unique owned RuView markers")
     server = os.environ["HASS_SERVER"].rstrip("/")
     url = server.replace("https://", "wss://").replace("http://", "ws://")
-    async with connect(url + "/api/websocket", max_size=100_000_000, proxy=None) as ws:
+    async with connect(
+        url + "/api/websocket",
+        max_size=100_000_000,
+        proxy=None,
+        **websocket_options(url),
+    ) as ws:
         await ws.recv()
         await ws.send(
             json.dumps({"type": "auth", "access_token": os.environ["HA_TOKEN"]})

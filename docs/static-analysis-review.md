@@ -43,9 +43,9 @@ these boundaries to `Exception` would omit that evidence.
 
 The coverage producer records `capture_interrupted`; the fleet smoke check
 propagates its failure after saving completion; the capture smoke check sets
-`passed=False` and fails its final check. Cleanup failures are retained alongside
-the original failure. These handlers are not general-purpose retries and do not
-continue a successful measurement after an interruption.
+`passed=False` and fails its final check. Worker-process cleanup failures are
+retained alongside the original failure. These handlers are not general-purpose
+retries and do not continue a successful measurement after an interruption.
 
 ### Test oracles and clock injection
 

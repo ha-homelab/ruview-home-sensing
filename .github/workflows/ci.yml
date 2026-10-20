@@ -98,6 +98,134 @@ jobs:
             ${{ runner.temp }}/firmware-build.log
           if-no-files-found: error
           retention-days: 7
+  collector-build:
+    name: Full collector cross-build
+    needs: public-boundary
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    timeout-minutes: 120
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Prepare the pinned public collector source
+        timeout-minutes: 20
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/collector-context" "$RUNNER_TEMP/collector-artifacts"
+          python3 collector/prepare-source.py "$RUNNER_TEMP/collector-context/source"
+          git -C "$RUNNER_TEMP/collector-context/source" rev-parse HEAD \
+            > "$RUNNER_TEMP/collector-artifacts/upstream-commit.txt"
+          git -C "$RUNNER_TEMP/collector-context/source" submodule status --recursive \
+            > "$RUNNER_TEMP/collector-artifacts/upstream-submodules.txt"
+          git -C "$RUNNER_TEMP/collector-context/source" diff --binary \
+            > "$RUNNER_TEMP/collector-artifacts/applied-tracked-source.patch"
+          # Include copied source modules, which are untracked in the upstream tree.
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          source = Path(os.environ["RUNNER_TEMP"]) / "collector-context/source"
+          inputs = [
+              Path("collector/Dockerfile"),
+              Path("collector/prepare-source.py"),
+              Path("collector/source-lock.json"),
+              *sorted(Path("collector/patches").glob("*.patch")),
+              *sorted(Path("collector/src").glob("*.rs")),
+          ]
+          evidence = {
+              "local_inputs": {
+                  str(path): hashlib.sha256(path.read_bytes()).hexdigest()
+                  for path in inputs
+              },
+              "prepared_server_sources": {
+                  str(path.relative_to(source)): hashlib.sha256(path.read_bytes()).hexdigest()
+                  for path in sorted(
+                      (source / "v2/crates/wifi-densepose-sensing-server/src").rglob("*.rs")
+                  )
+              },
+              "cargo_lock_sha256": hashlib.sha256(
+                  (source / "v2/Cargo.lock").read_bytes()
+              ).hexdigest(),
+          }
+          output = Path(os.environ["RUNNER_TEMP"]) / "collector-artifacts/source-inputs.json"
+          output.write_text(json.dumps(evidence, indent=2) + "\n")
+          PY
+      - name: Run native collector regressions and cross-build the complete ARM64 image
+        timeout-minutes: 100
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build --platform linux/arm64 --progress=plain \
+            --file collector/Dockerfile \
+            --tag "ruview-collector-ci:$GITHUB_SHA" \
+            "$RUNNER_TEMP/collector-context" 2>&1 \
+            | tee "$RUNNER_TEMP/collector-artifacts/build.log"
+      - name: Verify the produced image and extract the compiled collector without starting it
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="ruview-collector-ci:$GITHUB_SHA"
+          test "$(docker image inspect --format '{{.Architecture}}/{{.Os}}' "$image")" = arm64/linux
+          docker image inspect --format '{{.Id}}' "$image" \
+            > "$RUNNER_TEMP/collector-artifacts/image-id.txt"
+          container="$(docker create --platform linux/arm64 --network none \
+            --read-only --cap-drop ALL --security-opt no-new-privileges \
+            --entrypoint /bin/false "$image")"
+          trap 'docker rm "$container" >/dev/null' EXIT
+          docker cp "$container:/app/sensing-server" \
+            "$RUNNER_TEMP/collector-artifacts/sensing-server"
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import struct
+          root = Path(os.environ["RUNNER_TEMP"]) / "collector-artifacts"
+          binary = (root / "sensing-server").read_bytes()
+          if binary[:6] != b"\x7fELF\x02\x01":
+              raise SystemExit("Expected a little-endian ELF64 executable")
+          if struct.unpack_from("<H", binary, 18)[0] != 183:
+              raise SystemExit("Expected an AArch64 executable")
+          log = (root / "build.log").read_text(errors="replace")
+          counts = [
+              int(value)
+              for value in re.findall(r"test result: ok\. (\d+) passed; 0 failed;", log)
+          ]
+          # The current Dockerfile runs four separate named suites. If another
+          # required suite is added, increase this minimum in the same change.
+          if len(counts) < 4 or any(count == 0 for count in counts):
+              raise SystemExit(f"Missing or empty native collector regression suite: {counts}")
+          receipt = {
+              "image_platform": "linux/arm64",
+              "binary_bytes": len(binary),
+              "binary_sha256": hashlib.sha256(binary).hexdigest(),
+              "native_test_suite_pass_counts": counts,
+              "arm64_runtime_executed": False,
+              "hardware_executed": False,
+          }
+          (root / "build-receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
+          print(json.dumps(receipt, indent=2))
+          PY
+          readelf -h "$RUNNER_TEMP/collector-artifacts/sensing-server" \
+            > "$RUNNER_TEMP/collector-artifacts/elf-header.txt"
+          readelf -d "$RUNNER_TEMP/collector-artifacts/sensing-server" \
+            > "$RUNNER_TEMP/collector-artifacts/dynamic-linkage.txt"
+      - name: Preserve collector build outputs and diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: collector-build-${{ github.sha }}
+          path: ${{ runner.temp }}/collector-artifacts/
+          if-no-files-found: error
+          retention-days: 7
   bridge-container:
     needs: public-boundary
     # Native ARM64 validates the documented architecture without emulation.
@@ -151,6 +279,9 @@ jobs:
           python -m pip install --require-hashes --only-binary=:all: -r requirements.txt
       - name: Verify imports use the installed public distribution
         run: python scripts/test-public-adapter-installed.py
+      - name: Install synthetic certificate test dependencies
+        run: |
+          python -m pip install --only-binary=:all: -r tests/requirements-security.txt
       - run: python -m pip install ruff==0.16.5 esp-idf-nvs-partition-gen==0.3.0 esptool==5.1.0
       - run: ruff check bridge.py module_observations.py ruview_http.py scripts tools tests firmware/*.py firmware/tests firmware/fleet firmware/wisp-pilot collector/*.py collector/ui/export-floor-config.py inference server-modules/*.py server-modules/tests assumed_activity radar wisp_pilot
       - run: ruff format --check bridge.py module_observations.py ruview_http.py scripts tools tests firmware/*.py firmware/tests firmware/fleet firmware/wisp-pilot collector/*.py collector/ui/export-floor-config.py inference server-modules/*.py server-modules/tests assumed_activity radar wisp_pilot
@@ -304,7 +435,7 @@ jobs:
   gate:
     name: Public CI gate
     if: ${{ always() }}
-    needs: [public-boundary, firmware-build, bridge-container, assumed-activity-container, validate, packages, enclosure, security]
+    needs: [public-boundary, firmware-build, collector-build, bridge-container, assumed-activity-container, validate, packages, enclosure, security]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

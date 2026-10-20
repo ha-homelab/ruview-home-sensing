@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import module_observations as modules
-from bridge import Bridge, module_discovery
+from bridge import Bridge, Config, module_discovery
 
 
 class ModuleObservationsTests(unittest.TestCase):
@@ -146,6 +146,7 @@ class ModuleObservationsTests(unittest.TestCase):
 
     def publication_bridge(self):
         bridge = Bridge.__new__(Bridge)
+        bridge.config = Config()
         bridge.module_url = "http://worker.invalid"
         bridge.module_lock = threading.Lock()
         bridge.module_snapshot = (self.decoded(), 100)

@@ -9,9 +9,13 @@ import os
 import re
 import shutil
 import stat
-import urllib.request
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+
+# Support direct source-checkout execution before runtime dependencies exist.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from scripts.transport_security import open_source  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent
 
@@ -154,7 +158,7 @@ def main():
             if "repository_path" in item
             else base + item["path"]
         )
-        with urllib.request.urlopen(url, timeout=30) as response:
+        with open_source(url, timeout=30) as response:
             data = response.read()
         if hashlib.sha256(data).hexdigest() != item["sha256"]:
             raise ValueError(f"Hash mismatch: {relative}")
