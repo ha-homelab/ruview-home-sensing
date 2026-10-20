@@ -151,11 +151,12 @@ constructed points and triangles directly to VTK for rendering. That path
 does not invoke `vtkGLTFDocumentLoader`. This is a path-specific disposition,
 not a statement that VTK 9.3.1 can safely load arbitrary files.
 
-That query is not closure of the full dependency graph. The collector,
+That query covers only the pinned Python packages. See the separate
+[dated dependency assessment](dependency-applicability.md) for the collector,
 ESP-IDF/Wi-Fi implementation, native build tools, container operating-system
-packages and transitive native libraries require their own dated assessment.
-Do not infer vulnerability-free runtime or hardware qualification from the
-Python result.
+packages and transitive native libraries, including remaining maintenance
+items. Neither assessment establishes a vulnerability-free runtime or
+hardware qualification.
 
 ## Reproducing the transport checks
 
