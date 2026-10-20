@@ -7,7 +7,7 @@ The source/tool archive is the supported distribution for firmware, native worke
 ```sh
 python scripts/build-release.py --revision "$REVIEWED_COMMIT" --output ruview-home-sensing-tools.tar.gz
 python -m pip wheel --no-deps --wheel-dir dist .
-python scripts/test-installed-wheel.py dist/ruview_home_sensing-0.4.0rc1-py3-none-any.whl
+python scripts/test-installed-wheel.py dist/ruview_home_sensing-0.4.0rc2-py3-none-any.whl
 ```
 
 `REVIEWED_COMMIT` must be an exact 40-character Git commit. The archive builder reads committed blobs only, rejects links/submodules, records SHA-256, size and mode for every file, and writes fixed archive timestamps and ownership. Local untracked inputs and Git history are never included. Run the repository publication gate against both source and generated artifacts before upload. Build the wheel from a clean checkout; set `SOURCE_DATE_EPOCH` consistently when comparing reproducibility.
