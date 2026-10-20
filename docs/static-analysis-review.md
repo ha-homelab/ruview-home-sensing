@@ -83,6 +83,8 @@ import-time cycles are safe.
 
 The first complete collector build emitted nine distinct Rust warnings,
 repeated across its Linux native-test and ARM64 release compilation steps.
+The subsequent build also compiled library security tests and exposed one
+additional unused import, making ten distinct diagnostics in that run.
 These decisions concern the pinned upstream revision
 [`7c8aeacea2ad30972070196eb7d8e7200506b742`](https://github.com/ruvnet/RuView/tree/7c8aeacea2ad30972070196eb7d8e7200506b742).
 They do not describe a warning-free build or qualify the entire upstream
@@ -123,6 +125,12 @@ workspace.
   bypass that assignment. A failed earlier initializer does not continue
   construction with `None`. The diagnostic concerns the redundant initial
   value, not a discarded configured guard.
+- In the `#[cfg(test)]` module of
+  [`mqtt/config.rs`](https://github.com/ruvnet/RuView/blob/7c8aeacea2ad30972070196eb7d8e7200506b742/v2/crates/wifi-densepose-sensing-server/src/mqtt/config.rs),
+  the outer `use clap::Parser` is redundant: the only parsing helper imports
+  the same trait inside its own function, where both `#[derive(Parser)]`
+  and `W::parse_from` use it. The diagnostic is exposed by compiling library
+  tests; it does not remove parsing or validation from the production CLI.
 
 These are retained, source-reviewed diagnostics. No compiler warning flag is
 suppressed. A change to platform gates, endpoint construction, pairing inputs
