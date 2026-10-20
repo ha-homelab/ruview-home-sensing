@@ -335,11 +335,6 @@ def repository_fingerprint(
     }
 
 
-class NoRedirect(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None
-
-
 class ReadOnlyHTTP:
     """One GET per call, no redirects/proxy/retries, five-second total deadline."""
 
@@ -347,7 +342,7 @@ class ReadOnlyHTTP:
         self.origin = origin_url(origin)
         self.token = token
         self.nodes = nodes
-        self.opener = http_opener(NoRedirect())
+        self.opener = http_opener()
 
     def get(self, endpoint, timeout):
         require(0 < timeout <= 5, "invalid_http_timeout")

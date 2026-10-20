@@ -69,7 +69,10 @@ class CollectorProfileTests(unittest.TestCase):
         for flags in ([], self.flags[:2], [*self.flags[:3], "0" * 64]):
             with (
                 self.subTest(option_count=len(flags)),
-                patch("sys.argv", ["observer", "--output", str(output), *flags]),
+                patch(
+                    "sys.argv",
+                    ["observer", "--nodes", "1", "3", "--output", str(output), *flags],
+                ),
                 patch("sys.stderr"),
                 patch.object(observer.urllib.request, "build_opener") as network,
                 patch.object(observer.os.environ, "get") as environment,
@@ -174,7 +177,23 @@ class CollectorProfileTests(unittest.TestCase):
             saved["installation_approval"]["collector_profile_sha256"], self.pin
         )
 
-    def run_collector(self, *, mutate=False):
+    def test_collector_requires_explicit_valid_scope_before_profile_or_network(self):
+        output = self.root / "report.json"
+        for nodes in ([], ["--nodes", "0"], ["--nodes", "256"], ["--nodes", "2", "2"]):
+            with (
+                self.subTest(nodes=nodes),
+                patch("sys.stderr"),
+                patch.object(observer, "load_profile") as profile,
+                patch.object(observer, "http_opener") as network,
+                self.assertRaises(SystemExit) as exited,
+            ):
+                observer.main(["--output", str(output), *self.flags, *nodes])
+            self.assertEqual(exited.exception.code, 2)
+            profile.assert_not_called()
+            network.assert_not_called()
+            self.assertFalse(output.exists())
+
+    def run_collector(self, *, mutate=False, requested_nodes=(1, 3)):
         output = self.root / "report.json"
         now = 0.0
         sequence = 0
@@ -232,7 +251,16 @@ class CollectorProfileTests(unittest.TestCase):
         with (
             patch(
                 "sys.argv",
-                ["observer", "--duration", "5", "--output", str(output), *self.flags],
+                [
+                    "observer",
+                    "--duration",
+                    "5",
+                    "--output",
+                    str(output),
+                    *self.flags,
+                    "--nodes",
+                    *map(str, requested_nodes),
+                ],
             ),
             patch.dict(observer.os.environ, {"RUVIEW_API_TOKEN": "test-only"}),
             patch.object(observer.urllib.request, "build_opener", return_value=opener),
@@ -259,6 +287,16 @@ class CollectorProfileTests(unittest.TestCase):
             },
         )
         self.assertTrue(all(r[1:] == (5, "Bearer test-only") for r in requests))
+
+    def test_missing_requested_receiver_prevents_success_for_whole_scope(self):
+        code, report, _ = self.run_collector(requested_nodes=(1, 2, 3))
+        self.assertEqual(code, 1)
+        self.assertFalse(report["passed"])
+        self.assertEqual(set(report["summary"]), {"1", "2", "3"})
+        self.assertEqual(report["summary"]["2"]["samples"], 0)
+        self.assertEqual(
+            report["summary"]["2"]["missing_samples"], len(report["samples"])
+        )
 
     def test_changed_profile_prevents_next_request_and_retains_failure_evidence(self):
         code, report, requests = self.run_collector(mutate=True)

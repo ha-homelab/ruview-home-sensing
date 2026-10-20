@@ -48,6 +48,7 @@ class PlacementTests(unittest.TestCase):
                     "signal": -64,
                     "classification": "present_moving",
                     "csi_age_ms": 40,
+                    "inference_age_ms": 40,
                 }
             }
         )

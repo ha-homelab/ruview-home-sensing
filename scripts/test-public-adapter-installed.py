@@ -9,12 +9,14 @@ ROOT = Path(__file__).resolve().parents[1]
 # Isolated mode ignores PYTHONPATH/user-site. The sole explicit source path is
 # this compatibility facade; the public package must resolve from installed metadata.
 PROBE = r"""
+import copy
 import gzip
 import importlib.metadata
 import json
 import re
 import sys
 from pathlib import Path
+from unittest.mock import Mock, patch
 
 def offline(event, args):
     if event in {"socket.connect", "socket.bind", "socket.getaddrinfo"}:
@@ -62,7 +64,86 @@ assert config.topic_prefix == "ruview/home"
 assert bridge.observations({}, {}, {}, 1000) == {}
 assert bridge.MAX_AGE_MS == 10000
 assert bridge.MODULE_POLL_SECONDS == 0.5
-print("Installed public adapter " + dist.version + ": hashes, facades and offline imports verified")
+
+# Exercise the installed implementation, including its observation-time handoff:
+# slow module work must not renew CSI, inference, or snapshot freshness.
+age_keys = ("csi_age_ms", "inference_age_ms", "snapshot_age_ms")
+for age_key in age_keys:
+    for initial_age, expected_availability in ((9900, "offline"), (100, "online")):
+        clock = [100.0]
+        client = Mock()
+        client.publish.return_value.rc = 0
+        adapter = bridge.Bridge(client, bridge.Config(node_ids=(1,)))
+        adapter.last_discovery = 100.0
+        adapter.rediscover.clear()
+        adapter.edge_falls.ingest(
+            {"type": "edge_vitals", "node_id": 1, "fall_detected": True}, 100.0
+        )
+        current = {
+            1: {
+                "presence": "ON",
+                "motion": "ON",
+                "classification": "present_moving",
+                "signal": -60,
+                **dict.fromkeys(age_keys, 0),
+            }
+        }
+        current[1][age_key] = initial_age
+        original = copy.deepcopy(current)
+
+        def slow_modules(*args):
+            clock[0] += 0.2
+
+        adapter.update_modules = slow_modules
+        with patch(
+            "ruview_home_assistant.bridge.time.monotonic",
+            side_effect=lambda: clock[0],
+        ):
+            adapter.update_observations(current, observed_at=100.0)
+        messages = {call.args[0]: call.args[1] for call in client.publish.call_args_list}
+        base = "ruview/home/node1/"
+        for suffix in ("availability", "fall/availability"):
+            assert messages[base + suffix] == expected_availability, (age_key, messages)
+        assert (base + "state" in messages) == (expected_availability == "online")
+        if expected_availability == "online":
+            attributes = json.loads(messages[base + "attributes"])
+            assert abs(attributes[age_key] - 300) < 0.001, attributes
+        assert current == original, (current, original)
+
+# An independent edge lease can expire while the primary observation stays fresh.
+clock = [100.0]
+client = Mock()
+adapter = bridge.Bridge(client, bridge.Config(node_ids=(1,)))
+adapter.last_discovery = 100.0
+adapter.rediscover.clear()
+adapter.edge_falls.ingest(
+    {"type": "edge_vitals", "node_id": 1, "fall_detected": True}, 90.1
+)
+current = {
+    1: {
+        "presence": "ON",
+        "motion": "ON",
+        "classification": "present_moving",
+        "signal": -60,
+        **dict.fromkeys(age_keys, 0),
+    }
+}
+
+def slow_publish(topic, *args, **kwargs):
+    if topic == "ruview/home/node1/state":
+        clock[0] += 0.2
+    return Mock(rc=0)
+
+client.publish.side_effect = slow_publish
+with patch("ruview_home_assistant.bridge.time.monotonic", side_effect=lambda: clock[0]):
+    adapter.update_observations(current, observed_at=100.0)
+messages = {call.args[0]: call.args[1] for call in client.publish.call_args_list}
+assert messages["ruview/home/node1/availability"] == "online", messages
+assert messages["ruview/home/node1/fall/availability"] == "offline", messages
+print(
+    "Installed public adapter " + dist.version
+    + ": hashes, facades, freshness and offline imports verified"
+)
 """
 
 

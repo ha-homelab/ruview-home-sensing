@@ -1,12 +1,12 @@
 [project]
 name = "ruview-home-sensing"
-version = "0.4.0rc2"
+version = "0.4.0rc3"
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE", "NOTICE"]
 description = "RuView sensing, evidence validation and reproducible hardware tooling"
 dependencies = [
-  "ruview-home-assistant @ https://github.com/ha-homelab/ruview-home-assistant/releases/download/v0.1.2/ruview_home_assistant-0.1.2-py3-none-any.whl#sha256=702a8c495a6d78bcc37a1df939abe45a416ff10eefabc8eb29213fdbb2efd11b",
+  "ruview-home-assistant @ https://github.com/ha-homelab/ruview-home-assistant/releases/download/v0.1.3-beta.1/ruview_home_assistant-0.1.3b1-py3-none-any.whl#sha256=7a410f23d8d291a9ccffa577ca6b377ffd36f4a3c1bba5df1c686f61937c4c73",
   "paho-mqtt==2.1.0",
   "websockets==17.2",
 ]

@@ -327,7 +327,11 @@ Arguments: `--deadline-seconds`, `--host`, `--hostname`, `--interval-ms`, `--max
 
 Passively record accepted CSI freshness; never send measurements to RuView.
 
-Arguments: `--duration`, `--max-age-ms`, `--nodes`, `--output`.
+Arguments: `--collector-profile`, `--collector-profile-sha256`, `--duration`, `--max-age-ms`, `--nodes`, `--output`.
+
+`--nodes` is required: provide every receiver whose freshness must qualify.
+IDs must be unique integers from 1 through 255. No installation-specific receiver
+subset is assumed, and an absent requested receiver prevents a passing report.
 
 [Parser and implementation](../scripts/observe-collector.py).
 

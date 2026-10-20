@@ -20,11 +20,6 @@ except ModuleNotFoundError as exc:
     from scripts.transport_security import http_opener
 
 
-class NoRedirect(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None
-
-
 def finite_number(value):
     return type(value) in (int, float) and math.isfinite(value)
 
@@ -76,14 +71,18 @@ def is_fresh_csi(node, max_age_ms):
     )
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     add_profile_arguments(parser)
     parser.add_argument("--duration", type=int, default=315)
-    parser.add_argument("--nodes", type=int, nargs="+", default=[1, 3])
+    parser.add_argument("--nodes", type=int, nargs="+", required=True)
     parser.add_argument("--max-age-ms", type=int, default=3000)
     parser.add_argument("--output", type=Path, required=True)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
+    if len(args.nodes) != len(set(args.nodes)) or any(
+        not 1 <= node <= 255 for node in args.nodes
+    ):
+        parser.error("Use unique node IDs between 1 and 255")
     collector = load_profile(args.collector_profile, args.collector_profile_sha256)
 
     def revalidate():
@@ -98,7 +97,7 @@ def main():
     token = os.environ.get("RUVIEW_API_TOKEN", "")
     if not token:
         parser.error("Set RUVIEW_API_TOKEN from the private credential source")
-    opener = http_opener(NoRedirect())
+    opener = http_opener()
 
     def get(path):
         revalidate()

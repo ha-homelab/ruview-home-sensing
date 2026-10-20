@@ -1,6 +1,6 @@
 """Verified TLS for public downloads and optional encrypted service endpoints.
 
-The context policy matches ruview-home-assistant 0.1.2. It uses only the
+The context policy matches the pinned public bridge dependency. It uses only the
 standard library so that source fetchers can run before runtime dependencies
 are installed. No encryption algorithm or certificate verifier is implemented
 here.
