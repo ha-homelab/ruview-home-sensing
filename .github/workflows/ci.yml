@@ -40,6 +40,64 @@ jobs:
         run: python3 tools/check_history_event.py
       - run: python3 -m unittest discover -s tools/tests -v
       - run: python3 tools/check_workflows.py
+  firmware-build:
+    name: ESP32-S3 firmware build
+    needs: public-boundary
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    timeout-minutes: 50
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Fetch hash-verified public firmware sources
+        run: python3 firmware/fetch-source.py "$RUNNER_TEMP/firmware-context"
+      - name: Build the default ESP32-S3 firmware using the pinned IDF image
+        timeout-minutes: 40
+        shell: bash
+        run: |
+          docker build --progress=plain --target artifacts \
+            --output "type=local,dest=$RUNNER_TEMP/firmware-artifacts" \
+            "$RUNNER_TEMP/firmware-context" 2>&1 | tee "$RUNNER_TEMP/firmware-build.log"
+      - name: Verify real firmware outputs and tool provenance
+        run: |
+          cd "$RUNNER_TEMP/firmware-artifacts"
+          sha256sum -c SHA256SUMS.txt
+          for path in esp32-csi-node.bin esp32-csi-node.elf esp32-csi-node.map \
+            bootloader.bin partition-table.bin ota_data_initial.bin \
+            flasher_args.json sdkconfig dependencies.lock compile_commands.json \
+            BUILD_TOOLS.txt IDF_TOOLS.json licenses/RuView-LICENSE \
+            licenses/Monocypher-LICENCE.md licenses/WASM3-LICENSE licenses/ESP-IDF-LICENSE; do
+            test -s "$path"
+          done
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          import struct
+          header = Path("esp32-csi-node.elf").read_bytes()[:20]
+          assert header[:6] == b"\x7fELF\x01\x01", "Expected little-endian ELF32"
+          assert struct.unpack_from("<H", header, 18)[0] == 94, "Expected Xtensa ELF"
+          assert Path("esp32-csi-node.bin").read_bytes()[0] == 0xE9, "Expected ESP firmware image"
+          commands = json.loads(Path("compile_commands.json").read_text())
+          assert any(row["file"].endswith("/main/wasm_runtime.c") and
+                     "-DWASM3_AVAILABLE=1" in row["command"] for row in commands)
+          assert any(row["file"].endswith("/monocypher.c") for row in commands)
+          print("Verified linked Xtensa firmware and real WASM3/Monocypher compile inputs")
+          PY
+      - name: Preserve firmware build outputs and diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: esp32s3-build-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/firmware-artifacts/
+            ${{ runner.temp }}/firmware-build.log
+          if-no-files-found: error
+          retention-days: 7
   bridge-container:
     needs: public-boundary
     # Native ARM64 validates the documented architecture without emulation.
@@ -246,7 +304,7 @@ jobs:
   gate:
     name: Public CI gate
     if: ${{ always() }}
-    needs: [public-boundary, bridge-container, assumed-activity-container, validate, packages, enclosure, security]
+    needs: [public-boundary, firmware-build, bridge-container, assumed-activity-container, validate, packages, enclosure, security]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
