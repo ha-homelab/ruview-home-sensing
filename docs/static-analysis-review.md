@@ -3,8 +3,9 @@
 The project runs Ruff and CodeQL in public CI. A successful job is not a claim
 that every diagnostic is a vulnerability or that every possible defect is found.
 Diagnostics must be fixed or reviewed against their actual behavior. This
-document records the decisions for the Python diagnostics reviewed on
-2026-10-19; it does not disable any query or exclude any source path.
+document records the decisions for the Python diagnostics and collector
+compiler warnings reviewed on 2026-10-19; it does not disable any query or
+exclude any source path.
 
 ## Corrected diagnostics
 
@@ -77,6 +78,56 @@ The inference suite exercises both closed-capture validation and pairing to
 verified recordings, including tampered data and failure cleanup. The cycle is
 retained as a bounded internal dependency, not an assertion that arbitrary
 import-time cycles are safe.
+
+## Collector compiler warnings retained
+
+The first complete collector build emitted nine distinct Rust warnings,
+repeated across its Linux native-test and ARM64 release compilation steps.
+These decisions concern the pinned upstream revision
+[`7c8aeacea2ad30972070196eb7d8e7200506b742`](https://github.com/ruvnet/RuView/tree/7c8aeacea2ad30972070196eb7d8e7200506b742).
+They do not describe a warning-free build or qualify the entire upstream
+workspace.
+
+- In
+  [`wlanapi_native.rs`](https://github.com/ruvnet/RuView/blob/7c8aeacea2ad30972070196eb7d8e7200506b742/v2/crates/wifi-densepose-wifiscan/src/adapter/wlanapi_native.rs),
+  `Instant` and `BssidId` are used by the `#[cfg(windows)]` scanner.
+  `freq_khz_to_channel`, `freq_khz_to_band` and `phy_type_to_radio` are
+  used by that scanner and the module's unit tests. The Linux production
+  implementation of `scan_native` returns `WifiScanError::Unsupported`;
+  it does not invoke the Windows FFI or fabricate observations. The two
+  unused-import and three dead-function warnings result from these
+  declarations remaining outside the platform gate. This finding concerns
+  this WLAN module, not every subprocess-based scanner in the application.
+- In
+  [`matter/bridge.rs`](https://github.com/ruvnet/RuView/blob/7c8aeacea2ad30972070196eb7d8e7200506b742/v2/crates/wifi-densepose-sensing-server/src/matter/bridge.rs),
+  one diagnostic covers the unused `MatterClusterMapping` and
+  `DEVICE_TYPE_BRIDGED_NODE` imports. The tree builder obtains the actual
+  mapping and device type from `matter_mapping`; a Rust name import does
+  not perform runtime registration. The separate unnecessary-`mut` warning
+  concerns an `Endpoint` constructed once and then moved into `children`.
+  The reviewed path does not modify that local endpoint before the move.
+- In
+  [`matter/commissioning.rs`](https://github.com/ruvnet/RuView/blob/7c8aeacea2ad30972070196eb7d8e7200506b742/v2/crates/wifi-densepose-sensing-server/src/matter/commissioning.rs),
+  `VENDOR_ATTR_PERSON_COUNT as _` is an unused import despite its
+  “re-export-only guard” comment. It neither re-exports a public API nor
+  supplies a value to pairing-code construction. The pairing calculation
+  uses its explicit validated input fields; this warning does not indicate
+  a missing runtime initialization.
+- In
+  [`main.rs`](https://github.com/ruvnet/RuView/blob/7c8aeacea2ad30972070196eb7d8e7200506b742/v2/crates/wifi-densepose-sensing-server/src/main.rs),
+  the initial `None` assigned to `engine_bridge_multistatic_cfg` is
+  overwritten before it is read. The preceding `multistatic_fuser` field
+  initializer unconditionally assigns `Some(MultistaticConfig { ... })`
+  using the same parsed guard configuration; the later `engine_bridge`
+  initializer consumes it. Optional node-position processing does not
+  bypass that assignment. A failed earlier initializer does not continue
+  construction with `None`. The diagnostic concerns the redundant initial
+  value, not a discarded configured guard.
+
+These are retained, source-reviewed diagnostics. No compiler warning flag is
+suppressed. A change to platform gates, endpoint construction, pairing inputs
+or state-initializer order requires a new review. This assessment does not
+establish Matter interoperability, sensing accuracy or hardware acceptance.
 
 ## Reassessment
 
