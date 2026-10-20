@@ -129,12 +129,13 @@ The old findings have these specific dispositions:
 
 The other four matches are newer than 60 days at this review date:
 zlib CVE-2026-85091 (published September 3), and urllib3
-CVE-2026-97687, CVE-2026-97688 and CVE-2026-97689 (September 29).
+CVE-2026-97687, CVE-2026-97688 and CVE-2026-97689 (repository advisories
+published September 15, before the September 29 CVE records).
 They are not Critical-rated and are not excluded merely because of their age.
 They remain maintenance candidates: pip's HTTPS downloader can reach remote
 responses, while the runtime services use their documented standard-library
 HTTP clients. This dated disposition must be revisited before those findings
-cross the 60-day boundary.
+cross the 60-day boundary: November 2 for zlib and November 14 for urllib3.
 
 The Rust and ESP-IDF build images have separate findings. Linux header
 package matches in a build image are not evidence that a vulnerable kernel
