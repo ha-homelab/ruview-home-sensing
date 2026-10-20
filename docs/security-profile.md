@@ -53,6 +53,10 @@ comparison. An independently approved deployment public key is required;
 there is no trusted default signing key.
 
 Python-generated OTA keys and signing seeds use `secrets.token_hex(32)`.
+The collector's RuField signer uses `rand::rngs::OsRng` when its explicit
+32-byte seed is absent. Invalid configuration or RNG failure stops startup;
+the former public development seed is rejected. An unconfigured identity
+rotates on restart. See [collector/README.md](../collector/README.md).
 The boot-bound recovery patch obtains its 128-bit nonce from `esp_fill_random`
 after RF initialization and rejects an all-zero result instead of substituting
 a fixed nonce. SHA-256 identifies approved source, configuration and artifacts.

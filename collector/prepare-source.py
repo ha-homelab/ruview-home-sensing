@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fetch pinned public collector sources and apply the reviewed local grid fix."""
+"""Fetch pinned public collector sources and apply the reviewed local fixes."""
 
 import argparse
 import hashlib
@@ -67,11 +67,17 @@ def main():
             raise ValueError(f"Dirty submodule: {path}")
     verify_sha(source / MAIN, lock["main_sha256"])
     verify_sha(source / "v2/Cargo.lock", lock["cargo_lock_sha256"])
-    for name in ("0001-expire-csi-grid.patch", "0002-raw-csi-mirror.patch"):
+    for path, expected in lock["security_source_sha256"].items():
+        verify_sha(source / path, expected)
+    for name in (
+        "0001-expire-csi-grid.patch",
+        "0002-raw-csi-mirror.patch",
+        "0003-security-boundaries.patch",
+    ):
         patch = ROOT / "patches" / name
         git(source, "apply", "--check", str(patch))
         git(source, "apply", str(patch))
-    for name in ("grid_gate.rs", "raw_csi_mirror.rs"):
+    for name in ("grid_gate.rs", "raw_csi_mirror.rs", "security_boundaries.rs"):
         shutil.copyfile(ROOT / "src" / name, source / MAIN.parent / name)
     print(
         f"Pinned {lock['revision']}, verified lock/submodules, applied reviewed collector patches"

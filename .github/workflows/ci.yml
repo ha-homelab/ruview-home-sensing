@@ -199,9 +199,9 @@ jobs:
               int(value)
               for value in re.findall(r"test result: ok\. (\d+) passed; 0 failed;", log)
           ]
-          # The current Dockerfile runs four separate named suites. If another
+          # The current Dockerfile runs six separate named suites. If another
           # required suite is added, increase this minimum in the same change.
-          if len(counts) < 4 or any(count == 0 for count in counts):
+          if len(counts) < 6 or any(count == 0 for count in counts):
               raise SystemExit(f"Missing or empty native collector regression suite: {counts}")
           receipt = {
               "image_platform": "linux/arm64",

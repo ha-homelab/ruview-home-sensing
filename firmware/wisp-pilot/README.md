@@ -2,7 +2,7 @@
 
 This recipe prepares a **separate spare-board pilot**. It does not replace the
 existing RuView receivers, alter their OTA route, or install a Home Assistant
-integration. The accompanying [pilot guide](../../docs/wisp-pilot.md) describes
+integration. The accompanying [pilot interface guide](../../docs/interfaces.md) describes
 the recording boundary and the evidence still needed before integration.
 
 The source pin is Wisp **0.1.20**, commit

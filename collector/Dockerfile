@@ -36,6 +36,8 @@ RUN cargo test --locked -j 4 -p wifi-densepose-sensing-server --bin sensing-serv
  && cargo test --locked -j 4 -p wifi-densepose-sensing-server --bin sensing-server --features mqtt raw_csi_mirror:: \
  && cargo test --locked -j 4 -p wifi-densepose-sensing-server --bin sensing-server --features mqtt bootstrap_vital_publication_tests:: \
  && cargo test --locked -j 4 -p wifi-densepose-sensing-server --bin sensing-server --features mqtt calibration_expiry_tests:: \
+ && cargo test --locked -j 4 -p wifi-densepose-sensing-server --lib --features mqtt security_boundaries:: \
+ && cargo test --locked -j 4 -p wifi-densepose-sensing-server --lib --features mqtt rufield_surface:: \
  && cargo build --locked -j 4 --release --target aarch64-unknown-linux-gnu -p wifi-densepose-sensing-server --bin sensing-server --features mqtt \
  && aarch64-linux-gnu-readelf -h target/aarch64-unknown-linux-gnu/release/sensing-server \
  && aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/sensing-server
@@ -45,4 +47,4 @@ FROM --platform=linux/arm64 docker.io/ruvnet/wifi-densepose@sha256:29e6b4ce18936
 COPY --from=build /source/v2/target/aarch64-unknown-linux-gnu/release/sensing-server /app/sensing-server
 LABEL org.opencontainers.image.revision="7c8aeacea2ad30972070196eb7d8e7200506b742" \
       org.opencontainers.image.version="0.3.5-home-grid.2" \
-      io.ha-homelab.ruview.patch="collector/patches/0001-expire-csi-grid.patch,collector/patches/0002-raw-csi-mirror.patch"
+      io.ha-homelab.ruview.patch="collector/patches/0001-expire-csi-grid.patch,collector/patches/0002-raw-csi-mirror.patch,collector/patches/0003-security-boundaries.patch"

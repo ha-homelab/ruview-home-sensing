@@ -46,7 +46,7 @@ node --test collector/ui/tests/*.test.mjs
 python scripts/check-public-boundary.py
 ```
 
-See [architecture and release boundaries](docs/architecture.md), [privacy](docs/privacy.md), [contributing](CONTRIBUTING.md), [security reporting](SECURITY.md) and [third-party notices](NOTICE).
+See [external interfaces](docs/interfaces.md), [test coverage and limitations](docs/testing.md), [architecture and release boundaries](docs/architecture.md), [privacy](docs/privacy.md), [contributing](CONTRIBUTING.md), [security reporting](SECURITY.md) and [third-party notices](NOTICE).
 
 ## License
 

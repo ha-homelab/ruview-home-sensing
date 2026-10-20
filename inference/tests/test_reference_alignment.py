@@ -151,7 +151,9 @@ class ReferenceAlignmentTests(unittest.TestCase):
             result = builder.push(row)
             if result is not None:
                 return result
-        raise AssertionError("synthetic fixture should contain a complete native window")
+        raise AssertionError(
+            "synthetic fixture should contain a complete native window"
+        )
 
     def original(self, value):
         original = label(value)
