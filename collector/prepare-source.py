@@ -79,6 +79,16 @@ def main():
     for path, expected in lock["security_source_sha256"].items():
         verify_sha(source / path, expected)
     prepare_ring(source, args.ring_archive)
+    shutil.copyfile(
+        ROOT / "bundle_licenses.py", source / "ruview-dependencies/bundle_licenses.py"
+    )
+    shutil.copytree(
+        ROOT / "license-overrides", source / "ruview-dependencies/license-overrides"
+    )
+    notices = source / "ruview-dependencies/project-notices"
+    notices.mkdir()
+    for name in ("LICENSE", "NOTICE"):
+        shutil.copyfile(ROOT.parent / name, notices / name)
     for name in (
         "0001-expire-csi-grid.patch",
         "0002-raw-csi-mirror.patch",

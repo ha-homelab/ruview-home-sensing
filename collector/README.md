@@ -43,6 +43,31 @@ and the corresponding receipt. Distribute these files with standalone
 collector binaries. An offline preparation additionally requires
 `--ring-archive /path/to/ring-0.17.14.crate`; the same digest check applies.
 
+The build also gathers the original license and notice files for every package
+in the selected ARM64 Cargo `normal,build` graph. It reads the already fetched,
+locked sources without downloading unrelated workspace packages. Registry
+archive hashes are checked against `Cargo.lock`, then original notice files are
+read from those verified bytes; local crates retain their own or inherited
+repository notices. Missing notices fail the build.
+For the sixteen locked crates whose published archive omitted license files,
+`license-overrides/sources.json` ties recovered original texts to the archive
+checksum and the upstream Git revision embedded in that archive. The recovery
+is exact-version only and does not change the crate's declared license. For
+`anndists`, the original README expressly offers Apache-2.0 but the upstream
+commit omits its referenced license file; the bundle preserves that README
+and the official Apache-2.0 terms it links.
+The bundle includes the project's notices, the selected Rust toolchain's
+copyright collection, and the original Debian copyright files for the linked
+`libc6` and `libgcc-s1` runtime libraries. Build-only packages and toolchain
+notices are included conservatively; this does not mean all their code is linked.
+
+Keep the complete `/app/licenses/collector/` directory beside a distributed
+`sensing-server` binary. For `Dockerfile.runtime`, copy this directory from the
+qualified image or artifact into the build context as `collector-licenses/`.
+`index.json` records the Cargo package versions, declared license expressions,
+source manifest hashes and delivered notice hashes. Runtime library notice
+hashes are recorded separately in `runtime-libraries/SHA256SUMS`.
+
 ```sh
 python collector/prepare-source.py /tmp/ruview-collector-source
 sh collector/test-grid.sh
