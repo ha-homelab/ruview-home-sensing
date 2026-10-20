@@ -24,9 +24,17 @@ Home Assistant publication is implemented once in [ruview-home-assistant](https:
 
 Software tests establish the contracts they exercise. They do not establish recognition accuracy in a building. CSI activity is a hypothesis, not a measured person count or coordinate. Posture, position and fall outputs require suitable independent reference data, evaluation and explicitly approved artifacts. This project is experimental and is not a medical or emergency-response system.
 
+## Prerelease status
+
+The **0.4.0-rc.3** candidate uses `0.4.0rc3` for Python. See the
+[release notes](docs/release-notes.md) for the bridge freshness correction and
+explicit collector-scope migration, and [distribution instructions](docs/distribution.md)
+for verified source and wheel consumption. Publishing a prerelease does not
+update devices or promote experimental inference outputs.
+
 ## Development
 
-Python 3.11+ is required; CI uses pinned dependencies and GitHub-hosted Linux runners. Native module builds pin Rust and upstream sources; CAD uses its separate locked environment.
+The base package requires Python 3.11+. Inference and the complete development setup below require Python 3.12+ because the pinned NumPy release requires it. Select a compatible interpreter before creating the virtual environment. CI uses pinned dependencies and GitHub-hosted Linux runners. Native module builds pin Rust and upstream sources; CAD uses its separate locked environment.
 
 CI reuses the shared [venus-os-ci-toolkit](https://github.com/victron-venus/venus-os-ci-toolkit/tree/21a366f200f0371a10a6de7ad6ca263af230b842) at an immutable revision. Checks cover the public-data boundary, Python and UI tests, firmware and native modules, containers, CAD and distribution integrity. Branch protection requires both `Public CI gate` and the separate `CodeQL` analysis result; a successful report upload alone does not satisfy the security requirement. Self-hosted runners are not used by this repository.
 

@@ -6,6 +6,8 @@ need independently measured reference data; a schematic placement is not a
 measurement. Possible-fall events are experimental outputs and require suitable
 reference and evaluation before any accuracy claim.
 
+Use Python 3.12 or newer for the pinned NumPy dependency and these commands.
+
 ```sh
 python -m pip install -r inference/requirements.txt
 python -m inference --help

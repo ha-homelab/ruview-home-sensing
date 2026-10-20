@@ -317,18 +317,24 @@ class PublicationCadenceTests(unittest.TestCase):
         bridge.last_primary_update = None
         clock = [100.0]
         primary_times = []
+        observation_times = []
 
         def slow_modules(*_):
             if clock[0] == 100.0:
                 clock[0] += 1
 
+        def record_primary(_, observed_at):
+            primary_times.append(clock[0])
+            observation_times.append(observed_at)
+
         bridge.update_modules = Mock(side_effect=slow_modules)
-        bridge.update = Mock(side_effect=lambda _: primary_times.append(clock[0]))
+        bridge.update = Mock(side_effect=record_primary)
         with patch("bridge.time.monotonic", side_effect=lambda: clock[0]):
             for tick in (100.0, 101.5, 102.0, 102.5, 103.0):
                 clock[0] = tick
                 bridge.update_observations({})
         self.assertEqual(primary_times, [101.0, 103.0])
+        self.assertEqual(observation_times, [100.0, 103.0])
 
     def test_poll_cadence_subtracts_work_and_skips_missed_ticks(self):
         bridge = Bridge.__new__(Bridge)

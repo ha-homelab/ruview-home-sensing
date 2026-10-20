@@ -6,7 +6,7 @@ No device is flashed or contacted by the regression tests.
 ## Bridge and Python clients
 
 The compatibility imports use the separately published, SHA-256-pinned
-`ruview-home-assistant` **0.1.2** wheel. Version 0.1.0 did not include the
+`ruview-home-assistant` **0.1.3b1** wheel. Version 0.1.0 did not include the
 strict TLS implementation; its past qualification must not be attributed to
 that earlier wheel. The installed-adapter check verifies the new wheel's
 recorded digest, imports and API behavior.

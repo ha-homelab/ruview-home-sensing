@@ -59,6 +59,12 @@ Python/UI/native/firmware checks, CAD and distribution/security checks.
   scan actual archive/wheel bytes and Git history identities. CAD CI validates
   generated mesh/solid constraints for the documented profiles, without a
   physical printer or board-fit test.
+- Installed bridge integration: `scripts/test-public-adapter-installed.py`
+  verifies the exact wheel digest and compatibility imports with networking
+  forbidden. It checks that time spent publishing modules advances CSI,
+  inference and snapshot ages without mutating the input, withholds expired
+  primary/fall availability, and expires an independent fall lease during
+  primary publication. Fresh observations remain available.
 
 ## Run the software suites
 

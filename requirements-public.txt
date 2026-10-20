@@ -1,4 +1,4 @@
-# Stable release from public source 6a5b12f609515df82b9499dbb9cd7105d40a97b3.
+# Beta release from public source e8ab8fabdd7b3f5bcccf1878c852927d78c4f388.
 # Exact wheel digest checked against the release manifest.
-ruview-home-assistant @ https://github.com/ha-homelab/ruview-home-assistant/releases/download/v0.1.2/ruview_home_assistant-0.1.2-py3-none-any.whl \
-    --hash=sha256:702a8c495a6d78bcc37a1df939abe45a416ff10eefabc8eb29213fdbb2efd11b
+ruview-home-assistant @ https://github.com/ha-homelab/ruview-home-assistant/releases/download/v0.1.3-beta.1/ruview_home_assistant-0.1.3b1-py3-none-any.whl \
+    --hash=sha256:7a410f23d8d291a9ccffa577ca6b377ffd36f4a3c1bba5df1c686f61937c4c73
