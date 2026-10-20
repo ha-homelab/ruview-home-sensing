@@ -21,71 +21,95 @@ v5.4.4 image at
 `sha256:9ce51d4ace496845678065dc86f8e55fb9c25fc9f01f45597042afa7ed546926`.
 Its source revision is
 [`296b6eab9445fd720e71aecab961e2d3fbca9944`](https://github.com/espressif/esp-idf/tree/296b6eab9445fd720e71aecab961e2d3fbca9944),
-which contains the published correction. A successful complete build using
-this pin is required to qualify the replacement firmware. This source fix
-does not update already installed devices.
+which contains the published correction. The complete ESP32-S3 build passed
+in [run 39367804957](https://github.com/ha-homelab/ruview-home-sensing/actions/runs/39367804957);
+its [firmware evidence](https://github.com/ha-homelab/ruview-home-sensing/actions/runs/39367804957/artifacts/12239999153)
+contains the actual SDK configuration, tool versions, map and ELF. This source
+fix does not update already installed devices.
 
-That SDK selects Mbed TLS 3.6.5. Its
-[later upstream advisories](https://mbed-tls.readthedocs.io/en/latest/security-advisories/)
-require a separate configuration and call-path assessment. The ESP-NOW fix
-does not establish that every Mbed TLS feature is unaffected. In particular,
-the remaining review distinguishes the application's HTTP client from
-TLS-server, DTLS, PKCS7, certificate-registration and ECDHE-PSK configurations
-rather than treating all of those as active merely because the library
-contains them.
+That SDK selects Mbed TLS 3.6.5 at
+[`ffb280bb63c78bfec1e1ab55040671768c85c923`](https://github.com/espressif/mbedtls/tree/ffb280bb63c78bfec1e1ab55040671768c85c923).
+The [19-row assessment](evidence/firmware-mbedtls-review.json) compares the
+later upstream medium/high advisories with the actual configuration, linked
+symbols and maintained callers. TLS 1.3, DTLS, PSK modes, ChaCha20 and DHM are
+disabled. PKCS7 is configured in the library but no PKCS7 implementation is
+linked into this firmware. Certificate writing, private RSA decryption and
+long-term MbedTLS ECDSA signing are not maintained caller operations.
+
+The compiled certificate bundle is not selected by the swarm HTTP caller:
+that caller does not set a certificate, bundle callback or global CA store.
+With insecure TLS disabled, an HTTPS URL fails setup; this assessment does
+not claim a working complete firmware HTTPS profile. There is no untrusted
+certificate-enrollment path or copying of initialized RNG state. The actual
+Wi-Fi build selects the supplicant CCM implementation; its conditional
+MbedTLS wrappers also use the one-shot APIs excluded by the multipart CCM
+advisory. These are specific applicability decisions, not a blanket approval
+of Mbed TLS 3.6.5 or a key-length/TLS qualification.
 
 ## Collector Rust dependencies
 
 The [upstream lockfile](https://github.com/ruvnet/RuView/blob/7c8aeacea2ad30972070196eb7d8e7200506b742/v2/Cargo.lock)
 contains 1,296 packages for the complete workspace. The maintained build
-selects `wifi-densepose-sensing-server` with the `mqtt` feature. A complete
-workspace lock is not the same as the selected production dependency graph;
-native test dependencies and the ARM64 release graph must also be
-distinguished.
+selects `wifi-densepose-sensing-server` with `mqtt`. The successful
+[collector build](https://github.com/ha-homelab/ruview-home-sensing/actions/runs/39367804957)
+records both exact feature trees in its
+[build artifact](https://github.com/ha-homelab/ruview-home-sensing/actions/runs/39367804957/artifacts/12240461264):
+355 distinct package/version tuples for ARM64 normal/build dependencies and
+402 for the x86-64 normal/build/development test profile. The
+[dated Cargo assessment](evidence/cargo-dependency-review.json) covers all 31
+package versions matched by 1,262 exact-version OSV queries across the
+collector, firmware-module and native-worker locks.
 
-The following findings have specific source-based dispositions:
-
-- **jsonwebtoken 9.3.1,
-  [CVE-2026-25537 / GHSA-h395-gr6q-cpjc](https://github.com/Keats/jsonwebtoken/security/advisories/GHSA-h395-gr6q-cpjc).**
-  The affected pattern enables time-claim validation without requiring a
-  correctly typed claim. The selected
-  [access-token verifier](https://github.com/ruvnet/RuView/blob/7c8aeacea2ad30972070196eb7d8e7200506b742/v2/crates/ruview-auth/src/verify.rs)
-  requires `exp`, deserializes it as `i64`, and enables expiration validation.
-  It does not enable optional `nbf` validation. This excludes the reported
-  bypass for that verifier; it does not repair the dependency or approve
-  other configurations.
-- **lru 0.12.5,
-  [RUSTSEC-2026-0253](https://rustsec.org/advisories/RUSTSEC-2026-0253.html).**
-  The reported use-after-free requires a key destructor to panic during
-  `pop`, recovery from that panic, and subsequent cache use. The locked
-  `midstreamer-temporal-compare` 0.2.1 source uses `String` keys and `get`/`put`;
-  it has no `pop`, custom key destructor or panic-recovery path. Its cache
-  code also does not call the mutable iterator implicated in
+- **jsonwebtoken 9.3.1:**
+  [CVE-2026-25537](https://github.com/Keats/jsonwebtoken/security/advisories/GHSA-h395-gr6q-cpjc)
+  cannot bypass the selected
+  [verifier](https://github.com/ruvnet/RuView/blob/7c8aeacea2ad30972070196eb7d8e7200506b742/v2/crates/ruview-auth/src/verify.rs):
+  it requires `exp`, validates it and deserializes it as `i64`; optional `nbf`
+  validation is not enabled.
+- **lru 0.12.5:**
+  [RUSTSEC-2026-0253](https://rustsec.org/advisories/RUSTSEC-2026-0253.html)
+  requires panic during key destruction in `pop` followed by reuse. Its only
+  selected parent, `midstreamer-temporal-compare 0.2.1`, uses `String` keys and
+  `get`/`put`, without `pop`, custom key destruction or panic recovery. It also
+  does not call the mutable iterator in
   [RUSTSEC-2026-0002](https://rustsec.org/advisories/RUSTSEC-2026-0002.html).
-  These are call-site exclusions, not a general approval of this lru version.
-
-The following concrete candidates still require qualification:
-
-- **quinn-proto 0.11.15:** the August 17 findings
-  [RUSTSEC-2026-0339](https://rustsec.org/advisories/RUSTSEC-2026-0339.html),
-  [RUSTSEC-2026-0341](https://rustsec.org/advisories/RUSTSEC-2026-0341.html)
-  and [RUSTSEC-2026-0342](https://rustsec.org/advisories/RUSTSEC-2026-0342.html)
-  concern peer-triggered memory growth and are corrected in 0.11.17.
-  The lockfile has paths through `midstreamer-quic` and optional HTTP/3
-  dependencies. Confirming the selected features and actual endpoint
-  construction is necessary before either excluding or repairing this
-  runtime path. A lockfile-only match is not an exploit demonstration.
-- **tar 0.4.45:** the lockfile path is through
-  `openblas-build` / `openblas-src` / `ndarray-linalg`, not the application's
-  recording export. Both the sensing server and engine disable default
-  features on their signal dependency, but the final unified feature graph
-  still needs verification before excluding this build-time candidate.
-- **crossbeam-epoch 0.9.18 in the firmware module's development graph:**
+- **quinn-proto 0.11.15:** the August 17
+  [connection-ID](https://rustsec.org/advisories/RUSTSEC-2026-0339.html),
+  [stream](https://rustsec.org/advisories/RUSTSEC-2026-0341.html) and
+  [datagram](https://rustsec.org/advisories/RUSTSEC-2026-0342.html) memory issues
+  require an actual QUIC peer. The crate is compiled through the hardware
+  dependency, but the
+  [hardware transport](https://github.com/ruvnet/RuView/blob/7c8aeacea2ad30972070196eb7d8e7200506b742/v2/crates/wifi-densepose-hardware/src/esp32/quic_transport.rs#L453)
+  only updates local state; its proposed network call is a comment. All 34
+  hardware source files and the selected server were checked for another
+  call. The actual aggregator uses ordinary UDP, and the selected `reqwest`
+  features exclude HTTP/3. This does not certify the upstream QUIC prototype
+  as a working secure transport or repair Quinn for other applications.
+- **tar 0.4.45/OpenBLAS:** both actual feature trees exclude `tar`,
+  `openblas-build`, `openblas-src` and `ndarray-linalg`. The server and engine
+  disable signal defaults, and the selected signal feature set is empty.
+  The vulnerable archive extraction path in
+  [GHSA-3pv8-6f4r-ffg2](https://github.com/advisories/GHSA-3pv8-6f4r-ffg2)
+  is not part of these builds.
+- **rand 0.8.5/0.9.2:** both actual feature trees omit `log`, which is required
+  for the reentrant-logger trigger in
+  [RUSTSEC-2026-0097](https://rustsec.org/advisories/RUSTSEC-2026-0097.html).
+- **crossbeam-epoch 0.9.18:** this is a firmware host-benchmark/test dependency,
+  not a normal WASM dependency. Its selected deque/rayon callers do not format
+  `Atomic`/`Shared` pointers; deque debug implementations use constant
+  placeholders. The invalid-pointer formatter in
   [RUSTSEC-2026-0204](https://rustsec.org/advisories/RUSTSEC-2026-0204.html)
-  concerns formatting an invalid pointer. It is not a dependency of the
-  produced WASM module's normal graph. The affected formatting operation
-  still needs separate review for the benchmark/test chain. The collector
-  lock selects 0.9.20.
+  is not called. The collector selects corrected 0.9.20.
+
+The four rustls 0.23.45 reports published October 14 remain tracked:
+[RUSTSEC-2026-0346](https://rustsec.org/advisories/RUSTSEC-2026-0346.html),
+[RUSTSEC-2026-0347](https://rustsec.org/advisories/RUSTSEC-2026-0347.html),
+[RUSTSEC-2026-0348](https://rustsec.org/advisories/RUSTSEC-2026-0348.html) and
+[RUSTSEC-2026-0349](https://rustsec.org/advisories/RUSTSEC-2026-0349.html).
+They are not critical; their 60-day date is December 13. The Brotli feature is
+absent, but the other reports are not collectively declared inapplicable or
+fixed. Maintenance-only bincode/paste notices also remain. No dependency
+monitoring criterion is established merely by a finding being recent.
 
 ## Container and build-tool boundaries
 

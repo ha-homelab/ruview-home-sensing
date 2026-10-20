@@ -1,0 +1,246 @@
+{
+  "scope": "Actual IDF5.4.4 ESP32S3 firmware selected configuration and linked paths, not generic MbedTLS3.6.5 clearance",
+  "source": "4b21c43ed5dae2c2d621e026069f9a7411d6062b",
+  "synthetic_merge": "4b26653457d23f6f1cb10556ed7f367f448b4898",
+  "run": 39367804957,
+  "artifact": 12239999153,
+  "mbedtls_commit": "ffb280bb63c78bfec1e1ab55040671768c85c923",
+  "mbedtls_version": "3.6.5",
+  "rows": [
+    {
+      "id": "CVE-2026-49300",
+      "published": "2026-07-07",
+      "severity": "HIGH",
+      "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-07-x509-ca-bit-forgery-invalid-basicconstraints/",
+      "disposition": "not applicable to qualified firmware path",
+      "reason": "No untrusted-user certificate enrollment or mixed-parser certificate registration exists. The bundle is compiled, but swarm_bridge HTTP configuration does not select cert_pem, crt_bundle_attach or use_global_ca_store; with insecure TLS disabled, HTTPS setup fails rather than registering attacker certificates. This is not a claim the parser is patched or that the optional HTTPS caller is currently a working qualified profile.",
+      "evidence": [
+        "sdkconfig: certificate bundle default full; custom bundle disabled",
+        "swarm_bridge.c HTTP client configuration"
+      ]
+    },
+    {
+      "id": "CVE-2026-50579",
+      "published": "2026-07-07",
+      "severity": "HIGH",
+      "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-07-use-after-free-pkcs7-free-reused-context/",
+      "disposition": "not applicable to qualified firmware path",
+      "reason": "PKCS7 library configuration is enabled but no PKCS7 symbols are linked into the actual firmware ELF and owned code does not parse/reuse PKCS7 contexts.",
+      "evidence": [
+        "defined-symbols.json",
+        "owned source API inventory"
+      ]
+    },
+    {
+      "id": "CVE-2026-73096",
+      "published": "2026-07-07",
+      "severity": "MEDIUM",
+      "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-07-tls13-early-data-integrity-failure-key-change/",
+      "disposition": "not applicable to qualified firmware path",
+      "reason": "TLS1.3 is disabled in the actual sdkconfig; no TLS1.3 symbols linked.",
+      "evidence": [
+        "CONFIG_MBEDTLS_SSL_PROTO_TLS1_3 not set"
+      ]
+    },
+    {
+      "id": "CVE-2026-50580",
+      "published": "2026-07-07",
+      "severity": "HIGH",
+      "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-07-tls12-ecdhe-psk-client-buffer-overflow/",
+      "disposition": "not applicable to qualified firmware path",
+      "reason": "Affected ECDHE-PSK client with long configured identity is unavailable: PSK modes and ESP TLS PSK verification are disabled; no owned PSK identity configuration.",
+      "evidence": [
+        "CONFIG_MBEDTLS_PSK_MODES not set",
+        "CONFIG_ESP_TLS_PSK_VERIFICATION not set"
+      ]
+    },
+    {
+      "id": "CVE-2026-50585",
+      "published": "2026-07-07",
+      "severity": "MEDIUM",
+      "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-07-ssl-session-reset-incomplete-context-reset/",
+      "disposition": "not applicable to qualified firmware path",
+      "reason": "Older bad-MAC reset issue is fixed before3.6.5; remaining DTLS-SRTP condition cannot occur with DTLS disabled. ssl_session_reset is absent from linked ELF.",
+      "evidence": [
+        "CONFIG_MBEDTLS_SSL_PROTO_DTLS not set",
+        "defined-symbols.json"
+      ]
+    },
+    {
+      "id": "CVE-2026-50713",
+      "published": "2026-07-07",
+      "severity": "HIGH",
+      "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-07-heap-corruption-early-renegotiation-corrupted-dtls-record/",
+      "disposition": "not applicable to qualified firmware path",
+      "reason": "DTLS is disabled in the built configuration; affected DTLS corrupted-record/renegotiation sequence unavailable.",
+      "evidence": [
+        "CONFIG_MBEDTLS_SSL_PROTO_DTLS not set"
+      ]
+    },
+    {
+      "id": "CVE-2026-34873",
+      "published": "2026-03-31",
+      "severity": "HIGH",
+      "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-03-client-impersonation-while-resuming-tls13-session/",
+      "disposition": "not applicable to qualified firmware path",
+      "reason": "Affected TLS1.3 resuming server is not provided; TLS1.3 disabled. Firmware HTTP server is not an HTTPS server.",
+      "evidence": [
+        "CONFIG_MBEDTLS_SSL_PROTO_TLS1_3 not set",
+        "CONFIG_ESP_HTTPS_SERVER_ENABLE not set"
+      ]
+    },
+    {
+      "id": "CVE-2026-35336",
+      "published": "2026-07-07",
+      "severity": "MEDIUM",
+      "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-07-possible-buffer-overflow-ecdh-calc-secret/",
+      "disposition": "not applicable to qualified firmware path",
+      "reason": "Owned code does not call the low-level ECDH function with its own output buffer. Linked use is TLS, which the primary advisory expressly identifies as unaffected because its buffer is sufficient.",
+      "evidence": [
+        "owned source API inventory",
+        "defined-symbols.json"
+      ]
+    },
+    {
+      "id": "CVE-2026-54434",
+      "published": "2026-07-07",
+      "severity": "MEDIUM",
+      "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-07-everest-low-order-input-validation/",
+      "disposition": "not applicable to qualified firmware path",
+      "reason": "Affected TF-PSA1.1/MbedTLS4.1 Everest path is outside pinned MbedTLS3.6.5.",
+      "evidence": [
+        "idf-544-mbedtls-include__mbedtls__build_info.h"
+      ]
+    },
+    {
+      "id": "CVE-2026-54435",
+      "published": "2026-07-07",
+      "severity": "MEDIUM",
+      "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-07-ecc-optimized-modp-side-channel/",
+      "disposition": "not applicable to qualified firmware path",
+      "reason": "No owned operation loads/derives a long-term MbedTLS ECC private key or performs deterministic ECDSA signing: outbound HTTP has no client-key configuration, and firmware artifact authentication uses separate Ed25519 verification. Ordinary ephemeral ECDHE and peer signature verification do not perform the repeated long-term-secret operations described by the advisory. NIST optimization is enabled, so future long-term-key use requires reassessment.",
+      "evidence": [
+        "swarm_bridge.c configuration",
+        "owned API inventory",
+        "CONFIG_MBEDTLS_ECP_NIST_OPTIM=y"
+      ]
+    },
+    {
+      "id": "CVE-2026-50584",
+      "published": "2026-07-07",
+      "severity": "MEDIUM",
+      "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-07-chacha20-counter-overflow-keystream-reuse/",
+      "disposition": "not applicable to qualified firmware path",
+      "reason": "ChaCha20 disabled, no linked ChaCha symbols.",
+      "evidence": [
+        "CONFIG_MBEDTLS_CHACHA20_C not set"
+      ]
+    },
+    {
+      "id": "CVE-2026-25835",
+      "published": "2026-03-31",
+      "severity": "HIGH",
+      "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-03-rng-cloning/",
+      "disposition": "not applicable to qualified firmware path",
+      "reason": "Maintained ESP32 firmware has no fork, VM snapshot or reusable hibernation image copying an initialized RNG state. Flashing the immutable firmware initializes a fresh runtime; it does not clone initialized process memory. This does not endorse adding runtime snapshot/resume cloning.",
+      "evidence": [
+        "ESP32S3 actual target",
+        "owned source inventory",
+        "BUILD_TOOLS.txt"
+      ]
+    },
+    {
+      "id": "CVE-2026-34874",
+      "published": "2026-03-31",
+      "severity": "HIGH",
+      "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-03-null-pointer-dereference-x509/",
+      "disposition": "not applicable to qualified firmware path",
+      "reason": "No owned certificate-writing/name-construction API; x509_string_to_names and x509write functions absent from ELF.",
+      "evidence": [
+        "defined-symbols.json"
+      ]
+    },
+    {
+      "id": "CVE-2026-34872",
+      "published": "2026-03-31",
+      "severity": "MEDIUM",
+      "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-03-ffdh-peerkey-checks/",
+      "disposition": "not applicable to qualified firmware path",
+      "reason": "PSA FFDH path unused; DHM disabled. Primary advisory also excludes TLS1.2/TLS1.3 consumers and legacy DH.",
+      "evidence": [
+        "CONFIG_MBEDTLS_DHM_C not set",
+        "owned API inventory"
+      ]
+    },
+    {
+      "id": "CVE-2026-34875",
+      "published": "2026-03-31",
+      "severity": "HIGH",
+      "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-03-ffdh-buffer-overflow/",
+      "disposition": "not applicable to qualified firmware path",
+      "reason": "No PSA FFDH public-key export path; DHM disabled and psa_export_public_key absent from linked firmware.",
+      "evidence": [
+        "CONFIG_MBEDTLS_DHM_C not set",
+        "defined-symbols.json"
+      ]
+    },
+    {
+      "id": "CVE-2026-50587",
+      "published": "2026-07-07",
+      "severity": "MEDIUM",
+      "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-07-rsa-pkcs1-v15-decryption-timing-side-channel/",
+      "disposition": "not applicable to qualified firmware path",
+      "reason": "No owned RSA private-key decryption service/key configuration or PSA asymmetric-decrypt caller. Outbound TLS client RSA key exchange encrypts to the peer rather than serving an attacker-controlled private-decryption oracle.",
+      "evidence": [
+        "swarm_bridge.c",
+        "owned API inventory"
+      ]
+    },
+    {
+      "id": "CVE-2026-34876",
+      "published": "2026-03-31",
+      "severity": "HIGH",
+      "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-03-ccm-finish-boundary-check/",
+      "disposition": "not applicable to qualified firmware path",
+      "reason": "The actual CONFIG_MBEDTLS_NIST_KW_C is disabled, so the Wi-Fi adapter excludes the MbedTLS CCM wrapper block and uses the supplicant fallback. The conditional wrappers at crypto_mbedtls.c831\u2013877 are one-shot APIs even if enabled. No owned multipart mbedtls_ccm_finish caller accepts an arbitrary tag length; TLS one-shot/wrapper use is explicitly excluded by the primary advisory.",
+      "evidence": [
+        "CONFIG_MBEDTLS_NIST_KW_C not set",
+        "crypto_mbedtls.c conditional at830; wrappers831\u2013877",
+        "owned API inventory"
+      ]
+    },
+    {
+      "id": "CVE-2025-54764",
+      "published": "2025-10-15",
+      "severity": "MEDIUM",
+      "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2025-10-ssbleed-mstep/",
+      "disposition": "fixed in selected version",
+      "reason": "Pinned MbedTLS3.6.5 includes the upstream correction.",
+      "evidence": [
+        "idf-544-mbedtls-ChangeLog",
+        "build_info.h"
+      ]
+    },
+    {
+      "id": "CVE-2025-59438",
+      "published": "2025-10-15",
+      "severity": "MEDIUM",
+      "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2025-10-invalid-padding-error/",
+      "disposition": "fixed in selected version",
+      "reason": "Pinned MbedTLS3.6.5 includes the upstream correction.",
+      "evidence": [
+        "idf-544-mbedtls-ChangeLog",
+        "build_info.h"
+      ]
+    }
+  ],
+  "limitations": [
+    "Library server support and PKCS7 config being enabled are not claimed absent; actual linked/use boundaries above apply.",
+    "Low-severity advisories remain separately tracked; this is not a zero-advisory result.",
+    "TLS key floors, time checks and all cryptographic criteria are independent of these vulnerability preconditions.",
+    "New caller features, client keys, custom trust enrollment, DTLS/TLS1.3 or state cloning require reassessment."
+  ],
+  "review_date": "2026-10-19",
+  "independent_review": true,
+  "artifact_url": "https://github.com/ha-homelab/ruview-home-sensing/actions/runs/39367804957/artifacts/12239999153"
+}
