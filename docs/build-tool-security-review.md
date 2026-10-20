@@ -60,11 +60,11 @@ does not substitute for that target-environment check.
 
 The exact IDF image scan contained 6,381 package findings, representing 5,862
 unique IDs. Selecting all Critical findings and medium-or-higher findings
-known before August 20 produced 3,104 IDs. Of these, 2,874 were attributed
-to Linux headers and 230 to other packages; none of the latter had a
+known on or before August 20 produced 3,106 IDs. Of these, 2,874 were attributed
+to Linux headers and 232 to other packages; none of the latter had a
 Critical scanner rating. Header matches do not identify a running kernel.
 
-The 230 remaining IDs were examined by affected operation:
+The 232 remaining IDs were examined by affected operation:
 
 - The default component registry has a fixed ASCII hostname. Metadata joins
   paths without replacing that hostname. The exact Requests 2.33.1 and
@@ -96,12 +96,15 @@ The 230 remaining IDs were examined by affected operation:
 
 The Rust builder is pinned to
 `sha256:d99f7b31f49909348dc59b51f3c95d1efded1701ffb222f095aaab7de3c4abd8`.
-Its corresponding selection contained 2,636 IDs: 2,356 header matches and
-280 other IDs. Its 17 reviewed groups cover the actual compiler, fixed
+Its corresponding selection contained 2,645 IDs: 2,356 header matches and
+289 other IDs. Its 18 reviewed groups cover the actual compiler, fixed
 snapshot APT install, two separate public HTTPS curl downloads, hash checks
 and extraction commands. In particular, APT 2.6.1 splits clear-signed
 metadata into a detached signature and data before invoking gpgv, rather
-than entering the reported GnuPG cleartext-armor parser. Curl's identified
+than entering the reported GnuPG cleartext-armor parser. The eight August 20
+libevent findings require evhttp, tagged RPC, DNS-server response generation,
+AF_UNIX listener or the specified mutable-buffer API states; none is entered
+by these compiler/download commands. Curl's identified
 authentication/proxy state requirements are absent from those commands.
 This base-image scan is not represented as a fresh scan of every package
 installed later by the authenticated snapshot.

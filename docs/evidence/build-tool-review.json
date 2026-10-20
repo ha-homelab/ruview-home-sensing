@@ -1,6 +1,6 @@
 {
   "review_date": "2026-10-19",
-  "scope": "Supplied public fixed-source build recipes. Old HIGH/MEDIUM published before 2026-08-20 and all CRITICAL records are assessed. Headers are not an executing host kernel. Runtime images and Cargo/SDK applicability have separate records.",
+  "scope": "Supplied public fixed-source build recipes. Old HIGH/MEDIUM published on or before 2026-08-20 and all CRITICAL records are assessed. Headers are not an executing host kernel. Runtime images and Cargo/SDK applicability have separate records.",
   "qualification": "This is a source/input-surface assessment. Actual post-update firmware install, dependency checks, downloader regression, linker mapping and full build remain mandatory pipeline gates. It does not itself certify a completed pipeline.",
   "primary_records": "CVE IDs refer to CNA records at https://www.cve.org/CVERecord?id=<ID>; GHSA IDs refer to https://github.com/advisories/<ID>. Exact raw scans and complete per-ID primary snapshots were retained with the review.",
   "builders": [
@@ -9,9 +9,9 @@
       "image": "docker.io/library/rust@sha256:d99f7b31f49909348dc59b51f3c95d1efded1701ffb222f095aaab7de3c4abd8",
       "counts": {
         "raw_package_findings": 8266,
-        "selected_package_findings": 3362,
-        "selected_unique_ids": 2636,
-        "non_header_unique_ids": 280
+        "selected_package_findings": 3412,
+        "selected_unique_ids": 2645,
+        "non_header_unique_ids": 289
       },
       "raw_scan_sha256": "236a6d0c7a7426e5a5a54ef480c42423ea8723ff806fbb5d6f4e9efc492d2145",
       "groups": [
@@ -174,9 +174,10 @@
             "CVE-2026-56412",
             "CVE-2026-66046",
             "CVE-2026-6653",
-            "CVE-2026-72522"
+            "CVE-2026-72522",
+            "CVE-2026-76957"
           ],
-          "package_findings": 56
+          "package_findings": 58
         },
         {
           "component_group": "perl",
@@ -585,6 +586,31 @@
           "package_findings": 16
         },
         {
+          "component_group": "libevent",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "high",
+          "reason": "The selected builder commands do not expose libevent evhttp HTTP services, tagged RPC parsing, evdns server response formatting or AF_UNIX accept listeners. They do not call evbuffer_add_buffer_reference on a mutable buffer either. Git/curl use their own HTTP parsing and the compiler/Cargo commands are not libevent application servers. This is an operation-specific exclusion for all eight August 20 records, not an assertion that every libevent issue is server-only.",
+          "packages": [
+            "libevent-2.1-7",
+            "libevent-core-2.1-7",
+            "libevent-dev",
+            "libevent-extra-2.1-7",
+            "libevent-openssl-2.1-7",
+            "libevent-pthreads-2.1-7"
+          ],
+          "ids": [
+            "CVE-2026-63379",
+            "CVE-2026-63381",
+            "CVE-2026-63382",
+            "CVE-2026-63383",
+            "CVE-2026-63384",
+            "CVE-2026-63385",
+            "CVE-2026-63387",
+            "CVE-2026-63388"
+          ],
+          "package_findings": 48
+        },
+        {
           "component_group": "wget",
           "disposition": "not_reached_by_reviewed_recipe",
           "confidence": "high",
@@ -611,9 +637,9 @@
       "counts": {
         "raw_package_findings": 6381,
         "raw_unique_ids": 5862,
-        "selected_package_findings": 3432,
-        "selected_unique_ids": 3104,
-        "non_header_unique_ids": 230,
+        "selected_package_findings": 3434,
+        "selected_unique_ids": 3106,
+        "non_header_unique_ids": 232,
         "non_header_critical_ids": 0
       },
       "raw_scan_sha256": "957d5414f953c77f07212b9cf7d90a97de96d0ed3c97f0976d4c071c809aedd8",
@@ -896,9 +922,11 @@
             "CVE-2026-56412",
             "CVE-2026-66046",
             "CVE-2026-6653",
-            "CVE-2026-72522"
+            "CVE-2026-72522",
+            "CVE-2026-76641",
+            "CVE-2026-76957"
           ],
-          "package_findings": 23
+          "package_findings": 25
         },
         {
           "component_group": "compiler-tools",
