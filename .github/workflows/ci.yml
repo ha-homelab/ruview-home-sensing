@@ -140,8 +140,12 @@ jobs:
               Path("collector/Dockerfile"),
               Path("collector/prepare-source.py"),
               Path("collector/source-lock.json"),
+              Path("collector/ring_policy.py"),
+              Path("collector/test_ring_policy.py"),
+              Path("scripts/transport_security.py"),
               *sorted(Path("collector/patches").glob("*.patch")),
               *sorted(Path("collector/src").glob("*.rs")),
+              *sorted(path for path in Path("collector/ring-policy").rglob("*") if path.is_file()),
           ]
           evidence = {
               "local_inputs": {
@@ -185,6 +189,10 @@ jobs:
           trap 'docker rm "$container" >/dev/null' EXIT
           docker cp "$container:/app/sensing-server" \
             "$RUNNER_TEMP/collector-artifacts/sensing-server"
+          docker cp "$container:/app/ring-policy-receipt.json" \
+            "$RUNNER_TEMP/collector-artifacts/ring-policy-receipt.json"
+          docker cp "$container:/app/licenses/ring" \
+            "$RUNNER_TEMP/collector-artifacts/ring-licenses"
           python3 - <<'PY'
           import hashlib
           import json
@@ -207,11 +215,26 @@ jobs:
           # required suite is added, increase this minimum in the same change.
           if len(counts) < 6 or any(count == 0 for count in counts):
               raise SystemExit(f"Missing or empty native collector regression suite: {counts}")
+          if "Actual ring policy checked:" not in log:
+              raise SystemExit("Missing actual compiled ring regression")
+          ring_receipt = json.loads((root / "ring-policy-receipt.json").read_text())
+          ring_source = json.loads(Path("collector/ring-policy/source.json").read_text())
+          if any(ring_receipt.get(key) != value for key, value in ring_source.items()):
+              raise SystemExit("Unexpected ring source or policy receipt")
+          patch_hash = hashlib.sha256(
+              Path("collector/ring-policy/exact-minimum.patch").read_bytes()
+          ).hexdigest()
+          if ring_receipt.get("patch_sha256") != patch_hash:
+              raise SystemExit("Unexpected ring patch digest")
+          for name in ring_source["licenses"]:
+              if not (root / "ring-licenses" / name.replace("/", "__")).is_file():
+                  raise SystemExit(f"Missing delivered ring license: {name}")
           receipt = {
               "image_platform": "linux/arm64",
               "binary_bytes": len(binary),
               "binary_sha256": hashlib.sha256(binary).hexdigest(),
               "native_test_suite_pass_counts": counts,
+              "ring_policy_patch_sha256": patch_hash,
               "arm64_runtime_executed": False,
               "hardware_executed": False,
           }
