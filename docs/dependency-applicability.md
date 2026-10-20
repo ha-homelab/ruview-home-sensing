@@ -132,15 +132,21 @@ Local privilege escalation therefore cannot be dismissed just because the
 software runs in a container.
 
 The new build replaces `/app/sensing-server`; it retains the base image's
-libraries, entrypoint and auxiliary executables. The final binary's native
-imports and those retained paths remain part of the assessment.
+libraries, entrypoint and auxiliary executables. The
+[Debian runtime review](debian-runtime-review.md) covers all 45 distinct
+old medium-or-higher or critical candidates against the actual native
+imports, 703 retained ELF files, privileged utilities, configuration and
+maintained input paths. Its [per-ID record](evidence/debian-runtime-review.json)
+preserves the component-specific reasons and primary sources.
+
 For example, Debian explicitly documents that
 [CVE-2023-45853](https://security-tracker.debian.org/tracker/CVE-2023-45853)
 does not affect Bookworm's zlib binary because the vulnerable MiniZip
 component is not built from that package. The inspected image contains no
-MiniZip component. That specific exclusion does not resolve the other
-runtime matches, including the installed Perl and privileged utility
-findings.
+MiniZip component. The separate Perl and privileged-utility decisions are
+documented individually; they are not inferred from this zlib exclusion.
+The review does not qualify arbitrary replacement entrypoints, plugins or
+operator shell scripts.
 
 The three pinned Python Alpine runtime bases each report seven advisory IDs.
 Their 293 pip-vendored files were compared byte for byte with the PyPI
