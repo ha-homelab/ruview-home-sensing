@@ -10,8 +10,13 @@ import os
 import platform
 import re
 import subprocess
+import sys
 import urllib.request
 from pathlib import Path
+
+# Support direct source-checkout execution before runtime dependencies exist.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from scripts.transport_security import open_source  # noqa: E402
 
 LOCK = Path(__file__).with_name("native-runtime.lock.json")
 ARCHIVE_PREFIX = "https://archive.ubuntu.com/ubuntu/pool/"
@@ -53,7 +58,7 @@ def download(package: dict, destination: Path) -> None:
     )
     digest = hashlib.sha256()
     count = 0
-    with urllib.request.urlopen(request, timeout=60) as response:
+    with open_source(request, timeout=60) as response:
         if not response.geturl().startswith(ARCHIVE_PREFIX):
             raise ValueError("Native CAD archive redirected outside Ubuntu archive")
         with destination.open("xb") as output:

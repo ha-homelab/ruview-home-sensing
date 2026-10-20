@@ -1,7 +1,32 @@
-ARG IDF_IMAGE=espressif/idf:v5.4@sha256:f1e9f69dc052b9afc7801ca884e0ef40c17e014bb05ce73d9c09d29290bd17fb
+ARG IDF_IMAGE=espressif/idf:v5.4.4@sha256:9ce51d4ace496845678065dc86f8e55fb9c25fc9f01f45597042afa7ed546926
 FROM ${IDF_IMAGE} AS build
 SHELL ["/bin/bash", "-c"]
+ENV IDF_PYTHON_CHECK_CONSTRAINTS=yes
+COPY build-security/ /build-security/
+# Verified local packages repair the clients before Git/component downloads.
+RUN cd /build-security && sha256sum --check SHA256SUMS && \
+    arch="$(dpkg --print-architecture)" && \
+    dpkg --install \
+      "debs/$arch/libgnutls30t64_3.8.3-1.1ubuntu3.6_${arch}.deb" \
+      "debs/$arch/libnghttp2-14_1.59.0-1ubuntu0.4_${arch}.deb" && \
+    test "$(dpkg-query -W -f='${Version}' libgnutls30t64)" = 3.8.3-1.1ubuntu3.6 && \
+    test "$(dpkg-query -W -f='${Version}' libnghttp2-14)" = 1.59.0-1ubuntu0.4 && \
+    /opt/esp/python_env/idf5.4_py3.12_env/bin/python -m pip install \
+      --disable-pip-version-check --no-index --no-deps --require-hashes \
+      --find-links wheels -r requirements.txt && \
+    /opt/esp/python_env/idf5.4_py3.12_env/bin/python -m pip check && \
+    test -f /opt/esp/espidf.constraints.v5.4.txt && \
+    /opt/esp/python_env/idf5.4_py3.12_env/bin/python /opt/esp/idf/tools/idf_tools.py check-python-dependencies && \
+    /opt/esp/python_env/idf5.4_py3.12_env/bin/python test_download.py && \
+    dpkg-query -W libgnutls30t64 libnghttp2-14 > /tmp/ruview-build-tools.txt && \
+    /opt/esp/python_env/idf5.4_py3.12_env/bin/python -m pip show urllib3 >> /tmp/ruview-build-tools.txt && \
+    ldd "$(git --exec-path)/git-remote-https" > /tmp/git-https-libraries.txt && \
+    ! grep -q 'not found' /tmp/git-https-libraries.txt && \
+    grep -q 'libgnutls.so' /tmp/git-https-libraries.txt && \
+    grep -q 'libnghttp2.so' /tmp/git-https-libraries.txt && \
+    cat /tmp/git-https-libraries.txt >> /tmp/ruview-build-tools.txt
 WORKDIR /project
+COPY license_bundle.py /license_bundle.py
 COPY source/ ./
 COPY fleet-build/ /fleet-build/
 ARG FIRMWARE_PROFILE=home-s3-n16r8
@@ -20,6 +45,7 @@ RUN --mount=type=secret,id=preferred_ap,target=/run/secrets/preferred_ap,mode=04
 COPY sdkconfig.home-s3-n16r8 ./
 COPY vendor/monocypher/ components/monocypher/
 COPY patches/ /patches/
+COPY wifi-security/ /wifi-security/
 COPY home_wasm_pubkey.h main/
 RUN git apply /patches/*.patch && \
     if [ "$FIRMWARE_PROFILE" = fleet-reviewed ]; then \
@@ -27,6 +53,14 @@ RUN git apply /patches/*.patch && \
     else printf "0.8.8.8\n" > version.txt; fi
 # Pin the only managed component needed on a display-less board.
 RUN printf 'dependencies:\n  espressif/led_strip: "3.0.1"\n' > main/idf_component.yml
+# Refuse changed IDF inputs and exercise the actual injected entry guard before
+# compiling the same patched supplicant into the firmware.
+RUN python3 /wifi-security/test_policy.py \
+      /opt/esp/idf/components/wpa_supplicant/src/rsn_supp/wpa.c \
+      /opt/esp/idf/components/esp_wifi/include/esp_wifi_types_generic.h \
+      /opt/esp/idf/components/wpa_supplicant/src/common/defs.h && \
+    python3 /wifi-security/apply.py /opt/esp/idf \
+      --receipt /tmp/ruview-wifi-policy.json
 RUN --mount=type=secret,id=preferred_ap,target=/run/secrets/preferred_ap,mode=0400 \
     if [ "$FIRMWARE_PROFILE" = node2-preferred-ap ]; then \
       python3 /fleet-build/build_profile.py configure-preferred /run/secrets/preferred_ap "$PREFERRED_AP_SHA256" /project || exit 1; \
@@ -44,6 +78,7 @@ RUN --mount=type=secret,id=preferred_ap,target=/run/secrets/preferred_ap,mode=04
     grep -q '^CONFIG_ESP_WIFI_STATIC_TX_BUFFER=y$' sdkconfig && \
     grep -q '^CONFIG_ESP_WIFI_TX_BUFFER_TYPE=0$' sdkconfig && \
     grep -q '^CONFIG_HOME_CSI_ASSOCIATED_ONLY=y$' sdkconfig && \
+    ! grep -q '^CONFIG_HOME_WIFI_ALLOW_LEGACY_SECURITY=y$' sdkconfig && \
     if [ "$FIRMWARE_PROFILE" = node2-preferred-ap ]; then \
       python3 /fleet-build/build_profile.py verify-preferred /run/secrets/preferred_ap "$PREFERRED_AP_SHA256" /project/sdkconfig; \
     elif [ "$FIRMWARE_PROFILE" = fleet-reviewed ]; then \
@@ -55,8 +90,16 @@ RUN --mount=type=secret,id=preferred_ap,target=/run/secrets/preferred_ap,mode=04
       ! grep -q '^CONFIG_HOME_RUNTIME_RECOVERY_V1=y$' sdkconfig; \
     fi && \
     python3 -c 'import json; c=json.load(open("build/compile_commands.json")); assert any(x["file"].endswith("/main/wasm_runtime.c") and "-DWASM3_AVAILABLE=1" in x["command"] for x in c), "WASM3 must be linked into the real runtime"' && \
-    cmake --build build --parallel 4 && \
+    cmake --build build --parallel 2 && \
     mkdir /out && cp build/esp32-csi-node.bin build/esp32-csi-node.elf build/esp32-csi-node.map build/bootloader/bootloader.bin build/partition_table/partition-table.bin build/ota_data_initial.bin build/flasher_args.json sdkconfig dependencies.lock /out/ && \
+    cp build/compile_commands.json /out/ && \
+    cp /opt/esp/idf/tools/tools.json /out/IDF_TOOLS.json && \
+    (git -C /opt/esp/idf rev-parse HEAD && \
+     idf.py --version && xtensa-esp-elf-gcc --version && \
+     cmake --version && ninja --version && python --version) > /out/BUILD_TOOLS.txt && \
+    cp /tmp/ruview-wifi-policy.json /out/ && \
+    cp /tmp/ruview-build-tools.txt /out/BUILD_TRANSPORT.txt && \
+    cp /build-security/packages.json /out/BUILD_TRANSPORT_PACKAGES.json && \
     if [ "$FIRMWARE_PROFILE" = fleet-reviewed ]; then \
       cp /fleet-build/profile.json /fleet-build/sdkconfig.fleet-reviewed /fleet-build/build_profile.py version.txt /out/ && \
       (cd /out && sha256sum profile.json sdkconfig.fleet-reviewed build_profile.py version.txt sdkconfig > BUILD_PROFILE_SHA256SUMS.txt); \
@@ -66,6 +109,7 @@ RUN --mount=type=secret,id=preferred_ap,target=/run/secrets/preferred_ap,mode=04
     cp /project/components/monocypher/LICENCE.md /out/licenses/Monocypher-LICENCE.md && \
     cp /project/components/wasm3/wasm3-src/LICENSE /out/licenses/WASM3-LICENSE && \
     cp /opt/esp/idf/LICENSE /out/licenses/ESP-IDF-LICENSE && \
+    python3 /license_bundle.py --idf-root /opt/esp/idf --project-root /project --output /out/licenses/third-party && \
     (cd /out && sha256sum ./*.bin ./*.elf ./*.map > SHA256SUMS.txt) && \
     rm -f /project/sdkconfig.home-node2-preferred-ap
 FROM scratch AS artifacts

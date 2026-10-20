@@ -1,0 +1,2 @@
+collector/ring-policy/fixtures/* -text
+collector/ring-policy/exact-minimum.patch -text

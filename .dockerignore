@@ -9,3 +9,6 @@
 !assumed_activity/*.py
 !assumed_activity/requirements.txt
 !assumed_activity/Dockerfile
+!scripts/
+scripts/**
+!scripts/transport_security.py

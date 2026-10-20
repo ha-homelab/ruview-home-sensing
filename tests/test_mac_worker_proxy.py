@@ -64,6 +64,7 @@ class UpstreamHandler(http.server.BaseHTTPRequestHandler):
             else:
                 self.wfile.write(self.server.body)
         except OSError:
+            # Timeout and disconnect tests deliberately close the client early.
             pass
 
 
@@ -437,14 +438,17 @@ class MacWorkerProxyTests(unittest.TestCase):
                 self.assertFalse(PROXY.accepts_gzip(value))
 
     def test_gzip_adversarial_whitespace_has_bounded_processing(self):
+        script = """
+import runpy, sys
+check = runpy.run_path(sys.argv[1])['accepts_gzip']
+assert not check('gzip;q=' + ' ' * 65000 + 'x')
+assert check('gzip;q=' + ' ' * 65000 + '0.5')
+"""
         subprocess.run(
             [
                 sys.executable,
                 "-c",
-                "import runpy, sys; "
-                "check = runpy.run_path(sys.argv[1])['accepts_gzip']; "
-                "assert not check('gzip;q=' + ' ' * 65000 + 'x'); "
-                "assert check('gzip;q=' + ' ' * 65000 + '0.5')",
+                script,
                 str(Path(PROXY.__file__)),
             ],
             check=True,

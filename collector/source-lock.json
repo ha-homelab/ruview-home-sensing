@@ -18,5 +18,9 @@
     "v2/crates/worldgraph": "4441bc07b566659877c25e22cd5aea457bdba4f2",
     "v2/crates/ruforecast": "a802067f0444e10f267c5052119524de1b21747d",
     "vendor/rufield": "995567283606b86594439d6594387ff551a21ede"
+  },
+  "security_source_sha256": {
+    "v2/crates/wifi-densepose-sensing-server/src/lib.rs": "b324ca54d544432e9b5c5bb9fc02bb92c9ca661aed5353852857501e4dfbe0be",
+    "v2/crates/wifi-densepose-sensing-server/src/rufield_surface.rs": "b98f1fbcbfea0726fabc253d875d92aff08d813fa7430e5ca8c6d0f24f4a90d4"
   }
 }

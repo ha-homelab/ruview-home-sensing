@@ -1,0 +1,613 @@
+{
+  "schema": 1,
+  "review_date": "2026-10-19",
+  "scope": "45 distinct old medium-or-higher or critical raw scanner matches in the selected Debian ARM64 collector runtime. Individual applicability dispositions, not a clean-image or arbitrary-deployment guarantee.",
+  "upstream_revision": "7c8aeacea2ad30972070196eb7d8e7200506b742",
+  "reviewed_source_head": "4b21c43ed5dae2c2d621e026069f9a7411d6062b",
+  "runtime_image": "docker.io/ruvnet/wifi-densepose@sha256:29e6b4ce1893687de205324c509976c53911eff1abdfce3663256de3b82866d7",
+  "ci_url": "https://github.com/ha-homelab/ruview-home-sensing/actions/runs/39367804957",
+  "artifact_url": "https://github.com/ha-homelab/ruview-home-sensing/actions/runs/39367804957/artifacts/12240461264",
+  "artifact_sha256": "b284251eeb2552d2357e9bd4ffb62485304877885c049d83ddea9341a37fb5e6",
+  "collector_sha256": "3b70c0435652fc67f67bcd4d088c244f7f9939c75995b078125f745e97637367",
+  "collector_bytes": 7286648,
+  "runtime_binary_executed": false,
+  "review_method": {
+    "source": "71 pinned upstream server Rust files; 70 byte-identical to first prepared source, main changed only by the separately reviewed local patches. Current build records all prepared source hashes.",
+    "image": "Read-only OCI layer overlay with every layer digest checked; exact installed package/source metadata, file modes and public default configuration inspected.",
+    "native": "703 base-image ELF files inspected without execution, including all 11 SUID/SGID executables and their configured PAM/native dependency closure; rebuilt current sensing-server independently inspected too.",
+    "independent_review": true
+  },
+  "rows": [
+    {
+      "id": "CVE-2023-45853",
+      "package": "zlib1g",
+      "version": "1:1.2.13.dfsg-1",
+      "scanner_severity": "CRITICAL",
+      "assessment": "affected_component_absent",
+      "rationale": "Debian explicitly records that this Bookworm zlib build does not build the vulnerable contrib/minizip component. The exact filesystem contains no MiniZip component. This is distinct from the installed libz library.",
+      "boundary": "Adding a separately bundled MiniZip implementation invalidates the absence proof.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2023-45853",
+        "https://security-tracker.debian.org/tracker/CVE-2023-45853"
+      ]
+    },
+    {
+      "id": "CVE-2023-50495",
+      "package": "ncurses-bin",
+      "version": "6.4-4",
+      "scanner_severity": "MEDIUM",
+      "assessment": "no_selected_terminfo_entry",
+      "rationale": "The defect concerns malformed terminfo compilation/wrapping via _nc_wrap_entry. The installed tic/terminfo tools are acknowledged. No application binary imports this function or links libtinfo; the reviewed server exposes no terminfo compiler and never invokes tic/infocmp.",
+      "boundary": "Interactive terminal-tool use or added terminal compiler services require reassessment.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2023-50495",
+        "https://security-tracker.debian.org/tracker/CVE-2023-50495"
+      ]
+    },
+    {
+      "id": "CVE-2024-10041",
+      "package": "libpam0g",
+      "version": "1.5.2-6+deb12u2",
+      "scanner_severity": "MEDIUM",
+      "assessment": "no_secret_authentication_path_in_default_image",
+      "rationale": "The vulnerable PAM implementation is installed and some privileged tools use it. The image has18accounts with only locked password fields; no password hashes are included in this receipt. The three applications do not link PAM or expose an OS-password verifier, and their entrypoint does not run interactive login. Therefore the advisory precondition of a victimPAM authentication holding a password/hash is not established in the maintained default runtime. Adding realOSaccounts/passwords or hostshadow mounts invalidates this exclusion. DebianBookworm marks the issue ignored/minor but that label alone is not the reasoning.",
+      "boundary": "Applies to the selected image and maintained sensing-server configuration; added services, scripts, modules, credentials or operator configuration require reassessment.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2024-10041",
+        "https://security-tracker.debian.org/tracker/CVE-2024-10041"
+      ]
+    },
+    {
+      "id": "CVE-2025-15649",
+      "package": "perl-base",
+      "version": "5.36.0-7+deb12u3",
+      "scanner_severity": "MEDIUM",
+      "assessment": "affected_component_absent",
+      "rationale": "No IO/Compress or IO/Uncompress implementation exists in the exact merged base filesystem. These findings concern File::GlobMapper evaluation or IO::Uncompress::Unzip processing, not the unrelated installed GNU gzip executable. The final stage installs no Perl modules.",
+      "boundary": "Adding the affected Perl distributions or custom PERL5LIB is outside this exclusion.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2025-15649",
+        "https://security-tracker.debian.org/tracker/CVE-2025-15649"
+      ]
+    },
+    {
+      "id": "CVE-2025-30258",
+      "package": "gpgv",
+      "version": "2.2.40-1.1+deb12u2",
+      "scanner_severity": "MEDIUM",
+      "assessment": "no_selected_key_import",
+      "rationale": "gpgv and APT verification helpers exist; the gpg certificate-import program is absent. The collector neither invokes OpenPGP verification nor imports untrusted subkeys. The final runtime stage performs no APT operations or keyring replacement; preinstalled Debian keyrings are retained immutable inputs to this image.",
+      "boundary": "Operator-installed keys or custom OpenPGP workflows need separate review; this does not approve arbitrary gpgv inputs.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2025-30258",
+        "https://security-tracker.debian.org/tracker/CVE-2025-30258"
+      ]
+    },
+    {
+      "id": "CVE-2025-68972",
+      "package": "gpgv",
+      "version": "2.2.40-1.1+deb12u2",
+      "scanner_severity": "MEDIUM",
+      "assessment": "no_selected_openpgp_message_entry",
+      "rationale": "gpgv is installed, but the reviewed application and entrypoint expose no clear-signed OpenPGP-message verification path and final-stage COPY performs no package verification. The CNA trigger is appended unsigned text after a signed plaintext line containing form feed, not any arbitrary use of cryptographic signatures.",
+      "boundary": "Future/custom OpenPGP or package-management workflows are outside this selected runtime assessment. The different compiler-image APT stage is not cleared by this row.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2025-68972",
+        "https://security-tracker.debian.org/tracker/CVE-2025-68972"
+      ]
+    },
+    {
+      "id": "CVE-2025-69720",
+      "package": "ncurses-bin",
+      "version": "6.4-4",
+      "scanner_severity": "HIGH",
+      "assessment": "no_selected_cli_entry",
+      "rationale": "infocmp is installed, and is not SUID/SGID. The affected analyze_string implementation belongs to that CLI, not normal Rust HTTP or sensor parsing. The reviewed entrypoint and selected server sources never execute infocmp or accept a terminfo-analysis request.",
+      "boundary": "Arbitrary administrative infocmp use on untrusted terminfo is not covered.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2025-69720",
+        "https://security-tracker.debian.org/tracker/CVE-2025-69720"
+      ]
+    },
+    {
+      "id": "CVE-2026-12087",
+      "package": "perl-base",
+      "version": "5.36.0-7+deb12u3",
+      "scanner_severity": "MEDIUM",
+      "assessment": "no_selected_socket_entry",
+      "rationale": "Socket.pm and Socket.so are installed; this is not an absence claim. The advisory requires calling Perl Socket::pack_ip_mreq_source with a source buffer shorter than 4 bytes. The reviewed server neither embeds Perl nor calls a Perl script; its Rust socket code does not use this XS function.",
+      "boundary": "Invoking custom Perl multicast utilities with untrusted source buffers is outside scope.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-12087",
+        "https://security-tracker.debian.org/tracker/CVE-2026-12087"
+      ]
+    },
+    {
+      "id": "CVE-2026-13221",
+      "package": "perl-base",
+      "version": "5.36.0-7+deb12u3",
+      "scanner_severity": "CRITICAL",
+      "assessment": "no_selected_regex_entry",
+      "rationale": "The flaw requires compiling a Perl regex containing more than 65,535 fixed-string alternatives. The 71 exact prepared server source files contain no Perl subprocess/interpreter call; all three process constructors name netsh with fixed arguments. The final runtime stage runs no package scripts, and its entrypoint execs the application. No request-controlled Perl regex compiler is exposed. Debian additionally dates introduction to v5.37.10, newer than installed 5.36.0, but this exclusion does not rely on resolving that disagreement with the broader CNA version range.",
+      "boundary": "Interactive Perl, custom entrypoint commands, new Perl plugins or transitive dynamic execution require reassessment; not a blanket approval of the Perl interpreter.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-13221",
+        "https://security-tracker.debian.org/tracker/CVE-2026-13221"
+      ]
+    },
+    {
+      "id": "CVE-2026-13595",
+      "package": "util-linux-extra",
+      "version": "2.38.1-5+deb12u3",
+      "scanner_severity": "MEDIUM",
+      "assessment": "no_trigger_in_selected_runtime",
+      "rationale": "The vulnerable nested-partition libblkid code is installed. Its consumers are disk utilities and libmount, not any of the three retained application binaries. The entrypoint directly execs an application; it does not start udev/udisks or process disk-image input. No owned CSI, HTTP, recording or model path invokes blkid/mount. This does not exclude exploitation after adding a block-device hotplug service or privileged disk-image workflow.",
+      "boundary": "Applies to the selected image and maintained sensing-server configuration; added services, scripts, modules, credentials or operator configuration require reassessment.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-13595",
+        "https://security-tracker.debian.org/tracker/CVE-2026-13595"
+      ]
+    },
+    {
+      "id": "CVE-2026-13757",
+      "package": "libp11-kit0",
+      "version": "0.24.1-2",
+      "scanner_severity": "MEDIUM",
+      "assessment": "rpc_endpoint_absent",
+      "rationale": "libp11-kit is installed, but no p11-kit server/proxy program or PKCS11 module configuration is in the merged image. Its only ELF client is libgnutls, used by APT transports; none of the three application binaries links it, and no ELF imports p11_kit_server. The direct application entrypoint starts no p11-kit RPC listener.",
+      "boundary": "Custom PKCS11 providers, RPC sockets or new service entrypoints require reassessment.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-13757",
+        "https://security-tracker.debian.org/tracker/CVE-2026-13757"
+      ]
+    },
+    {
+      "id": "CVE-2026-15059",
+      "package": "libudev1",
+      "version": "252.39-1~deb12u2",
+      "scanner_severity": "MEDIUM",
+      "assessment": "affected_daemon_absent",
+      "rationale": "systemd-oomd is absent; the maintained entrypoint does not expose its IPC API. A libudev1 source-package match does not provide the affected daemon.",
+      "boundary": "Applies to the selected image and maintained sensing-server configuration; added services, scripts, modules, credentials or operator configuration require reassessment.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-15059",
+        "https://security-tracker.debian.org/tracker/CVE-2026-15059"
+      ]
+    },
+    {
+      "id": "CVE-2026-15534",
+      "package": "perl-base",
+      "version": "5.36.0-7+deb12u3",
+      "scanner_severity": "MEDIUM",
+      "assessment": "no_selected_regex_entry",
+      "rationale": "This requires a Perl regex with multiple WHILEM nodes matched against an attacker-controlled subject around 286 MB or more. The selected Rust server does not invoke a Perl interpreter or subprocess and has no Perl regex request path. All 71 exact server files were inspected for process/interpreter calls; final runtime stage has no RUN/package hooks.",
+      "boundary": "Custom Perl commands or applications are outside the selected server path.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-15534",
+        "https://security-tracker.debian.org/tracker/CVE-2026-15534"
+      ]
+    },
+    {
+      "id": "CVE-2026-16742",
+      "package": "libudev1",
+      "version": "252.39-1~deb12u2",
+      "scanner_severity": "HIGH",
+      "assessment": "affected_daemon_absent",
+      "rationale": "The image contains libudev1 but no systemd-homed or systemd-homework executable and no homed-managed user service. The affected home-record/group operation is not provided by the installed library.",
+      "boundary": "Applies to the selected image and maintained sensing-server configuration; added services, scripts, modules, credentials or operator configuration require reassessment.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-16742",
+        "https://security-tracker.debian.org/tracker/CVE-2026-16742"
+      ]
+    },
+    {
+      "id": "CVE-2026-18477",
+      "package": "tar",
+      "version": "1.34+dfsg-1.2+deb12u1",
+      "scanner_severity": "MEDIUM",
+      "assessment": "no_selected_archive_entry",
+      "rationale": "GNU tar is installed but the final image stage only copies a binary and the application entrypoint directly execs it. All 71 selected server source files have no GNU tar invocation or archive-list-then-extract pipeline. No maintained recording/model endpoint delegates extraction to this executable. Incremental dumpdir restoration, --one-top-level hardlinks, and hidden-entry GNU tar parsing therefore have no selected input path.",
+      "boundary": "Custom runtime commands or added archive extraction features are outside scope. Build-stage Rust tar crate use is separately assessed and is not cleared by this CLI exclusion.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-18477",
+        "https://security-tracker.debian.org/tracker/CVE-2026-18477"
+      ]
+    },
+    {
+      "id": "CVE-2026-18508",
+      "package": "tar",
+      "version": "1.34+dfsg-1.2+deb12u1",
+      "scanner_severity": "MEDIUM",
+      "assessment": "no_selected_archive_entry",
+      "rationale": "GNU tar is installed but the final image stage only copies a binary and the application entrypoint directly execs it. All 71 selected server source files have no GNU tar invocation or archive-list-then-extract pipeline. No maintained recording/model endpoint delegates extraction to this executable. Incremental dumpdir restoration, --one-top-level hardlinks, and hidden-entry GNU tar parsing therefore have no selected input path.",
+      "boundary": "Custom runtime commands or added archive extraction features are outside scope. Build-stage Rust tar crate use is separately assessed and is not cleared by this CLI exclusion.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-18508",
+        "https://security-tracker.debian.org/tracker/CVE-2026-18508"
+      ]
+    },
+    {
+      "id": "CVE-2026-18938",
+      "package": "libp11-kit0",
+      "version": "0.24.1-2",
+      "scanner_severity": "MEDIUM",
+      "assessment": "architecture_precondition_absent",
+      "rationale": "The advisory is explicitly 32-bit integer under-allocation. The selected runtime and libp11-kit are ARM64 ELF64. The p11-kit server executable/configuration is also absent, but the primary exclusion is the required architecture.",
+      "boundary": "Different-architecture images are not covered.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-18938",
+        "https://security-tracker.debian.org/tracker/CVE-2026-18938"
+      ]
+    },
+    {
+      "id": "CVE-2026-19487",
+      "package": "perl-base",
+      "version": "5.36.0-7+deb12u3",
+      "scanner_severity": "MEDIUM",
+      "assessment": "no_selected_regex_entry",
+      "rationale": "Incorrect Aho-Corasick matching matters when a Perl regex result makes an access/filtering decision. The selected server has no Perl interpreter or regex-decision path, as confirmed by its exact 71-file source inventory and direct-entrypoint invocation; Rust regex use is a different implementation.",
+      "boundary": "This is not a claim that the installed Perl regex engine is repaired; scripts added by operators must be reviewed.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-19487",
+        "https://security-tracker.debian.org/tracker/CVE-2026-19487"
+      ]
+    },
+    {
+      "id": "CVE-2026-27171",
+      "package": "zlib1g",
+      "version": "1:1.2.13.dfsg-1",
+      "scanner_severity": "MEDIUM",
+      "assessment": "affected_function_not_selected",
+      "rationale": "All 703 ELF import inventories and the independently inspected newly built collector have no crc32_combine64/crc32_combine_gen64/combine-family imports. The three application binaries link only libc/libm/libgcc_s; selected server source does not call these libz APIs. The existing libz consumers are retained in component-inventory.json. Ordinary CRC/decompression is not the affected combine API.",
+      "boundary": "Static copies or new code that calls the combine API need their own version and input review; this does not clear every static Rust dependency.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-27171",
+        "https://security-tracker.debian.org/tracker/CVE-2026-27171"
+      ]
+    },
+    {
+      "id": "CVE-2026-27456",
+      "package": "util-linux-extra",
+      "version": "2.38.1-5+deb12u3",
+      "scanner_severity": "MEDIUM",
+      "assessment": "trigger_configuration_absent",
+      "rationale": "The SUID mount binary is present; that fact is explicitly retained. The exact image /etc/fstab contains only the UNCONFIGURED comment, so there is no required attacker-writable user,loop entry. The maintained entrypoint does not construct one. A modified fstab/device deployment needs a new assessment.",
+      "boundary": "Applies to the selected image and maintained sensing-server configuration; added services, scripts, modules, credentials or operator configuration require reassessment.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-27456",
+        "https://security-tracker.debian.org/tracker/CVE-2026-27456"
+      ]
+    },
+    {
+      "id": "CVE-2026-3184",
+      "package": "util-linux-extra",
+      "version": "2.38.1-5+deb12u3",
+      "scanner_severity": "MEDIUM",
+      "assessment": "different_source_package",
+      "rationale": "The installed login package is 1:4.13+dfsg1-1+deb12u2 from source shadow. Debian explicitly records Bookworm login as not built from the affected util-linux source (the takeover occurred at 2.40.2-3). No owned login -h / PAM_RHOST workflow is used.",
+      "boundary": "Applies to the selected image and maintained sensing-server configuration; added services, scripts, modules, credentials or operator configuration require reassessment.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-3184",
+        "https://security-tracker.debian.org/tracker/CVE-2026-3184"
+      ]
+    },
+    {
+      "id": "CVE-2026-41991",
+      "package": "gzip",
+      "version": "1.12-1",
+      "scanner_severity": "MEDIUM",
+      "assessment": "fallback_precondition_absent",
+      "rationale": "gzexe is installed. Its exact script first uses type mktemp and the standard image PATH resolves the existing /usr/bin/mktemp, so the vulnerable predictable-PID fallback is not selected by the supplied environment. The application also never invokes gzexe.",
+      "boundary": "An operator overriding PATH or removing mktemp can enable the vulnerable fallback; no general utility repair is claimed.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-41991",
+        "https://security-tracker.debian.org/tracker/CVE-2026-41991"
+      ]
+    },
+    {
+      "id": "CVE-2026-41992",
+      "package": "gzip",
+      "version": "1.12-1",
+      "scanner_severity": "HIGH",
+      "assessment": "no_selected_cli_entry",
+      "rationale": "The flaw requires one GNU gzip -d invocation processing a crafted LZW file followed by a crafted LZH file to reuse shared decoder state. GNU gzip is installed, but no selected server source or final-stage/entrypoint command invokes it. No maintained sensor/HTTP upload path passes a file list to this CLI.",
+      "boundary": "Arbitrary administrative gzip use with hostile files is not covered; Rust decoder dependencies are separately inventoried.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-41992",
+        "https://security-tracker.debian.org/tracker/CVE-2026-41992"
+      ]
+    },
+    {
+      "id": "CVE-2026-42250",
+      "package": "libbz2-1.0",
+      "version": "1.0.8-5+b1",
+      "scanner_severity": "MEDIUM",
+      "assessment": "affected_component_absent",
+      "rationale": "bzip2recover is absent from the merged base filesystem. Installed libbz2 decompression used by package utilities is not the affected bzip2recover command implementation.",
+      "boundary": "Installing/running bzip2recover introduces a separate path.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-42250",
+        "https://security-tracker.debian.org/tracker/CVE-2026-42250"
+      ]
+    },
+    {
+      "id": "CVE-2026-42496",
+      "package": "perl-base",
+      "version": "5.36.0-7+deb12u3",
+      "scanner_severity": "CRITICAL",
+      "assessment": "affected_component_absent",
+      "rationale": "All exact final base-layer paths were examined: Archive/Tar and its Perl implementation are absent. The bundled perl-base source-package version alone does not install this module. The reviewed final Docker stage copies only the built collector executable; it does not install Perl modules.",
+      "boundary": "Installing Archive::Tar or mounting additional Perl library paths invalidates this exclusion.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-42496",
+        "https://security-tracker.debian.org/tracker/CVE-2026-42496"
+      ]
+    },
+    {
+      "id": "CVE-2026-42497",
+      "package": "perl-base",
+      "version": "5.36.0-7+deb12u3",
+      "scanner_severity": "HIGH",
+      "assessment": "affected_component_absent",
+      "rationale": "All exact final base-layer paths were examined: Archive/Tar and its Perl implementation are absent. The bundled perl-base source-package version alone does not install this module. The reviewed final Docker stage copies only the built collector executable; it does not install Perl modules.",
+      "boundary": "Installing Archive::Tar or mounting additional Perl library paths invalidates this exclusion.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-42497",
+        "https://security-tracker.debian.org/tracker/CVE-2026-42497"
+      ]
+    },
+    {
+      "id": "CVE-2026-48959",
+      "package": "perl-base",
+      "version": "5.36.0-7+deb12u3",
+      "scanner_severity": "MEDIUM",
+      "assessment": "affected_component_absent",
+      "rationale": "No IO/Compress or IO/Uncompress implementation exists in the exact merged base filesystem. These findings concern File::GlobMapper evaluation or IO::Uncompress::Unzip processing, not the unrelated installed GNU gzip executable. The final stage installs no Perl modules.",
+      "boundary": "Adding the affected Perl distributions or custom PERL5LIB is outside this exclusion.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-48959",
+        "https://security-tracker.debian.org/tracker/CVE-2026-48959"
+      ]
+    },
+    {
+      "id": "CVE-2026-48962",
+      "package": "perl-base",
+      "version": "5.36.0-7+deb12u3",
+      "scanner_severity": "HIGH",
+      "assessment": "affected_component_absent",
+      "rationale": "No IO/Compress or IO/Uncompress implementation exists in the exact merged base filesystem. These findings concern File::GlobMapper evaluation or IO::Uncompress::Unzip processing, not the unrelated installed GNU gzip executable. The final stage installs no Perl modules.",
+      "boundary": "Adding the affected Perl distributions or custom PERL5LIB is outside this exclusion.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-48962",
+        "https://security-tracker.debian.org/tracker/CVE-2026-48962"
+      ]
+    },
+    {
+      "id": "CVE-2026-5435",
+      "package": "libc6",
+      "version": "2.36-9+deb12u14",
+      "scanner_severity": "MEDIUM",
+      "assessment": "no_affected_api_caller_found",
+      "rationale": "CNA identifies deprecated DNS formatting routines ns_printrrf/ns_printrr/fp_nquery, not normal resolver processing. None of703ELFs imports these APIs. Actual application code uses resolver/network clients, not DNS debug formatting. No owned explicit dynamic lookup for these APIs was found.",
+      "boundary": "Applies to the selected image and maintained sensing-server configuration; added services, scripts, modules, credentials or operator configuration require reassessment.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-5435",
+        "https://security-tracker.debian.org/tracker/CVE-2026-5435"
+      ]
+    },
+    {
+      "id": "CVE-2026-54369",
+      "package": "libacl1",
+      "version": "2.3.1-3",
+      "scanner_severity": "HIGH",
+      "assessment": "no_privileged_affected_caller_in_selected_runtime",
+      "rationale": "libacl is installed, and cp/install/mv/sed/tar import pathname ACL functions. Those commands are not SUID/SGID and the application entrypoint does not invoke them. All 11 actual privileged executables plus configured PAM modules and their complete ELF dependency closure have zero ACL imports/dependencies. No owned runtime operation supplies an untrusted pathname to privileged ACL processing. Generic administrator shell usage is outside this concrete application path.",
+      "boundary": "Applies to the selected image and maintained sensing-server configuration; added services, scripts, modules, credentials or operator configuration require reassessment.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-54369",
+        "https://security-tracker.debian.org/tracker/CVE-2026-54369"
+      ]
+    },
+    {
+      "id": "CVE-2026-54370",
+      "package": "libacl1",
+      "version": "2.3.1-3",
+      "scanner_severity": "MEDIUM",
+      "assessment": "affected_tools_absent",
+      "rationale": "The getfacl/setfacl/chacl tools required for this recursive traversal issue are absent from the fully overlaid image. Installed libacl1 alone does not include those tool entrypoints.",
+      "boundary": "Applies to the selected image and maintained sensing-server configuration; added services, scripts, modules, credentials or operator configuration require reassessment.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-54370",
+        "https://security-tracker.debian.org/tracker/CVE-2026-54370"
+      ]
+    },
+    {
+      "id": "CVE-2026-54371",
+      "package": "libattr1",
+      "version": "1:2.5.1-4",
+      "scanner_severity": "MEDIUM",
+      "assessment": "affected_tools_absent",
+      "rationale": "The getfattr/setfattr executables required for this command traversal issue are absent from the fully overlaid image; the library package match alone is not this execution path.",
+      "boundary": "Applies to the selected image and maintained sensing-server configuration; added services, scripts, modules, credentials or operator configuration require reassessment.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-54371",
+        "https://security-tracker.debian.org/tracker/CVE-2026-54371"
+      ]
+    },
+    {
+      "id": "CVE-2026-54411",
+      "package": "libpam0g",
+      "version": "1.5.2-6+deb12u2",
+      "scanner_severity": "MEDIUM",
+      "assessment": "affected_module_not_configured",
+      "rationale": "pam_userdb.so is installed but none of the actual PAM configuration files enables it. The applications do not call PAM. There is no configuredplaintext userdb verifier to drive repeatedly, which the timing advisory requires.",
+      "boundary": "Applies to the selected image and maintained sensing-server configuration; added services, scripts, modules, credentials or operator configuration require reassessment.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-54411",
+        "https://security-tracker.debian.org/tracker/CVE-2026-54411"
+      ]
+    },
+    {
+      "id": "CVE-2026-5450",
+      "package": "libc6",
+      "version": "2.36-9+deb12u14",
+      "scanner_severity": "MEDIUM",
+      "assessment": "no_affected_api_caller_in_applications",
+      "rationale": "This requires scanf-family %mc with an explicit width greater than1024. None of the three retained application binaries imports scanf-family functions; their direct runtime dependencies are libgcc_s,libm,libc. System utilities do import scanf and remain listed, but no selected entrypoint or owned request path invokes them with a user-controlled format. Do not generalize this to all administrator command use.",
+      "boundary": "Applies to the selected image and maintained sensing-server configuration; added services, scripts, modules, credentials or operator configuration require reassessment.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-5450",
+        "https://security-tracker.debian.org/tracker/CVE-2026-5450"
+      ]
+    },
+    {
+      "id": "CVE-2026-5704",
+      "package": "tar",
+      "version": "1.34+dfsg-1.2+deb12u1",
+      "scanner_severity": "MEDIUM",
+      "assessment": "no_selected_archive_entry",
+      "rationale": "GNU tar is installed but the final image stage only copies a binary and the application entrypoint directly execs it. All 71 selected server source files have no GNU tar invocation or archive-list-then-extract pipeline. No maintained recording/model endpoint delegates extraction to this executable. Incremental dumpdir restoration, --one-top-level hardlinks, and hidden-entry GNU tar parsing therefore have no selected input path.",
+      "boundary": "Custom runtime commands or added archive extraction features are outside scope. Build-stage Rust tar crate use is separately assessed and is not cleared by this CLI exclusion.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-5704",
+        "https://security-tracker.debian.org/tracker/CVE-2026-5704"
+      ]
+    },
+    {
+      "id": "CVE-2026-57432",
+      "package": "perl-base",
+      "version": "5.36.0-7+deb12u3",
+      "scanner_severity": "HIGH",
+      "assessment": "no_selected_pack_entry",
+      "rationale": "The affected S_measure_struct path parses attacker-controlled Perl pack/unpack templates. No selected source call invokes Perl or exposes such templates. Installed Perl remains acknowledged; the source-package match alone does not connect this path to Rust request parsing.",
+      "boundary": "Additional scripts that accept untrusted Perl pack/unpack templates are outside scope.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-57432",
+        "https://security-tracker.debian.org/tracker/CVE-2026-57432"
+      ]
+    },
+    {
+      "id": "CVE-2026-57433",
+      "package": "perl-base",
+      "version": "5.36.0-7+deb12u3",
+      "scanner_severity": "HIGH",
+      "assessment": "affected_component_absent",
+      "rationale": "Neither Storable.pm nor its native auto/Storable module is installed in the exact merged base filesystem; no Storable thaw/retrieve entry point exists in the reviewed collector source.",
+      "boundary": "Installing Storable or another application that bundles it requires reassessment.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-57433",
+        "https://security-tracker.debian.org/tracker/CVE-2026-57433"
+      ]
+    },
+    {
+      "id": "CVE-2026-5928",
+      "package": "libc6",
+      "version": "2.36-9+deb12u14",
+      "scanner_severity": "MEDIUM",
+      "assessment": "no_affected_api_caller_in_applications",
+      "rationale": "CNA requires ungetwc on overlapping single/multibyte non-Unicode encodings. Only libstdc++ among703ELFs imports ungetwc; none of the retained application binaries links libstdc++ or imports ungetwc. Owned Rust network/parsing paths do not use wide FILE-stream pushback. Arbitrary dynamically loaded native plugins are not qualified here.",
+      "boundary": "Applies to the selected image and maintained sensing-server configuration; added services, scripts, modules, credentials or operator configuration require reassessment.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-5928",
+        "https://security-tracker.debian.org/tracker/CVE-2026-5928"
+      ]
+    },
+    {
+      "id": "CVE-2026-6238",
+      "package": "libc6",
+      "version": "2.36-9+deb12u14",
+      "scanner_severity": "MEDIUM",
+      "assessment": "no_affected_api_caller_found",
+      "rationale": "CNA explicitly limits the malformed-RDATA bug to deprecated DNS debug formatting routines outside normal DNS resolution. None of703imageELFs imports ns_printrrf/ns_printrr/fp_nquery and owned source has no such calls.",
+      "boundary": "Applies to the selected image and maintained sensing-server configuration; added services, scripts, modules, credentials or operator configuration require reassessment.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-6238",
+        "https://security-tracker.debian.org/tracker/CVE-2026-6238"
+      ]
+    },
+    {
+      "id": "CVE-2026-6368",
+      "package": "libc6",
+      "version": "2.36-9+deb12u14",
+      "scanner_severity": "MEDIUM",
+      "assessment": "no_affected_api_caller_found",
+      "rationale": "This requires wordexp with WRDE_APPEND followed by wordfree. None of703imageELFs imports wordexp/wordfree; owned sources use direct Rust process APIs and fixed arguments, not POSIXwordexp.",
+      "boundary": "Applies to the selected image and maintained sensing-server configuration; added services, scripts, modules, credentials or operator configuration require reassessment.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-6368",
+        "https://security-tracker.debian.org/tracker/CVE-2026-6368"
+      ]
+    },
+    {
+      "id": "CVE-2026-6791",
+      "package": "libc6",
+      "version": "2.36-9+deb12u14",
+      "scanner_severity": "MEDIUM",
+      "assessment": "no_affected_api_caller_found",
+      "rationale": "This requires passing an attacker-controlled long tilde username to wordexp. None of703imageELFs imports wordexp/wordfree, and no owned runtime entry path calls it. The installed shell is not inferred safe merely because it is a shell; exact dynamic imports were checked.",
+      "boundary": "Applies to the selected image and maintained sensing-server configuration; added services, scripts, modules, credentials or operator configuration require reassessment.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-6791",
+        "https://security-tracker.debian.org/tracker/CVE-2026-6791"
+      ]
+    },
+    {
+      "id": "CVE-2026-7010",
+      "package": "perl-base",
+      "version": "5.36.0-7+deb12u3",
+      "scanner_severity": "MEDIUM",
+      "assessment": "affected_component_absent",
+      "rationale": "HTTP/Tiny.pm is absent from the exact merged base filesystem. The collector uses Rust HTTP clients, not HTTP::Tiny; no affected request construction or cross-origin redirect path is selected.",
+      "boundary": "Additional Perl modules or operator scripts are not covered.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-7010",
+        "https://security-tracker.debian.org/tracker/CVE-2026-7010"
+      ]
+    },
+    {
+      "id": "CVE-2026-7017",
+      "package": "perl-base",
+      "version": "5.36.0-7+deb12u3",
+      "scanner_severity": "MEDIUM",
+      "assessment": "affected_component_absent",
+      "rationale": "HTTP/Tiny.pm is absent from the exact merged base filesystem. The collector uses Rust HTTP clients, not HTTP::Tiny; no affected request construction or cross-origin redirect path is selected.",
+      "boundary": "Additional Perl modules or operator scripts are not covered.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-7017",
+        "https://security-tracker.debian.org/tracker/CVE-2026-7017"
+      ]
+    },
+    {
+      "id": "CVE-2026-8376",
+      "package": "perl-base",
+      "version": "5.36.0-7+deb12u3",
+      "scanner_severity": "CRITICAL",
+      "assessment": "architecture_precondition_absent",
+      "rationale": "The advisory requires a 32-bit Perl build. Both the exact ARM64 ELF and installed Perl Config_heavy.pl identify aarch64-linux-gnu-thread-multi with ptrsize=8, ivsize=8 and use64bitall=define. This is an architecture exclusion, not merely absence of a observed exploit.",
+      "boundary": "A 32-bit build or compatibility runtime must be reviewed separately.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-8376",
+        "https://security-tracker.debian.org/tracker/CVE-2026-8376"
+      ]
+    },
+    {
+      "id": "CVE-2026-9538",
+      "package": "perl-base",
+      "version": "5.36.0-7+deb12u3",
+      "scanner_severity": "HIGH",
+      "assessment": "affected_component_absent",
+      "rationale": "All exact final base-layer paths were examined: Archive/Tar and its Perl implementation are absent. The bundled perl-base source-package version alone does not install this module. The reviewed final Docker stage copies only the built collector executable; it does not install Perl modules.",
+      "boundary": "Installing Archive::Tar or mounting additional Perl library paths invalidates this exclusion.",
+      "sources": [
+        "https://cveawg.mitre.org/api/cve/CVE-2026-9538",
+        "https://security-tracker.debian.org/tracker/CVE-2026-9538"
+      ]
+    }
+  ],
+  "not_covered": [
+    "New or arbitrarily overridden runtime commands, plugins or upstream auxiliary-application configurations.",
+    "Separate Rust/Cargo vulnerabilities, build-image tool invocation, firmware SDK/MbedTLS and Python container findings.",
+    "Newer advisory publications or changed source/image inputs."
+  ],
+  "conclusion": "No confirmed applicable old/critical vulnerability was identified in these 45 rows for the maintained sensing-server runtime paths. Vulnerable utility packages remain installed; none is described as patched by this review."
+}

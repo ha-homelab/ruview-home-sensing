@@ -539,7 +539,7 @@ def main(binary, output, uid=None):
             rootfs_readonly_tested=False,
         )
     except BaseException as error:
-        summary["failure"] = type(error).__name__ + ": " + str(error)
+        summary.update(passed=False, failure=type(error).__name__ + ": " + str(error))
     finally:
         trace.close()
         try:

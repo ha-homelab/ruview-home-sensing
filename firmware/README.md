@@ -1,5 +1,9 @@
 # ESP32-S3 firmware source and qualification tools
 
+See [build validation and compiler diagnostics](../docs/build-validation.md)
+for the complete firmware build boundary, required tools and the reviewed
+warnings retained in the pinned upstream module sources.
+
 This directory builds a patched, pinned RuView firmware and verifies its radio,
 module runtime and update protocols. It contains no installed receiver inventory,
 network configuration, trusted deployment key, signed deployment module or
@@ -55,6 +59,18 @@ boot-bound recovery and packet sequence changes are isolated in numbered
 patches. Preserve patch order. Review the real on-device stack, heap, radio and
 callback budget; host timings do not measure ESP32 performance.
 
+For password-protected networks, the default station requires WPA2/WPA3 with
+AES pairwise and group data ciphers.
+Patch `0020` raises the authentication threshold; the separately pinned
+`wifi-security/apply.py` patches ESP-IDF 5.4.4 before compilation to reject
+WPA1/WEP/TKIP before the WPA key handshake. It checks selected cipher enum
+values, not an AP's advertised capability mask. Both input and patched source
+hashes are exported in `ruview-wifi-policy.json`. The public Docker recipe
+requires `CONFIG_HOME_WIFI_ALLOW_LEGACY_SECURITY` to stay disabled. A custom
+IDF build can explicitly enable this legacy option, but then no AES-only
+policy applies. Empty-password open networks remain unencrypted. See the
+[security profile](../docs/security-profile.md#wi-fi-association-policy).
+
 ## Build and sign module candidates
 
 ```sh
@@ -98,3 +114,16 @@ runtime test additionally requires the pinned WASM3 checkout and an explicit
 packages under `tests/fixtures/modules`, never installed signed modules or a
 real deployment key. Fleet operations and their independent review boundary are
 explained in [fleet/README.md](fleet/README.md).
+
+### Numeric word access in the interpreter
+
+Patch `0021-alias-safe-words.patch` replaces incompatible typed pointer accesses
+in WASM3 code emission and constant-slot reuse with fixed-size `memcpy` calls.
+It retains the same byte representation, slot widths and index increments;
+strict aliasing stays enabled. The patch also removes one unused local from the
+LD2410 parser without changing which frames it accepts. The host regression
+compiles the actual patched interpreter with optimization and strict-aliasing
+diagnostics, exercises both slot widths and emitted code-cell layouts, and
+checks synthetic normal/engineering radar reports. Existing runtime tests apply
+the same patch. These checks do not establish on-device performance or sensing
+accuracy; the full ESP32-S3 build is a separate required CI job.

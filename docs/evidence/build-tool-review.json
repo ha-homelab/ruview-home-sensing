@@ -1,0 +1,1279 @@
+{
+  "review_date": "2026-10-19",
+  "scope": "Supplied public fixed-source build recipes. Old HIGH/MEDIUM published on or before 2026-08-20 and all CRITICAL records are assessed. Headers are not an executing host kernel. Runtime images and Cargo/SDK applicability have separate records.",
+  "qualification": "This is a source/input-surface assessment. Actual post-update firmware install, dependency checks, downloader regression, linker mapping and full build remain mandatory pipeline gates. It does not itself certify a completed pipeline.",
+  "primary_records": "CVE IDs refer to CNA records at https://www.cve.org/CVERecord?id=<ID>; GHSA IDs refer to https://github.com/advisories/<ID>. Exact raw scans and complete per-ID primary snapshots were retained with the review.",
+  "builders": [
+    {
+      "builder": "rust",
+      "image": "docker.io/library/rust@sha256:d99f7b31f49909348dc59b51f3c95d1efded1701ffb222f095aaab7de3c4abd8",
+      "counts": {
+        "raw_package_findings": 8266,
+        "selected_package_findings": 3412,
+        "selected_unique_ids": 2645,
+        "non_header_unique_ids": 289
+      },
+      "raw_scan_sha256": "236a6d0c7a7426e5a5a54ef480c42423ea8723ff806fbb5d6f4e9efc492d2145",
+      "groups": [
+        {
+          "component_group": "headers",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "high",
+          "reason": "linux-libc-dev supplies C ABI headers. Its kernel CVE matches do not identify an executing kernel in this image. No VM/kernel is built or booted by either reviewed Docker recipe. Host-kernel assurance is not inferred.",
+          "packages": [
+            "linux-libc-dev"
+          ],
+          "package_findings": 2356,
+          "unique_id_count": 2356
+        },
+        {
+          "component_group": "curl",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "The two explicit curl commands are separate processes fetching fixed public HTTPS Debian URLs, with no credentials, cookie engine, custom Host, client certificate, STARTTLS, SMB, SFTP/SCP or stream-dependency API. Both files are SHA-256 verified before extraction. The public HTTPS Git/Cargo/rustup uses do not configure the affected auth/proxy/cookie protocols. The 18 retained publisher advisories require those absent options or state transitions; this does not certify arbitrary proxy/auth settings supplied outside the recipe.",
+          "packages": [
+            "curl",
+            "libcurl3-gnutls",
+            "libcurl4",
+            "libcurl4-openssl-dev"
+          ],
+          "ids": [
+            "CVE-2026-10536",
+            "CVE-2026-11856",
+            "CVE-2026-12064",
+            "CVE-2026-1965",
+            "CVE-2026-3783",
+            "CVE-2026-3784",
+            "CVE-2026-4873",
+            "CVE-2026-5545",
+            "CVE-2026-5773",
+            "CVE-2026-6253",
+            "CVE-2026-6276",
+            "CVE-2026-6429",
+            "CVE-2026-7168",
+            "CVE-2026-8286",
+            "CVE-2026-8458",
+            "CVE-2026-8924",
+            "CVE-2026-8927",
+            "CVE-2026-8932"
+          ],
+          "package_findings": 72
+        },
+        {
+          "component_group": "gpgv",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "high",
+          "reason": "APT uses a fixed Debian archive keyring, not import of untrusted certificates (30258). In APT 2.6.1 ExecGPGV, clear-signed data is split by SplitClearSignedFile and gpgv receives detached signature and data filenames; the GnuPG cleartext-armor long-line/formfeed parser involved in 68972 is bypassed. APT LineBuffer uses getline and trims only CR/LF and space/tab, not formfeed. Signed package metadata is required; check-valid-until=no affects snapshot expiry, not signature checking.",
+          "packages": [
+            "dirmngr",
+            "gnupg",
+            "gnupg-l10n",
+            "gnupg-utils",
+            "gpg",
+            "gpg-agent",
+            "gpg-wks-client",
+            "gpg-wks-server",
+            "gpgconf",
+            "gpgsm",
+            "gpgv"
+          ],
+          "ids": [
+            "CVE-2025-30258",
+            "CVE-2025-68972"
+          ],
+          "package_findings": 22
+        },
+        {
+          "component_group": "compression",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "The reviewed recipe does not invoke gzexe, bzip2recover, GNU tar incremental restore/--one-top-level, or mixed LZW/LZH decompression. dpkg-deb extracts fixed SHA-256 checked Debian files. Rust crates/toolchains and IDF inputs use their respective authenticated/hash-constrained download paths, not an arbitrary archive inspection service. XZ 34743 additionally requires decoding an empty index then appending to that index, rather than ordinary archive decompression.",
+          "packages": [
+            "bzip2",
+            "gzip",
+            "libbz2-1.0",
+            "libbz2-dev",
+            "liblzma-dev",
+            "liblzma5",
+            "tar",
+            "xz-utils"
+          ],
+          "ids": [
+            "CVE-2026-18477",
+            "CVE-2026-18508",
+            "CVE-2026-34743",
+            "CVE-2026-41991",
+            "CVE-2026-41992",
+            "CVE-2026-42250",
+            "CVE-2026-5704"
+          ],
+          "package_findings": 11
+        },
+        {
+          "component_group": "glibc",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "The six records require deprecated DNS debug-printing APIs (not the resolver), scanf %mc width>1024, ungetwc with overlapping multibyte encoding, or wordexp with append/adversarial tilde username. Public build scripts do not call these APIs on external input. Recipe paths, compiler arguments and locale-independent fixed-source inputs are controlled; there is no shell-expansion endpoint. This is source/invocation assessment, not instrumented transitive coverage.",
+          "packages": [
+            "libc-bin",
+            "libc-dev-bin",
+            "libc6",
+            "libc6-dev"
+          ],
+          "ids": [
+            "CVE-2026-5435",
+            "CVE-2026-5450",
+            "CVE-2026-5928",
+            "CVE-2026-6238",
+            "CVE-2026-6368",
+            "CVE-2026-6791"
+          ],
+          "package_findings": 24
+        },
+        {
+          "component_group": "xml",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "Expat/libxml2/libxslt/APR XML findings require supplied XML/DTD/catalog/XSL structures or parser callback state. The actual compiler/test recipe receives fixed source, lockfiles and generated local metadata; it runs no XML document ingestion, xmlwf, XSL transformation or remote catalog service. SQL/Redis/memcached APR provider paths are also absent.",
+          "packages": [
+            "libaprutil1",
+            "libexpat1",
+            "libexpat1-dev",
+            "libxml2",
+            "libxml2-dev",
+            "libxslt1-dev",
+            "libxslt1.1"
+          ],
+          "ids": [
+            "CVE-2024-28757",
+            "CVE-2025-10911",
+            "CVE-2025-59375",
+            "CVE-2025-66382",
+            "CVE-2026-0990",
+            "CVE-2026-25210",
+            "CVE-2026-32327",
+            "CVE-2026-32776",
+            "CVE-2026-32777",
+            "CVE-2026-32778",
+            "CVE-2026-34191",
+            "CVE-2026-34501",
+            "CVE-2026-34502",
+            "CVE-2026-45186",
+            "CVE-2026-50219",
+            "CVE-2026-56131",
+            "CVE-2026-56132",
+            "CVE-2026-56403",
+            "CVE-2026-56404",
+            "CVE-2026-56405",
+            "CVE-2026-56406",
+            "CVE-2026-56407",
+            "CVE-2026-56408",
+            "CVE-2026-56409",
+            "CVE-2026-56410",
+            "CVE-2026-56411",
+            "CVE-2026-56412",
+            "CVE-2026-66046",
+            "CVE-2026-6653",
+            "CVE-2026-72522",
+            "CVE-2026-76957"
+          ],
+          "package_findings": 58
+        },
+        {
+          "component_group": "perl",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "Potential Perl use is fixed-source build generation. No untrusted regular expression, pack template, Storable blob, Archive::Tar extraction, IO::Uncompress ZIP, glob expression or HTTP::Tiny credential request is supplied. The 32-bit regex finding also does not match this linux/amd64 builder. This does not declare the installed Perl package patched.",
+          "packages": [
+            "libperl5.36",
+            "perl",
+            "perl-base",
+            "perl-modules-5.36"
+          ],
+          "ids": [
+            "CVE-2025-15649",
+            "CVE-2026-12087",
+            "CVE-2026-13221",
+            "CVE-2026-15534",
+            "CVE-2026-19487",
+            "CVE-2026-42496",
+            "CVE-2026-42497",
+            "CVE-2026-48959",
+            "CVE-2026-48962",
+            "CVE-2026-57432",
+            "CVE-2026-57433",
+            "CVE-2026-7010",
+            "CVE-2026-7017",
+            "CVE-2026-8376",
+            "CVE-2026-9538"
+          ],
+          "package_findings": 60
+        },
+        {
+          "component_group": "python",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "Container Python runs the fixed repository build/profile helpers and ring regression launcher. No HTML/Markdown/XML/mail/FTP/cookie-rendering endpoint, password manager, untrusted config value or alternative-base64 authentication parser is exposed. No reuse-after-MemoryError/OSError decompressor pattern or streaming tarfile extraction is in these commands. Public source preparation executes outside this image and has separate strict TLS/archive validation; it is not silently qualified by this image assessment.",
+          "packages": [
+            "libpython3.11-minimal",
+            "libpython3.11-stdlib",
+            "python3.11",
+            "python3.11-minimal"
+          ],
+          "ids": [
+            "CVE-2025-12781",
+            "CVE-2025-15366",
+            "CVE-2025-15367",
+            "CVE-2025-69534",
+            "CVE-2026-0864",
+            "CVE-2026-11940",
+            "CVE-2026-11972",
+            "CVE-2026-1502",
+            "CVE-2026-15308",
+            "CVE-2026-15806",
+            "CVE-2026-17084",
+            "CVE-2026-3276",
+            "CVE-2026-3446",
+            "CVE-2026-3644",
+            "CVE-2026-4224",
+            "CVE-2026-6019",
+            "CVE-2026-6100",
+            "CVE-2026-7210",
+            "CVE-2026-8328",
+            "CVE-2026-9669"
+          ],
+          "package_findings": 80
+        },
+        {
+          "component_group": "zlib",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "Debian Bookworm does not build MiniZip as part of its zlib source package (CVE-2023-45853); the metadata match is retained but not an installed vulnerable MiniZip call. CVE-2026-27171 requires adversarial negative length to CRC-combine functions, absent in ordinary build/archive streams whose sizes come from completed buffers.",
+          "packages": [
+            "zlib1g",
+            "zlib1g-dev"
+          ],
+          "ids": [
+            "CVE-2023-45853",
+            "CVE-2026-27171"
+          ],
+          "package_findings": 4
+        },
+        {
+          "component_group": "filesystem",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "ACL/attr findings require a concurrent attacker controlling path components during privileged attribute changes; util-linux findings require login, user-authorized loop mounts or hostile block-device probing. The reviewed image performs no such service. Its isolated build tree contains only staged source and owned generated files; no shared hostile directory or block device is mounted into the build.",
+          "packages": [
+            "bsdutils",
+            "libacl1",
+            "libattr1",
+            "libblkid-dev",
+            "libblkid1",
+            "libmount-dev",
+            "libmount1",
+            "libsmartcols1",
+            "libuuid1",
+            "mount",
+            "util-linux",
+            "util-linux-extra",
+            "uuid-dev"
+          ],
+          "ids": [
+            "CVE-2026-13595",
+            "CVE-2026-27456",
+            "CVE-2026-3184",
+            "CVE-2026-54369",
+            "CVE-2026-54370",
+            "CVE-2026-54371"
+          ],
+          "package_findings": 36
+        },
+        {
+          "component_group": "desktop",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "GLib D-Bus/GVariant/date/regex/locale-keyfile/MIME-magic and graphical/font/image/video decoder paths are not used by the headless compiler/test commands. No external media, desktop bus, user MIME database or rendering service is supplied. This excludes the identified feature paths, not every possible use of these installed packages.",
+          "packages": [
+            "gir1.2-gdkpixbuf-2.0",
+            "imagemagick",
+            "imagemagick-6-common",
+            "imagemagick-6.q16",
+            "libaom3",
+            "libdav1d6",
+            "libde265-0",
+            "libgdk-pixbuf-2.0-0",
+            "libgdk-pixbuf-2.0-dev",
+            "libgdk-pixbuf2.0-bin",
+            "libgdk-pixbuf2.0-common",
+            "libglib2.0-0",
+            "libglib2.0-bin",
+            "libglib2.0-data",
+            "libglib2.0-dev",
+            "libglib2.0-dev-bin",
+            "libgraphite2-3",
+            "libharfbuzz0b",
+            "libheif1",
+            "libmagickcore-6-arch-config",
+            "libmagickcore-6-headers",
+            "libmagickcore-6.q16-6",
+            "libmagickcore-6.q16-6-extra",
+            "libmagickcore-6.q16-dev",
+            "libmagickcore-dev",
+            "libmagickwand-6-headers",
+            "libmagickwand-6.q16-6",
+            "libmagickwand-6.q16-dev",
+            "libmagickwand-dev",
+            "libopenexr-3-1-30",
+            "libopenexr-dev",
+            "libopenjp2-7",
+            "libopenjp2-7-dev",
+            "libtiff-dev",
+            "libtiff6",
+            "libtiffxx6"
+          ],
+          "ids": [
+            "CVE-2023-25193",
+            "CVE-2023-32570",
+            "CVE-2023-39328",
+            "CVE-2023-39329",
+            "CVE-2023-39616",
+            "CVE-2023-51792",
+            "CVE-2023-52355",
+            "CVE-2023-5841",
+            "CVE-2023-6277",
+            "CVE-2023-6879",
+            "CVE-2024-31047",
+            "CVE-2024-38949",
+            "CVE-2024-38950",
+            "CVE-2025-12495",
+            "CVE-2025-12839",
+            "CVE-2025-12840",
+            "CVE-2025-48074",
+            "CVE-2025-64181",
+            "CVE-2025-68431",
+            "CVE-2026-12912",
+            "CVE-2026-15588",
+            "CVE-2026-16118",
+            "CVE-2026-16768",
+            "CVE-2026-22693",
+            "CVE-2026-27622",
+            "CVE-2026-32738",
+            "CVE-2026-32739",
+            "CVE-2026-32740",
+            "CVE-2026-32741",
+            "CVE-2026-32814",
+            "CVE-2026-32882",
+            "CVE-2026-33164",
+            "CVE-2026-33165",
+            "CVE-2026-34379",
+            "CVE-2026-34380",
+            "CVE-2026-34543",
+            "CVE-2026-34544",
+            "CVE-2026-34545",
+            "CVE-2026-34588",
+            "CVE-2026-34589",
+            "CVE-2026-40244",
+            "CVE-2026-40250",
+            "CVE-2026-41069",
+            "CVE-2026-41071",
+            "CVE-2026-41142",
+            "CVE-2026-42216",
+            "CVE-2026-42217",
+            "CVE-2026-45382",
+            "CVE-2026-45383",
+            "CVE-2026-47178",
+            "CVE-2026-47247",
+            "CVE-2026-47254",
+            "CVE-2026-47709",
+            "CVE-2026-47714",
+            "CVE-2026-48029",
+            "CVE-2026-49271",
+            "CVE-2026-49295",
+            "CVE-2026-49337",
+            "CVE-2026-49346",
+            "CVE-2026-50142",
+            "CVE-2026-50593",
+            "CVE-2026-53466",
+            "CVE-2026-53467",
+            "CVE-2026-55577",
+            "CVE-2026-55594",
+            "CVE-2026-55595",
+            "CVE-2026-55597",
+            "CVE-2026-55628",
+            "CVE-2026-56208",
+            "CVE-2026-56209",
+            "CVE-2026-56210",
+            "CVE-2026-56211",
+            "CVE-2026-56361",
+            "CVE-2026-56365",
+            "CVE-2026-56366",
+            "CVE-2026-56367",
+            "CVE-2026-56368",
+            "CVE-2026-56370",
+            "CVE-2026-56371",
+            "CVE-2026-56373",
+            "CVE-2026-56378",
+            "CVE-2026-58010",
+            "CVE-2026-58011",
+            "CVE-2026-58012",
+            "CVE-2026-58013",
+            "CVE-2026-58014",
+            "CVE-2026-58015",
+            "CVE-2026-58016",
+            "CVE-2026-61465",
+            "CVE-2026-61857",
+            "CVE-2026-61858",
+            "CVE-2026-61863",
+            "CVE-2026-61866",
+            "CVE-2026-61870",
+            "CVE-2026-62289",
+            "CVE-2026-62292",
+            "CVE-2026-62343",
+            "CVE-2026-62363",
+            "CVE-2026-62946",
+            "CVE-2026-64685"
+          ],
+          "package_findings": 480
+        },
+        {
+          "component_group": "databases",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "MariaDB/PostgreSQL servers and database clients are not used by this build. SQLite, if used by Cargo for its own cache, receives Cargo-generated schema/statements and owned cache data, not arbitrary SQL, FTS5 database images, or Session-extension changesets. The reviewed recipe exposes none of those database input surfaces.",
+          "packages": [
+            "libldap-2.5-0",
+            "libmariadb-dev",
+            "libmariadb-dev-compat",
+            "libmariadb3",
+            "libpq-dev",
+            "libpq5",
+            "libsqlite3-0",
+            "libsqlite3-dev",
+            "mariadb-common"
+          ],
+          "ids": [
+            "CVE-2023-2953",
+            "CVE-2025-13699",
+            "CVE-2025-7458",
+            "CVE-2025-7709",
+            "CVE-2025-8714",
+            "CVE-2026-11822",
+            "CVE-2026-11824",
+            "CVE-2026-14662",
+            "CVE-2026-14663",
+            "CVE-2026-14664",
+            "CVE-2026-14666",
+            "CVE-2026-14668",
+            "CVE-2026-14669",
+            "CVE-2026-14670",
+            "CVE-2026-14671",
+            "CVE-2026-14677",
+            "CVE-2026-14678",
+            "CVE-2026-14679",
+            "CVE-2026-14680",
+            "CVE-2026-15741",
+            "CVE-2026-15742",
+            "CVE-2026-16239",
+            "CVE-2026-18024",
+            "CVE-2026-18408",
+            "CVE-2026-19385",
+            "CVE-2026-21968",
+            "CVE-2026-34303",
+            "CVE-2026-3494",
+            "CVE-2026-44168",
+            "CVE-2026-44169",
+            "CVE-2026-44171",
+            "CVE-2026-44172",
+            "CVE-2026-44173",
+            "CVE-2026-48163",
+            "CVE-2026-48165",
+            "CVE-2026-49261",
+            "CVE-2026-50812",
+            "CVE-2026-50813",
+            "CVE-2026-6464",
+            "CVE-2026-6470",
+            "CVE-2026-6471",
+            "CVE-2026-6473"
+          ],
+          "package_findings": 107
+        },
+        {
+          "component_group": "ssh",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "high",
+          "reason": "The reviewed Dockerfiles use fixed public HTTPS Git/remotes, not SSH/SFTP/SCP. Installed OpenSSH/libssh2 vulnerable remote server/authentication/subsystem paths are not entered. Operational SSH scripts outside these build containers are a separate inventory.",
+          "packages": [
+            "libssh2-1",
+            "openssh-client"
+          ],
+          "ids": [
+            "CVE-2025-15661",
+            "CVE-2026-58050",
+            "CVE-2026-58051",
+            "CVE-2026-59995",
+            "CVE-2026-59996",
+            "CVE-2026-59997",
+            "CVE-2026-59998",
+            "CVE-2026-59999",
+            "CVE-2026-60000",
+            "CVE-2026-60001",
+            "CVE-2026-60002",
+            "CVE-2026-66032",
+            "CVE-2026-66034",
+            "CVE-2026-73282",
+            "CVE-2026-73283",
+            "CVE-2026-7598"
+          ],
+          "package_findings": 16
+        },
+        {
+          "component_group": "services",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "high",
+          "reason": "systemd-homed/oomd, PAM login/password comparison and p11-kit RPC servers are not started or exposed. A TLS library reading local CA trust does not enter p11-kit nested RPC attribute handling.",
+          "packages": [
+            "libp11-kit0",
+            "libpam-modules",
+            "libpam-modules-bin",
+            "libpam-runtime",
+            "libpam0g",
+            "libsystemd0",
+            "libudev1"
+          ],
+          "ids": [
+            "CVE-2024-10041",
+            "CVE-2026-13757",
+            "CVE-2026-15059",
+            "CVE-2026-16742",
+            "CVE-2026-18938",
+            "CVE-2026-54411"
+          ],
+          "package_findings": 14
+        },
+        {
+          "component_group": "nghttp2",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "high",
+          "reason": "CVE-2026-58055 is in nghttpx reverse-proxy HTTP/1 Upgrade/backend forwarding. The image uses outbound clients; nghttpx is not started. It is not a generic nghttp2 client defect.",
+          "packages": [
+            "libnghttp2-14"
+          ],
+          "ids": [
+            "CVE-2026-58055"
+          ],
+          "package_findings": 1
+        },
+        {
+          "component_group": "ncurses",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "high",
+          "reason": "The reported paths are infocmp/terminal entry compilation with crafted data; compiler progress output uses the fixed image terminal setup and does not process attacker-supplied terminfo descriptions.",
+          "packages": [
+            "libncurses-dev",
+            "libncurses5-dev",
+            "libncurses6",
+            "libncursesw5-dev",
+            "libncursesw6",
+            "libtinfo6",
+            "ncurses-base",
+            "ncurses-bin"
+          ],
+          "ids": [
+            "CVE-2023-50495",
+            "CVE-2025-69720"
+          ],
+          "package_findings": 16
+        },
+        {
+          "component_group": "libevent",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "high",
+          "reason": "The selected builder commands do not expose libevent evhttp HTTP services, tagged RPC parsing, evdns server response formatting or AF_UNIX accept listeners. They do not call evbuffer_add_buffer_reference on a mutable buffer either. Git/curl use their own HTTP parsing and the compiler/Cargo commands are not libevent application servers. This is an operation-specific exclusion for all eight August 20 records, not an assertion that every libevent issue is server-only.",
+          "packages": [
+            "libevent-2.1-7",
+            "libevent-core-2.1-7",
+            "libevent-dev",
+            "libevent-extra-2.1-7",
+            "libevent-openssl-2.1-7",
+            "libevent-pthreads-2.1-7"
+          ],
+          "ids": [
+            "CVE-2026-63379",
+            "CVE-2026-63381",
+            "CVE-2026-63382",
+            "CVE-2026-63383",
+            "CVE-2026-63384",
+            "CVE-2026-63385",
+            "CVE-2026-63387",
+            "CVE-2026-63388"
+          ],
+          "package_findings": 48
+        },
+        {
+          "component_group": "wget",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "high",
+          "reason": "No reviewed Docker RUN command invokes wget, nor is it selected as a fallback by the owned source download code. Its recursive HTML/Metalink/FTP/authenticated redirect/Content-Range inputs therefore are not a build input surface.",
+          "packages": [
+            "wget"
+          ],
+          "ids": [
+            "CVE-2021-31879",
+            "CVE-2024-10524",
+            "CVE-2026-15146",
+            "CVE-2026-58469",
+            "CVE-2026-58470",
+            "CVE-2026-58471",
+            "CVE-2026-58472"
+          ],
+          "package_findings": 7
+        }
+      ]
+    },
+    {
+      "builder": "idf",
+      "image": "espressif/idf@sha256:9ce51d4ace496845678065dc86f8e55fb9c25fc9f01f45597042afa7ed546926",
+      "counts": {
+        "raw_package_findings": 6381,
+        "raw_unique_ids": 5862,
+        "selected_package_findings": 3434,
+        "selected_unique_ids": 3106,
+        "non_header_unique_ids": 232,
+        "non_header_critical_ids": 0
+      },
+      "raw_scan_sha256": "957d5414f953c77f07212b9cf7d90a97de96d0ed3c97f0976d4c071c809aedd8",
+      "groups": [
+        {
+          "component_group": "headers",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "high",
+          "reason": "linux-libc-dev supplies C ABI headers. The matching kernel CVEs do not identify an executing kernel in the build image. This recipe compiles ESP32 code and neither builds nor boots a Linux kernel. No host or VM kernel security conclusion is inferred.",
+          "packages": [
+            "linux-libc-dev"
+          ],
+          "package_findings": 2874,
+          "unique_id_count": 2874
+        },
+        {
+          "component_group": "gnutls",
+          "disposition": "repaired_before_affected_use_pending_full_image_build",
+          "confidence": "high",
+          "reason": "Git HTTPS links GnuTLS. Certificate name-constraint/SAN and OCSP findings cannot be excluded merely because the repository URL uses HTTPS. Replace Ubuntu libgnutls30t64 3.8.3-1.1ubuntu3.5 with exact same-release 3.8.3-1.1ubuntu3.6 deb before any Git download. Retained package changelog identifies these corrections. Exact installed version and actual git-remote-https linkage are mandatory build assertions. The other listed DTLS, SRP username, PKCS11 PIN, PKCS12, server RSA-decryption and PKCS7-decryption features are not invoked by this public HTTPS Git fetch. Newly reported October findings remain separately tracked.",
+          "packages": [
+            "libgnutls30t64"
+          ],
+          "ids": [
+            "CVE-2026-33845",
+            "CVE-2026-33846",
+            "CVE-2026-3832",
+            "CVE-2026-3833",
+            "CVE-2026-42009",
+            "CVE-2026-42010",
+            "CVE-2026-42011",
+            "CVE-2026-42012",
+            "CVE-2026-42013",
+            "CVE-2026-42014",
+            "CVE-2026-42015",
+            "CVE-2026-5260",
+            "CVE-2026-5419"
+          ],
+          "package_findings": 13
+        },
+        {
+          "component_group": "nghttp2",
+          "disposition": "repaired_before_affected_use_pending_full_image_build",
+          "confidence": "high",
+          "reason": "Git HTTPS can negotiate HTTP/2; CVE-2026-27135 concerns client session termination and is not excluded as a server-only issue. Pin Ubuntu libnghttp2-14 1.59.0-1ubuntu0.4, containing the .3 termination fix, before the Git fetch; assert installed version and linkage. CVE-2026-58055 requires nghttpx reverse-proxy Upgrade/backend forwarding, not this client, and the selected package also contains its correction.",
+          "packages": [
+            "libnghttp2-14"
+          ],
+          "ids": [
+            "CVE-2026-27135",
+            "CVE-2026-58055"
+          ],
+          "package_findings": 2
+        },
+        {
+          "component_group": "urllib3",
+          "disposition": "repaired_before_affected_use_pending_full_image_build",
+          "confidence": "high",
+          "reason": "Actual idf-component-manager 2.4.9 download_file uses requests Session.get(stream=True, allow_redirects=True) and iter_content(65536). This reaches the old urllib3 1.26.20 decompression safeguards, including redirect handling; HTTPS does not remove that path. Install exact official urllib3 2.8.0 wheel offline with hash verification. Real component downloader regression first reproduces old acceptance of six nested encodings, then passes ordinary gzip and rejects excessive encodings on 2.8.0. Normal pip/IDF constraint checks remain enabled.",
+          "packages": [
+            "urllib3"
+          ],
+          "ids": [
+            "CVE-2025-50181",
+            "CVE-2025-66418",
+            "CVE-2025-66471",
+            "CVE-2026-21441",
+            "CVE-2026-44431"
+          ],
+          "package_findings": 5
+        },
+        {
+          "component_group": "curl",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "The selected public Git HTTPS fetch has no credential helpers, Digest/Negotiate/SASL authentication, authenticated proxy, cookie state or private remote. The seven reported libcurl issues require those authentication/proxy states or GSASL use. No curl CLI download or fallback is executed in this Dockerfile; host staging uses the reviewed Python transport. This is not an assertion about user-added proxy/auth configuration.",
+          "packages": [
+            "curl",
+            "libcurl3t64-gnutls",
+            "libcurl4t64"
+          ],
+          "ids": [
+            "CVE-2026-11856",
+            "CVE-2026-5545",
+            "CVE-2026-6253",
+            "CVE-2026-6429",
+            "CVE-2026-7168",
+            "CVE-2026-8925",
+            "CVE-2026-8927"
+          ],
+          "package_findings": 21
+        },
+        {
+          "component_group": "glibc",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "The four DNS issues require reverse gethostbyaddr calls or deprecated ns_printrr/ns_printrrf/fp_nquery diagnostic APIs; they are not the forward resolver used by HTTPS. Other findings require IBM1390/1399 iconv, overlapping non-Unicode ungetwc encoding, scanf %mc with large width, or wordexp WRDE_APPEND/adversarial tilde usernames. The fixed build commands and source-generation scripts expose none of those input/API combinations. No blanket libc safety claim is made.",
+          "packages": [
+            "libc-bin",
+            "libc-dev-bin",
+            "libc-devtools",
+            "libc6",
+            "libc6-dev"
+          ],
+          "ids": [
+            "CVE-2026-4046",
+            "CVE-2026-4437",
+            "CVE-2026-4438",
+            "CVE-2026-5435",
+            "CVE-2026-5450",
+            "CVE-2026-5928",
+            "CVE-2026-6238",
+            "CVE-2026-6368",
+            "CVE-2026-6791"
+          ],
+          "package_findings": 45
+        },
+        {
+          "component_group": "git",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "CVE-2024-52005 passes terminal escape bytes from Git sideband. The exact HTTPS fetch runs noninteractively in Docker/Actions logs, not an interactive terminal evaluating escape effects. No LFS filter, git-lfs command or LFS-managed source is selected by the pinned wasm3 tree, so its credential/symlink findings have no selected execution path. Git transport certificate and HTTP2 paths are assessed and patched separately.",
+          "packages": [
+            "git",
+            "git-lfs",
+            "git-man"
+          ],
+          "ids": [
+            "CVE-2024-52005",
+            "CVE-2024-53263",
+            "CVE-2025-26625"
+          ],
+          "package_findings": 4
+        },
+        {
+          "component_group": "python",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "The selected Python work is IDF configuration/build metadata, fixed profile helpers, package checks, and component download/unpack. The only selected managed component is espressif/led_strip 3.0.1, whose retained registry metadata selects a ZIP file; archive_tools dispatches that to ZipFile, not vulnerable tarfile hardlink/longname extraction. No HTML/Markdown/XML, email, FTP, webbrowser, cookie rendering, audit-hook enforcement or caller-supplied proxy tunnel header interface is invoked. urllib3 uses zlib for gzip/deflate; ZIP extraction does not catch MemoryError/OSError and resume the same lzma/bz2/gzip decompressor, required by 6100/9669. Unicode normalization of unbounded external hostnames is considered with the separate IDNA/redirect review; arbitrary new component formats/configurations require reassessment.",
+          "packages": [
+            "libpython3.12-minimal",
+            "libpython3.12-stdlib",
+            "python3.12",
+            "python3.12-minimal",
+            "python3.12-venv"
+          ],
+          "ids": [
+            "CVE-2025-13462",
+            "CVE-2025-69534",
+            "CVE-2026-1299",
+            "CVE-2026-1502",
+            "CVE-2026-15308",
+            "CVE-2026-2297",
+            "CVE-2026-3276",
+            "CVE-2026-3644",
+            "CVE-2026-4224",
+            "CVE-2026-4360",
+            "CVE-2026-4519",
+            "CVE-2026-4786",
+            "CVE-2026-6019",
+            "CVE-2026-6100",
+            "CVE-2026-7774",
+            "CVE-2026-8328",
+            "CVE-2026-9669"
+          ],
+          "package_findings": 85
+        },
+        {
+          "component_group": "system-pip",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "The vulnerable Ubuntu python3-pip-whl archive is not executed. Bootstrap invokes only the existing /opt/esp/python_env/idf5.4_py3.12_env interpreter and its pip 26.0.1. No ensurepip/system-pip path is selected. The explicit pip invocation uses --no-index --no-deps --require-hashes on the exact staged wheel; malicious indexes, wheel paths, entrypoint names and wheel-controlled imports required by the pip findings are not supplied. Each staged official wheel is verified before installation.",
+          "packages": [
+            "pip",
+            "python3-pip-whl"
+          ],
+          "ids": [
+            "CVE-2024-35195",
+            "CVE-2025-66418",
+            "CVE-2025-66471",
+            "CVE-2026-13346",
+            "CVE-2026-21441",
+            "CVE-2026-3219",
+            "CVE-2026-6357",
+            "CVE-2026-8643"
+          ],
+          "package_findings": 8
+        },
+        {
+          "component_group": "idna",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "The actual default MultiStorageClient selects a fixed ASCII storage hostname and joins metadata paths literally; metadata cannot replace the URL authority. Under exact requests 2.33.1 and repaired urllib3 2.8.0, raw-Unicode and percent-Unicode Location values (short and 2048-character) are requoted into ASCII before URL parsing and did not call idna.encode in the retained bounded probe. No unbounded Unicode hostname reaches the identified valid_contexto operation in this selected build. Custom registries and directly configured Unicode source URLs require a new review; those are not silently qualified.",
+          "packages": [
+            "idna"
+          ],
+          "ids": [
+            "CVE-2026-45409"
+          ],
+          "package_findings": 1
+        },
+        {
+          "component_group": "python-crypto",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "Build Python cryptography is not the HTTPS TLS implementation: Requests uses stdlib ssl/OpenSSL. The reviewed build does not load SECT keys, use cryptography certificate-chain verification, or decrypt PKCS7 EnvelopedData; no private firmware signing key is provided and secure boot/signing is disabled in this profile. Thus the SECT subgroup, chain-amplification, PKCS7 oracle and bundled OpenSSL PKCS7/CMS/OCB/QUIC issues lack their required operation. python-ecdsa Minerva requires repeated private-key signing, also absent. These are build-only dispositions, not qualification of those libraries in an arbitrary signing service.",
+          "packages": [
+            "cryptography",
+            "ecdsa"
+          ],
+          "ids": [
+            "CVE-2024-23342",
+            "CVE-2026-26007",
+            "CVE-2026-69247",
+            "CVE-2026-69249",
+            "GHSA-537c-gmf6-5ccf"
+          ],
+          "package_findings": 5
+        },
+        {
+          "component_group": "settings",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "No NestedSecretsSettingsSource or secrets_nested_subdir use is selected in the actual component-manager/build scripts, and no attacker-controlled secrets directory is mounted. Setuptools is installed but this Linux recipe does not create a Python sdist or apply MANIFEST.in NFC exclusions on APFS/HFS+. This excludes the described input/operation conditions, not all uses of the installed packages.",
+          "packages": [
+            "pydantic-settings",
+            "setuptools"
+          ],
+          "ids": [
+            "CVE-2026-59890",
+            "GHSA-4xgf-cpjx-pc3j"
+          ],
+          "package_findings": 2
+        },
+        {
+          "component_group": "openssl",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "The three system OpenSSL findings concern PKCS7_verify heap lifetime, CMS AuthEnvelopedData validation and EVP_Cipher AES-OCB IV handling. Build clients perform TLS; the recipe invokes none of those message-encryption/decryption APIs. OpenSSL TLS client use is not equated to CMS/PKCS7 or OCB use.",
+          "packages": [
+            "libssl3t64",
+            "openssl"
+          ],
+          "ids": [
+            "CVE-2026-34182",
+            "CVE-2026-45445",
+            "CVE-2026-45447"
+          ],
+          "package_findings": 6
+        },
+        {
+          "component_group": "xml",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "No external XML/DTD/XSLT document, catalog, custom parser callback state or xmlwf input is consumed. CMake/IDF receive fixed source and generated local build metadata, with no documentation/XML report build enabled. The selected registry responses are JSON and the selected component archive is ZIP. Expat/libxml2 findings are retained but do not describe an input surface of these commands.",
+          "packages": [
+            "libexpat1",
+            "libxml2"
+          ],
+          "ids": [
+            "CVE-2025-59375",
+            "CVE-2025-66382",
+            "CVE-2026-32776",
+            "CVE-2026-32777",
+            "CVE-2026-32778",
+            "CVE-2026-41080",
+            "CVE-2026-45186",
+            "CVE-2026-50219",
+            "CVE-2026-56131",
+            "CVE-2026-56132",
+            "CVE-2026-56403",
+            "CVE-2026-56404",
+            "CVE-2026-56405",
+            "CVE-2026-56406",
+            "CVE-2026-56407",
+            "CVE-2026-56408",
+            "CVE-2026-56409",
+            "CVE-2026-56410",
+            "CVE-2026-56411",
+            "CVE-2026-56412",
+            "CVE-2026-66046",
+            "CVE-2026-6653",
+            "CVE-2026-72522",
+            "CVE-2026-76641",
+            "CVE-2026-76957"
+          ],
+          "package_findings": 25
+        },
+        {
+          "component_group": "compiler-tools",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "The binutils findings require attacker-crafted ELF/DWARF inputs to readelf/objdump; this recipe handles its own compiled firmware/bootloader/map, not uploaded binaries. Bison --html with grammar-selected tool.xsltproc is not invoked. GNU diff3 with attacker-controlled --diff-program output is not invoked. This excludes specific input predicates, not arbitrary third-party compiler execution.",
+          "packages": [
+            "binutils",
+            "binutils-common",
+            "binutils-x86-64-linux-gnu",
+            "bison",
+            "diffutils",
+            "libbinutils",
+            "libctf-nobfd0",
+            "libctf0",
+            "libgprofng0",
+            "libsframe1"
+          ],
+          "ids": [
+            "CVE-2025-69644",
+            "CVE-2025-69645",
+            "CVE-2025-69646",
+            "CVE-2025-69647",
+            "CVE-2025-69648",
+            "CVE-2025-69651",
+            "CVE-2025-69652",
+            "CVE-2026-53910",
+            "CVE-2026-56389"
+          ],
+          "package_findings": 58
+        },
+        {
+          "component_group": "compression",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "No gzexe, LZH decoder, GNU tar incremental/--one-top-level restore or arbitrary tar input is selected. The only managed dependency is a verified-version ZIP and SDK/toolchains are already present in the pinned base. The two new .deb inputs have exact checked hashes and parsed package/version/architecture identities; they are complete official archives, not truncated crafted zstd data required by the dpkg infinite-loop finding. New archive sources require reassessment.",
+          "packages": [
+            "dpkg",
+            "dpkg-dev",
+            "gzip",
+            "libdpkg-perl",
+            "tar"
+          ],
+          "ids": [
+            "CVE-2025-45582",
+            "CVE-2026-18477",
+            "CVE-2026-18508",
+            "CVE-2026-2219",
+            "CVE-2026-41991",
+            "CVE-2026-41992",
+            "CVE-2026-5704"
+          ],
+          "package_findings": 9
+        },
+        {
+          "component_group": "perl",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "Any Perl use is fixed-source build generation; no external regex, pack/unpack template, Storable blob, Perl Archive::Tar/IO::Compress archive, output glob or HTTP::Tiny credential request is supplied. The 32-bit-regex case also does not match this amd64 image. No claim that Perl is patched is made.",
+          "packages": [
+            "libperl5.38t64",
+            "perl",
+            "perl-base",
+            "perl-modules-5.38"
+          ],
+          "ids": [
+            "CVE-2025-15649",
+            "CVE-2026-12087",
+            "CVE-2026-13221",
+            "CVE-2026-15534",
+            "CVE-2026-19487",
+            "CVE-2026-42496",
+            "CVE-2026-42497",
+            "CVE-2026-48959",
+            "CVE-2026-48962",
+            "CVE-2026-57432",
+            "CVE-2026-57433",
+            "CVE-2026-7017",
+            "CVE-2026-8376",
+            "CVE-2026-9538"
+          ],
+          "package_findings": 56
+        },
+        {
+          "component_group": "ssh",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "All selected source fetching uses public HTTPS, not OpenSSH/libssh SCP/SFTP, SSH agents, hostkey re-exchange, ProxyCommand, GSSAPI or tunnels. The Dockerfile starts no SSH server. Operational SSH outside this build is a separate inventory.",
+          "packages": [
+            "libssh-4",
+            "openssh-client"
+          ],
+          "ids": [
+            "CVE-2026-35385",
+            "CVE-2026-35386",
+            "CVE-2026-35387",
+            "CVE-2026-35388",
+            "CVE-2026-35414",
+            "CVE-2026-59843",
+            "CVE-2026-59845",
+            "CVE-2026-59846",
+            "CVE-2026-59847",
+            "CVE-2026-59848",
+            "CVE-2026-59850",
+            "CVE-2026-59995",
+            "CVE-2026-59996",
+            "CVE-2026-59997",
+            "CVE-2026-59998",
+            "CVE-2026-59999",
+            "CVE-2026-60000",
+            "CVE-2026-60001",
+            "CVE-2026-60002",
+            "CVE-2026-73281",
+            "CVE-2026-73282",
+            "CVE-2026-73283"
+          ],
+          "package_findings": 22
+        },
+        {
+          "component_group": "filesystem",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "No privileged setfattr/getfattr/cap_set_file service, attacker-writable shared parent tree, hostile block-device probing or loop mount is exposed. sed uses fixed build-owned paths, not -i --follow-symlinks on a concurrently replaceable untrusted path. LVM configuration parsing is not invoked.",
+          "packages": [
+            "bsdutils",
+            "dmsetup",
+            "libattr1",
+            "libblkid1",
+            "libcap2",
+            "libdevmapper1.02.1",
+            "libfdisk1",
+            "libmount1",
+            "libsmartcols1",
+            "libuuid1",
+            "mount",
+            "sed",
+            "util-linux"
+          ],
+          "ids": [
+            "CVE-2026-13595",
+            "CVE-2026-19617",
+            "CVE-2026-27456",
+            "CVE-2026-4878",
+            "CVE-2026-54371",
+            "CVE-2026-5958"
+          ],
+          "package_findings": 21
+        },
+        {
+          "component_group": "services",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "No Avahi/mDNS, CUPS/IPP/SNMP printer, systemd-homed/oomd/nspawn, PAM userdb, p11-kit RPC, Kerberos NegoEx/KDC or libslirp/QEMU network service is started by the build. CA trust reading does not imply p11-kit RPC attribute parsing. Build steps are ordinary commands, not a boot of all daemons installed in the image.",
+          "packages": [
+            "krb5-locales",
+            "libavahi-client3",
+            "libavahi-common-data",
+            "libavahi-common3",
+            "libcups2t64",
+            "libgssapi-krb5-2",
+            "libk5crypto3",
+            "libkrb5-3",
+            "libkrb5support0",
+            "libnss-systemd",
+            "libp11-kit0",
+            "libpam-modules",
+            "libpam-modules-bin",
+            "libpam-runtime",
+            "libpam-systemd",
+            "libpam0g",
+            "libslirp0",
+            "libsystemd-shared",
+            "libsystemd0",
+            "libudev1",
+            "systemd",
+            "systemd-dev",
+            "systemd-resolved",
+            "systemd-sysv",
+            "systemd-timesyncd"
+          ],
+          "ids": [
+            "CVE-2025-59529",
+            "CVE-2026-11850",
+            "CVE-2026-13757",
+            "CVE-2026-15059",
+            "CVE-2026-16742",
+            "CVE-2026-18938",
+            "CVE-2026-24401",
+            "CVE-2026-27447",
+            "CVE-2026-34933",
+            "CVE-2026-34978",
+            "CVE-2026-34979",
+            "CVE-2026-34980",
+            "CVE-2026-34990",
+            "CVE-2026-39314",
+            "CVE-2026-39316",
+            "CVE-2026-40226",
+            "CVE-2026-40355",
+            "CVE-2026-40356",
+            "CVE-2026-41079",
+            "CVE-2026-54411",
+            "CVE-2026-9539"
+          ],
+          "package_findings": 69
+        },
+        {
+          "component_group": "media",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "No audio/video/image/font/pixel renderer or GUI pipeline is run: this is a display-less ESP32 compilation, not preview rendering. The listed libaom, ALSA, HEIF/H265, Mesa, Graphite, LCMS, pixman stress test, PNG, sndfile, XPM and Perl GD input decoders are not selected. GLib D-Bus, MIME, GVariant, locale keyfile and regex interfaces likewise have no external supplied data in this recipe.",
+          "packages": [
+            "gir1.2-glib-2.0",
+            "libaom3",
+            "libasound2-data",
+            "libasound2t64",
+            "libde265-0",
+            "libgbm1",
+            "libgd-perl",
+            "libglib2.0-0t64",
+            "libglib2.0-data",
+            "libgraphite2-3",
+            "libheif-plugin-aomdec",
+            "libheif-plugin-aomenc",
+            "libheif-plugin-libde265",
+            "libheif1",
+            "liblcms2-2",
+            "libpixman-1-0",
+            "libpng16-16t64",
+            "libsndfile1",
+            "libxpm4",
+            "mesa-libgallium"
+          ],
+          "ids": [
+            "CVE-2023-37769",
+            "CVE-2024-38949",
+            "CVE-2024-38950",
+            "CVE-2025-52194",
+            "CVE-2026-11526",
+            "CVE-2026-15588",
+            "CVE-2026-16118",
+            "CVE-2026-32741",
+            "CVE-2026-32814",
+            "CVE-2026-32882",
+            "CVE-2026-33164",
+            "CVE-2026-33165",
+            "CVE-2026-33416",
+            "CVE-2026-33636",
+            "CVE-2026-34757",
+            "CVE-2026-37555",
+            "CVE-2026-40393",
+            "CVE-2026-41254",
+            "CVE-2026-4367",
+            "CVE-2026-45382",
+            "CVE-2026-45383",
+            "CVE-2026-47247",
+            "CVE-2026-47709",
+            "CVE-2026-47714",
+            "CVE-2026-49295",
+            "CVE-2026-49337",
+            "CVE-2026-49346",
+            "CVE-2026-50593",
+            "CVE-2026-56109",
+            "CVE-2026-56208",
+            "CVE-2026-56209",
+            "CVE-2026-56210",
+            "CVE-2026-56211",
+            "CVE-2026-58010",
+            "CVE-2026-58011",
+            "CVE-2026-58012",
+            "CVE-2026-58013",
+            "CVE-2026-58014",
+            "CVE-2026-58015",
+            "CVE-2026-58016",
+            "CVE-2026-62289",
+            "CVE-2026-62291"
+          ],
+          "package_findings": 86
+        },
+        {
+          "component_group": "database",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "The recipe has no externally supplied SQLite databases, FTS5 query data or Session-extension changesets. Any local dependency cache is generated by the build tools themselves. It starts no database endpoint.",
+          "packages": [
+            "libsqlite3-0"
+          ],
+          "ids": [
+            "CVE-2026-11822",
+            "CVE-2026-11824",
+            "CVE-2026-50812",
+            "CVE-2026-50813"
+          ],
+          "package_findings": 4
+        },
+        {
+          "component_group": "gcrypt",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "CVE-2026-41989 requires gcry_pk_decrypt on crafted ECDH ciphertext. Neither Git TLS nor the fixed source compilation performs that operation; no encrypted OpenPGP input is supplied.",
+          "packages": [
+            "libgcrypt20"
+          ],
+          "ids": [
+            "CVE-2026-41989"
+          ],
+          "package_findings": 1
+        },
+        {
+          "component_group": "ruby",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "No Ruby interpreter, REXML XML parse, Net::IMAP connection or mail authentication is invoked by this firmware recipe. These installed Ruby findings are not selected build-tool input surfaces.",
+          "packages": [
+            "libruby3.2",
+            "ruby3.2"
+          ],
+          "ids": [
+            "CVE-2025-10990",
+            "CVE-2026-42246",
+            "CVE-2026-42257"
+          ],
+          "package_findings": 6
+        },
+        {
+          "component_group": "wget",
+          "disposition": "not_reached_by_reviewed_recipe",
+          "confidence": "medium",
+          "reason": "No selected Docker command or owned fallback invokes wget. Its FTP PASV, Metalink, recursive HTML, server-selected filename, Content-Range and credential redirect issues therefore have no execution path in the supplied recipe.",
+          "packages": [
+            "wget"
+          ],
+          "ids": [
+            "CVE-2021-31879",
+            "CVE-2026-15146",
+            "CVE-2026-58469",
+            "CVE-2026-58470",
+            "CVE-2026-58471",
+            "CVE-2026-58472"
+          ],
+          "package_findings": 6
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "No arbitrary replacement source, extra commands, custom registry, credential-bearing proxy or hostile shared build directory is covered.",
+    "Recent noncritical findings are not automatically fixed or inapplicable.",
+    "Package matches are retained; no scanner suppression is introduced."
+  ]
+}

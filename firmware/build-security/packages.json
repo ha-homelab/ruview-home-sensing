@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "files": [
+    {
+      "path": "debs/amd64/libgnutls30t64_3.8.3-1.1ubuntu3.6_amd64.deb",
+      "url": "https://security.ubuntu.com/ubuntu/pool/main/g/gnutls28/libgnutls30t64_3.8.3-1.1ubuntu3.6_amd64.deb",
+      "sha256": "b8944756260c5ea6b7fac019745f931f905aa7a4df0763676b1b25c911b692e2",
+      "package": "libgnutls30t64",
+      "version": "3.8.3-1.1ubuntu3.6",
+      "architecture": "amd64"
+    },
+    {
+      "path": "debs/amd64/libnghttp2-14_1.59.0-1ubuntu0.4_amd64.deb",
+      "url": "https://security.ubuntu.com/ubuntu/pool/main/n/nghttp2/libnghttp2-14_1.59.0-1ubuntu0.4_amd64.deb",
+      "sha256": "73adcbb9df32cd7c9d46b1c7598bbbbcf249be705d62d966694cfc9976a15dfe",
+      "package": "libnghttp2-14",
+      "version": "1.59.0-1ubuntu0.4",
+      "architecture": "amd64"
+    },
+    {
+      "path": "debs/arm64/libgnutls30t64_3.8.3-1.1ubuntu3.6_arm64.deb",
+      "url": "https://ports.ubuntu.com/ubuntu-ports/pool/main/g/gnutls28/libgnutls30t64_3.8.3-1.1ubuntu3.6_arm64.deb",
+      "sha256": "18482c85067bcc8e2b3802d7c3bb87bd54acf4da228e760054e88ef1e125d80a",
+      "package": "libgnutls30t64",
+      "version": "3.8.3-1.1ubuntu3.6",
+      "architecture": "arm64"
+    },
+    {
+      "path": "debs/arm64/libnghttp2-14_1.59.0-1ubuntu0.4_arm64.deb",
+      "url": "https://ports.ubuntu.com/ubuntu-ports/pool/main/n/nghttp2/libnghttp2-14_1.59.0-1ubuntu0.4_arm64.deb",
+      "sha256": "ec812e0b82dfb315b140020f4c8434191a89cf42c49dbb82605d0892b6783b59",
+      "package": "libnghttp2-14",
+      "version": "1.59.0-1ubuntu0.4",
+      "architecture": "arm64"
+    },
+    {
+      "path": "wheels/urllib3-2.8.0-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/92/9d/c4e665119135114480843e7ab388fa94d8480650450e6f8e26b70d323a4c/urllib3-2.8.0-py3-none-any.whl",
+      "sha256": "0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3",
+      "package": "urllib3",
+      "version": "2.8.0",
+      "architecture": "any"
+    }
+  ]
+}

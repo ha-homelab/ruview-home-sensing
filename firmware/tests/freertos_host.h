@@ -69,7 +69,10 @@ static inline void vQueueDelete(QueueHandle_t q) {
     pthread_mutex_destroy(&q->lock); pthread_cond_destroy(&q->changed); free(q);
 }
 
-typedef pthread_t TaskHandle_t;
+/* FreeRTOS task handles are nullable opaque pointers, not pthread identifiers.
+ * This model has one worker; retain its native identity separately so NULL
+ * means "the current task" on both integer-pthread and pointer-pthread hosts. */
+typedef pthread_t *TaskHandle_t;
 extern pthread_t test_worker_thread;
 extern atomic_int test_task_creations, test_self_deletes;
 extern int test_fail_task_create;
@@ -83,11 +86,19 @@ static inline int xTaskCreatePinnedToCore(void (*entry)(void *), const char *nam
                                         TaskHandle_t *task, int core) {
     assert(bytes == 32768 && priority == 5 && core == 1);
     assert(strcmp(name, "wasm_worker") == 0);
-    if (test_fail_task_create) return 0;
     test_task_start_t *start = malloc(sizeof(*start)); assert(start);
     *start = (test_task_start_t){entry, arg};
+    pthread_t native_thread;
+    *task = &test_worker_thread;
+    int result = test_fail_task_create ? 1 :
+        pthread_create(&native_thread, NULL, test_task_start, start);
+    if (result != 0) {
+        *task = NULL;
+        free(start);
+        return 0;
+    }
     test_task_creations++;
-    return pthread_create(task, NULL, test_task_start, start) == 0;
+    return pdPASS;
 }
 static inline void vTaskDelete(TaskHandle_t task) {
     assert(!task); /* Production initialization failure must self-delete. */

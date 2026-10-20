@@ -2,7 +2,7 @@
 
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15634/badge)](https://www.bestpractices.dev/projects/15634)
 
-The OpenSSF assessment is in progress; the badge links to the current evidence and unresolved criteria.
+The badge links to the current OpenSSF assessment, supporting evidence and remaining criteria.
 
 Reusable CSI sensing tools, bounded edge modules, inference experiments and printable ESP32-S3 enclosures.
 
@@ -46,7 +46,7 @@ node --test collector/ui/tests/*.test.mjs
 python scripts/check-public-boundary.py
 ```
 
-See [architecture and release boundaries](docs/architecture.md), [privacy](docs/privacy.md), [contributing](CONTRIBUTING.md), [security reporting](SECURITY.md) and [third-party notices](NOTICE).
+See [external interfaces](docs/interfaces.md), [test coverage and limitations](docs/testing.md), [architecture and release boundaries](docs/architecture.md), [privacy](docs/privacy.md), [contributing](CONTRIBUTING.md), [security reporting](SECURITY.md) and [third-party notices](NOTICE).
 
 ## License
 

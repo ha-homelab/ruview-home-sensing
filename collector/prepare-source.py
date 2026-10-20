@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fetch pinned public collector sources and apply the reviewed local grid fix."""
+"""Fetch pinned public collector sources and apply the reviewed local fixes."""
 
 import argparse
 import hashlib
@@ -7,6 +7,8 @@ import json
 import shutil
 import subprocess
 from pathlib import Path
+
+from ring_policy import prepare_ring
 
 ROOT = Path(__file__).resolve().parent
 MAIN = Path("v2/crates/wifi-densepose-sensing-server/src/main.rs")
@@ -31,7 +33,14 @@ def main():
         action="store_true",
         help="Verify/apply an already fetched checkout",
     )
+    parser.add_argument(
+        "--ring-archive",
+        type=Path,
+        help="Previously downloaded SHA-256-pinned ring crate; required with --offline",
+    )
     args = parser.parse_args()
+    if args.offline and args.ring_archive is None:
+        parser.error("--offline also requires --ring-archive")
     source = args.source.resolve()
     lock = json.loads((ROOT / "source-lock.json").read_text())
     if not (source / ".git").is_dir():
@@ -67,11 +76,28 @@ def main():
             raise ValueError(f"Dirty submodule: {path}")
     verify_sha(source / MAIN, lock["main_sha256"])
     verify_sha(source / "v2/Cargo.lock", lock["cargo_lock_sha256"])
-    for name in ("0001-expire-csi-grid.patch", "0002-raw-csi-mirror.patch"):
+    for path, expected in lock["security_source_sha256"].items():
+        verify_sha(source / path, expected)
+    prepare_ring(source, args.ring_archive)
+    shutil.copyfile(
+        ROOT / "bundle_licenses.py", source / "ruview-dependencies/bundle_licenses.py"
+    )
+    shutil.copytree(
+        ROOT / "license-overrides", source / "ruview-dependencies/license-overrides"
+    )
+    notices = source / "ruview-dependencies/project-notices"
+    notices.mkdir()
+    for name in ("LICENSE", "NOTICE"):
+        shutil.copyfile(ROOT.parent / name, notices / name)
+    for name in (
+        "0001-expire-csi-grid.patch",
+        "0002-raw-csi-mirror.patch",
+        "0003-security-boundaries.patch",
+    ):
         patch = ROOT / "patches" / name
         git(source, "apply", "--check", str(patch))
         git(source, "apply", str(patch))
-    for name in ("grid_gate.rs", "raw_csi_mirror.rs"):
+    for name in ("grid_gate.rs", "raw_csi_mirror.rs", "security_boundaries.rs"):
         shutil.copyfile(ROOT / "src" / name, source / MAIN.parent / name)
     print(
         f"Pinned {lock['revision']}, verified lock/submodules, applied reviewed collector patches"

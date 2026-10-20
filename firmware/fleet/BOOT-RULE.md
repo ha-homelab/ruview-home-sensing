@@ -1,23 +1,28 @@
-# First-attempt boot selection: ESP-IDF 5.4
+# First-attempt boot selection: ESP-IDF 5.4.4
 
 The immutable firmware builder is
-`espressif/idf:v5.4@sha256:f1e9f69dc052b9afc7801ca884e0ef40c17e014bb05ce73d9c09d29290bd17fb`.
-Its cached metadata names the `v5.4` clone tag, but that alone does not prove the
-actual build's Git revision. The primary upstream annotated tag resolves through
-`8e27ea72c6688b79348b123ff40d556cfe16c8c3` to commit
-`67c1de1eebe095d554d281952fde63c16ee2dca0`. The executor requires that actual
+`espressif/idf:v5.4.4@sha256:9ce51d4ace496845678065dc86f8e55fb9c25fc9f01f45597042afa7ed546926`.
+The upstream `v5.4.4` tag resolves to commit
+`296b6eab9445fd720e71aecab961e2d3fbca9944`. The executor requires that actual
 builder revision, exported source bytes, successful build evidence and exact
 bootloader/table/sdkconfig hashes; it does not infer them from a tag.
+
+The 2026-10-19 source review compared the three files below with the previous
+5.4 reference. The bootloader utility and OTA selection logic are unchanged.
+The other changes add explicit headers and correct RTC retained-memory
+alignment and target-specific placement. They do not change the reviewed
+no-factory, erased-OTA-data first-attempt rule. A receipt from the previous
+builder cannot be reused for this version.
 
 Primary sources, retained unchanged under `boot-rule-reference/` with their
 Apache-2.0 license, are inspection data and are never compiled by fleet tooling:
 
-- [bootloader_common_loader.c](https://github.com/espressif/esp-idf/blob/67c1de1eebe095d554d281952fde63c16ee2dca0/components/bootloader_support/src/bootloader_common_loader.c),
-  SHA-256 `b036254d126187fcfcc4a630e6b21658afeaa93e30456576ab62e856a9204c24`.
-- [bootloader_utility.c](https://github.com/espressif/esp-idf/blob/67c1de1eebe095d554d281952fde63c16ee2dca0/components/bootloader_support/src/bootloader_utility.c),
+- [bootloader_common_loader.c](https://github.com/espressif/esp-idf/blob/296b6eab9445fd720e71aecab961e2d3fbca9944/components/bootloader_support/src/bootloader_common_loader.c),
+  SHA-256 `24e78c681997257648a66673d78f923e8b91c087c6f8f7edddd9a78ec56c1981`.
+- [bootloader_utility.c](https://github.com/espressif/esp-idf/blob/296b6eab9445fd720e71aecab961e2d3fbca9944/components/bootloader_support/src/bootloader_utility.c),
   SHA-256 `5ae38992cce9e7a9f919a9923bf6acbbf6f74a24d4f4c13ce3cf6c488cbe8401`.
-- [bootloader_start.c](https://github.com/espressif/esp-idf/blob/67c1de1eebe095d554d281952fde63c16ee2dca0/components/bootloader/subproject/main/bootloader_start.c),
-  SHA-256 `02825e360f143711c497b539ad734eab9b38e067f9c0accd9147f8bbe466a7c1`.
+- [bootloader_start.c](https://github.com/espressif/esp-idf/blob/296b6eab9445fd720e71aecab961e2d3fbca9944/components/bootloader/subproject/main/bootloader_start.c),
+  SHA-256 `b9be53d67dd3b319f8bba3474e605e6cf867e11515240e79cd7282e4a7c7a08f`.
 
 The reviewed branch is narrow. Both erased OTA selection entries have sequence
 `UINT32_MAX`, so `bootloader_common_ota_select_invalid` rejects them. With

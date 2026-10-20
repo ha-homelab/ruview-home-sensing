@@ -11,10 +11,18 @@ import json
 import os
 import sys
 import time
+import urllib.error
 import urllib.request
 
 import module_observations
 from bridge import node_placements, observations
+
+try:
+    from transport_security import http_opener
+except ModuleNotFoundError as error:
+    if error.name != "transport_security":
+        raise
+    from scripts.transport_security import http_opener
 
 
 class VerificationError(ValueError):
@@ -29,6 +37,19 @@ class VerificationParser(argparse.ArgumentParser):
 def require(condition, message):
     if not condition:
         raise VerificationError(message)
+
+
+def read_document(opener, base, path, token=None):
+    headers = {"Authorization": "Bearer " + token} if token else {}
+    request = urllib.request.Request(base + path, headers=headers)
+    try:
+        with opener.open(request, timeout=3) as response:
+            raw = response.read(module_observations.MAX_RESPONSE_BYTES + 1)
+    except urllib.error.HTTPError as error:
+        error.close()
+        raise
+    require(len(raw) <= module_observations.MAX_RESPONSE_BYTES, "Response bound")
+    return json.loads(raw)
 
 
 def validate_catalog(snapshot, expected_selected_count):
@@ -86,19 +107,12 @@ def main():
         report["expected_selected_algorithm_count"] = args.expected_selected_count
         placements = node_placements(os.environ["RUVIEW_NODE_PLACEMENTS"])
         token = os.environ["RUVIEW_API_TOKEN"]
-        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        opener = http_opener()
         worker = "http://ruview-server-modules.ruview.svc.cluster.local:5016"
         collector = os.getenv("RUVIEW_URL", "http://127.0.0.1:3000")
 
         def get(base, path, authenticated=False):
-            headers = {"Authorization": "Bearer " + token} if authenticated else {}
-            request = urllib.request.Request(base + path, headers=headers)
-            with opener.open(request, timeout=3) as response:
-                raw = response.read(module_observations.MAX_RESPONSE_BYTES + 1)
-            require(
-                len(raw) <= module_observations.MAX_RESPONSE_BYTES, "Response bound"
-            )
-            return json.loads(raw)
+            return read_document(opener, base, path, token if authenticated else None)
 
         previous = None
         identity = None

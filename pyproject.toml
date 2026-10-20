@@ -6,19 +6,19 @@ license = "MIT"
 license-files = ["LICENSE", "NOTICE"]
 description = "RuView sensing, evidence validation and reproducible hardware tooling"
 dependencies = [
-  "ruview-home-assistant @ https://github.com/ha-homelab/ruview-home-assistant/releases/download/v0.1.0/ruview_home_assistant-0.1.0-py3-none-any.whl#sha256=ce1818143f65017148f6e2300e5dbfcf79ea7578e7c909e8a3789ec6ff4ff39e",
+  "ruview-home-assistant @ https://github.com/ha-homelab/ruview-home-assistant/releases/download/v0.1.2/ruview_home_assistant-0.1.2-py3-none-any.whl#sha256=702a8c495a6d78bcc37a1df939abe45a416ff10eefabc8eb29213fdbb2efd11b",
   "paho-mqtt==2.1.0",
   "websockets==17.2",
 ]
 
 [project.optional-dependencies]
-inference = ["numpy==2.5.3"]
+inference = ["numpy==2.5.4"]
 
 [project.scripts]
 ruview-inference = "inference.__main__:main"
 ruview-radar = "radar.__main__:main"
 ruview-wisp = "wisp_pilot.__main__:main"
-ruview-activity = "assumed_activity.service:main"
+ruview-activity = "assumed_activity.service:cli"
 
 
 [tool.ruff]

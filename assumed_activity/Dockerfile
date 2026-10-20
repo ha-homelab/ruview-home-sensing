@@ -12,6 +12,7 @@ FROM --platform=linux/amd64 python:3.14-alpine@sha256:f6a589d43c42b9e7f7dc67a12d
 WORKDIR /app
 COPY --from=dependencies /dependencies/ /opt/python-dependencies/
 COPY ruview_http.py ./
+COPY scripts/transport_security.py /app/scripts/transport_security.py
 COPY assumed_activity/ /app/assumed_activity/
 USER 10001:10001
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/opt/python-dependencies

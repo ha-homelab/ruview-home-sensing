@@ -1,10 +1,13 @@
+# Read the unchanged ARM64 runtime files without executing that architecture.
+FROM --platform=linux/arm64 docker.io/ruvnet/wifi-densepose@sha256:29e6b4ce1893687de205324c509976c53911eff1abdfce3663256de3b82866d7 AS runtime-base
+
 # Cross-build on amd64 for arm64. Keep the Bookworm cross sysroot compatible
 # with the exact original runtime image rather than the build host's Ubuntu.
 FROM --platform=linux/amd64 docker.io/library/rust@sha256:d99f7b31f49909348dc59b51f3c95d1efded1701ffb222f095aaab7de3c4abd8 AS toolchain
 RUN rm -f /etc/apt/sources.list.d/debian.sources \
  && printf '%s\n' 'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian/20260630T000000Z bookworm main' > /etc/apt/sources.list \
  && apt-get -o Acquire::Check-Valid-Until=false update \
- && apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu g++-aarch64-linux-gnu pkg-config cmake \
+ && apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu g++-aarch64-linux-gnu pkg-config cmake python3 \
  && rm -rf /var/lib/apt/lists/* \
  && rustup target add --toolchain 1.96.1 aarch64-unknown-linux-gnu
 ENV RUSTUP_TOOLCHAIN=1.96.1 \
@@ -32,17 +35,32 @@ ENV PKG_CONFIG_ALLOW_CROSS_aarch64_unknown_linux_gnu=1 \
 FROM toolchain AS build
 WORKDIR /source/v2
 COPY source/ /source/
+RUN cargo tree --locked -p wifi-densepose-sensing-server --features mqtt --target aarch64-unknown-linux-gnu --edges normal,build --prefix none --format '{p} features=[{f}]' \
+ && cargo tree --locked -p wifi-densepose-sensing-server --features mqtt --target x86_64-unknown-linux-gnu --edges normal,build,dev --prefix none --format '{p} features=[{f}]'
 RUN cargo test --locked -j 4 -p wifi-densepose-sensing-server --bin sensing-server --features mqtt grid_gate:: \
  && cargo test --locked -j 4 -p wifi-densepose-sensing-server --bin sensing-server --features mqtt raw_csi_mirror:: \
  && cargo test --locked -j 4 -p wifi-densepose-sensing-server --bin sensing-server --features mqtt bootstrap_vital_publication_tests:: \
  && cargo test --locked -j 4 -p wifi-densepose-sensing-server --bin sensing-server --features mqtt calibration_expiry_tests:: \
+ && cargo test --locked -j 4 -p wifi-densepose-sensing-server --lib --features mqtt security_boundaries:: \
+ && cargo test --locked -j 4 -p wifi-densepose-sensing-server --lib --features mqtt rufield_surface:: \
+ && python3 /source/ruview-dependencies/test_ring_policy.py target/debug/deps \
  && cargo build --locked -j 4 --release --target aarch64-unknown-linux-gnu -p wifi-densepose-sensing-server --bin sensing-server --features mqtt \
  && aarch64-linux-gnu-readelf -h target/aarch64-unknown-linux-gnu/release/sensing-server \
- && aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/sensing-server
+ && aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/sensing-server \
+ && python3 /source/ruview-dependencies/bundle_licenses.py --workspace /source/v2 \
+      --output /source/ruview-dependencies/binary-licenses \
+      --project-notices /source/ruview-dependencies/project-notices
+COPY --from=runtime-base /usr/share/doc/libc6/copyright /source/ruview-dependencies/binary-licenses/runtime-libraries/libc6-copyright
+COPY --from=runtime-base /usr/share/doc/gcc-12-base/copyright /source/ruview-dependencies/binary-licenses/runtime-libraries/libgcc-s1-copyright
+RUN cd /source/ruview-dependencies/binary-licenses/runtime-libraries \
+ && sha256sum libc6-copyright libgcc-s1-copyright > SHA256SUMS
 
 # Reuse the original UI, entrypoint, libraries and auxiliary binaries verbatim.
-FROM --platform=linux/arm64 docker.io/ruvnet/wifi-densepose@sha256:29e6b4ce1893687de205324c509976c53911eff1abdfce3663256de3b82866d7
+FROM runtime-base
 COPY --from=build /source/v2/target/aarch64-unknown-linux-gnu/release/sensing-server /app/sensing-server
+COPY --from=build /source/ruview-dependencies/licenses/ring/ /app/licenses/ring/
+COPY --from=build /source/ruview-dependencies/ring-policy-receipt.json /app/ring-policy-receipt.json
+COPY --from=build /source/ruview-dependencies/binary-licenses/ /app/licenses/collector/
 LABEL org.opencontainers.image.revision="7c8aeacea2ad30972070196eb7d8e7200506b742" \
       org.opencontainers.image.version="0.3.5-home-grid.2" \
-      io.ha-homelab.ruview.patch="collector/patches/0001-expire-csi-grid.patch,collector/patches/0002-raw-csi-mirror.patch"
+      io.ha-homelab.ruview.patch="collector/patches/0001-expire-csi-grid.patch,collector/patches/0002-raw-csi-mirror.patch,collector/patches/0003-security-boundaries.patch"

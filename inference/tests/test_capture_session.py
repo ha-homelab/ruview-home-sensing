@@ -186,14 +186,20 @@ class CaptureSessionTests(unittest.TestCase):
     def test_fifo_evidence_is_rejected_before_read_without_blocking(self):
         fifo = self.root / "synthetic-evidence.fifo"
         os.mkfifo(fifo, 0o600)
+        script = """
+from inference.capture import file_bytes
+import sys
+try:
+    file_bytes(sys.argv[1], 1024)
+except ValueError:
+    raise SystemExit(0)
+raise SystemExit(2)
+"""
         result = subprocess.run(
             [
                 sys.executable,
                 "-c",
-                "from inference.capture import file_bytes; import sys\n"
-                "try: file_bytes(sys.argv[1],1024)\n"
-                "except ValueError: raise SystemExit(0)\n"
-                "raise SystemExit(2)\n",
+                script,
                 str(fifo),
             ],
             cwd=Path(__file__).resolve().parents[2],

@@ -40,6 +40,264 @@ jobs:
         run: python3 tools/check_history_event.py
       - run: python3 -m unittest discover -s tools/tests -v
       - run: python3 tools/check_workflows.py
+  firmware-build:
+    name: ESP32-S3 firmware build
+    needs: public-boundary
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    timeout-minutes: 50
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Fetch hash-verified public firmware sources
+        run: python3 firmware/fetch-source.py "$RUNNER_TEMP/firmware-context"
+      - name: Build the default ESP32-S3 firmware using the pinned IDF image
+        timeout-minutes: 40
+        shell: bash
+        run: |
+          docker build --progress=plain --target artifacts \
+            --output "type=local,dest=$RUNNER_TEMP/firmware-artifacts" \
+            "$RUNNER_TEMP/firmware-context" 2>&1 | tee "$RUNNER_TEMP/firmware-build.log"
+      - name: Verify real firmware outputs and tool provenance
+        run: |
+          cd "$RUNNER_TEMP/firmware-artifacts"
+          sha256sum -c SHA256SUMS.txt
+          for path in esp32-csi-node.bin esp32-csi-node.elf esp32-csi-node.map \
+            bootloader.bin partition-table.bin ota_data_initial.bin \
+            flasher_args.json sdkconfig dependencies.lock compile_commands.json \
+            BUILD_TOOLS.txt IDF_TOOLS.json BUILD_TRANSPORT.txt BUILD_TRANSPORT_PACKAGES.json \
+            ruview-wifi-policy.json licenses/third-party/manifest.json licenses/RuView-LICENSE \
+            licenses/Monocypher-LICENCE.md licenses/WASM3-LICENSE licenses/ESP-IDF-LICENSE; do
+            test -s "$path"
+          done
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import struct
+          header = Path("esp32-csi-node.elf").read_bytes()[:20]
+          assert header[:6] == b"\x7fELF\x01\x01", "Expected little-endian ELF32"
+          assert struct.unpack_from("<H", header, 18)[0] == 94, "Expected Xtensa ELF"
+          assert Path("esp32-csi-node.bin").read_bytes()[0] == 0xE9, "Expected ESP firmware image"
+          commands = json.loads(Path("compile_commands.json").read_text())
+          assert any(row["file"].endswith("/main/wasm_runtime.c") and
+                     "-DWASM3_AVAILABLE=1" in row["command"] for row in commands)
+          assert any(row["file"].endswith("/monocypher.c") for row in commands)
+          policy = json.loads(Path("ruview-wifi-policy.json").read_text())
+          assert policy["revision"] == Path("BUILD_TOOLS.txt").read_text().splitlines()[0], \
+              "Wi-Fi policy must target the actual compiled SDK"
+          assert len(policy["patched_sha256"]) == 64 and len(policy["policy_sha256"]) == 64
+          expected_transport = Path(os.environ["GITHUB_WORKSPACE"]) / "firmware/build-security/packages.json"
+          assert json.loads(Path("BUILD_TRANSPORT_PACKAGES.json").read_text()) == json.loads(expected_transport.read_text())
+          transport = Path("BUILD_TRANSPORT.txt").read_text()
+          for version in ("3.8.3-1.1ubuntu3.6", "1.59.0-1ubuntu0.4", "Version: 2.8.0"):
+              assert version in transport, f"Missing repaired build transport: {version}"
+          notices = Path("licenses/third-party")
+          notice_manifest = json.loads((notices / "manifest.json").read_text())
+          assert notice_manifest["files"], "Missing SDK and component notices"
+          for item in notice_manifest["files"]:
+              relative = Path(item["path"])
+              assert not relative.is_absolute() and ".." not in relative.parts
+              data = (notices / relative).read_bytes()
+              assert len(data) == item["bytes"]
+              assert hashlib.sha256(data).hexdigest() == item["sha256"]
+          print("Verified linked Xtensa firmware and real WASM3/Monocypher compile inputs")
+          PY
+      - name: Preserve firmware build outputs and diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: esp32s3-build-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/firmware-artifacts/
+            ${{ runner.temp }}/firmware-build.log
+          if-no-files-found: error
+          retention-days: 7
+  collector-build:
+    name: Full collector cross-build
+    needs: public-boundary
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    timeout-minutes: 120
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Prepare the pinned public collector source
+        timeout-minutes: 20
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/collector-context" "$RUNNER_TEMP/collector-artifacts"
+          python3 collector/prepare-source.py "$RUNNER_TEMP/collector-context/source"
+          git -C "$RUNNER_TEMP/collector-context/source" rev-parse HEAD \
+            > "$RUNNER_TEMP/collector-artifacts/upstream-commit.txt"
+          git -C "$RUNNER_TEMP/collector-context/source" submodule status --recursive \
+            > "$RUNNER_TEMP/collector-artifacts/upstream-submodules.txt"
+          git -C "$RUNNER_TEMP/collector-context/source" diff --binary \
+            > "$RUNNER_TEMP/collector-artifacts/applied-tracked-source.patch"
+          # Include copied source modules, which are untracked in the upstream tree.
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          source = Path(os.environ["RUNNER_TEMP"]) / "collector-context/source"
+          inputs = [
+              Path("collector/Dockerfile"),
+              Path("collector/prepare-source.py"),
+              Path("collector/source-lock.json"),
+              Path("collector/ring_policy.py"),
+              Path("collector/test_ring_policy.py"),
+              Path("collector/bundle_licenses.py"),
+              Path("LICENSE"),
+              Path("NOTICE"),
+              Path("scripts/transport_security.py"),
+              *sorted(Path("collector/patches").glob("*.patch")),
+              *sorted(Path("collector/src").glob("*.rs")),
+              *sorted(path for path in Path("collector/ring-policy").rglob("*") if path.is_file()),
+              *sorted(path for path in Path("collector/license-overrides").rglob("*") if path.is_file()),
+          ]
+          evidence = {
+              "local_inputs": {
+                  str(path): hashlib.sha256(path.read_bytes()).hexdigest()
+                  for path in inputs
+              },
+              "prepared_server_sources": {
+                  str(path.relative_to(source)): hashlib.sha256(path.read_bytes()).hexdigest()
+                  for path in sorted(
+                      (source / "v2/crates/wifi-densepose-sensing-server/src").rglob("*.rs")
+                  )
+              },
+              "cargo_lock_sha256": hashlib.sha256(
+                  (source / "v2/Cargo.lock").read_bytes()
+              ).hexdigest(),
+          }
+          output = Path(os.environ["RUNNER_TEMP"]) / "collector-artifacts/source-inputs.json"
+          output.write_text(json.dumps(evidence, indent=2) + "\n")
+          PY
+      - name: Run native collector regressions and cross-build the complete ARM64 image
+        timeout-minutes: 100
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build --platform linux/arm64 --progress=plain \
+            --file collector/Dockerfile \
+            --tag "ruview-collector-ci:$GITHUB_SHA" \
+            "$RUNNER_TEMP/collector-context" 2>&1 \
+            | tee "$RUNNER_TEMP/collector-artifacts/build.log"
+      - name: Verify the produced image and extract the compiled collector without starting it
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="ruview-collector-ci:$GITHUB_SHA"
+          test "$(docker image inspect --format '{{.Architecture}}/{{.Os}}' "$image")" = arm64/linux
+          docker image inspect --format '{{.Id}}' "$image" \
+            > "$RUNNER_TEMP/collector-artifacts/image-id.txt"
+          container="$(docker create --platform linux/arm64 --network none \
+            --read-only --cap-drop ALL --security-opt no-new-privileges \
+            --entrypoint /bin/false "$image")"
+          trap 'docker rm "$container" >/dev/null' EXIT
+          docker cp "$container:/app/sensing-server" \
+            "$RUNNER_TEMP/collector-artifacts/sensing-server"
+          docker cp "$container:/app/ring-policy-receipt.json" \
+            "$RUNNER_TEMP/collector-artifacts/ring-policy-receipt.json"
+          docker cp "$container:/app/licenses/ring" \
+            "$RUNNER_TEMP/collector-artifacts/ring-licenses"
+          docker cp "$container:/app/licenses/collector" \
+            "$RUNNER_TEMP/collector-artifacts/collector-licenses"
+          (cd "$RUNNER_TEMP/collector-artifacts/collector-licenses/runtime-libraries" \
+            && sha256sum --check SHA256SUMS)
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import struct
+          root = Path(os.environ["RUNNER_TEMP"]) / "collector-artifacts"
+          binary = (root / "sensing-server").read_bytes()
+          if binary[:6] != b"\x7fELF\x02\x01":
+              raise SystemExit("Expected a little-endian ELF64 executable")
+          if struct.unpack_from("<H", binary, 18)[0] != 183:
+              raise SystemExit("Expected an AArch64 executable")
+          log = (root / "build.log").read_text(errors="replace")
+          counts = [
+              int(value)
+              for value in re.findall(r"test result: ok\. (\d+) passed; 0 failed;", log)
+          ]
+          # The current Dockerfile runs six separate named suites. If another
+          # required suite is added, increase this minimum in the same change.
+          if len(counts) < 6 or any(count == 0 for count in counts):
+              raise SystemExit(f"Missing or empty native collector regression suite: {counts}")
+          if "Actual ring policy checked:" not in log:
+              raise SystemExit("Missing actual compiled ring regression")
+          ring_receipt = json.loads((root / "ring-policy-receipt.json").read_text())
+          ring_source = json.loads(Path("collector/ring-policy/source.json").read_text())
+          if any(ring_receipt.get(key) != value for key, value in ring_source.items()):
+              raise SystemExit("Unexpected ring source or policy receipt")
+          patch_hash = hashlib.sha256(
+              Path("collector/ring-policy/exact-minimum.patch").read_bytes()
+          ).hexdigest()
+          if ring_receipt.get("patch_sha256") != patch_hash:
+              raise SystemExit("Unexpected ring patch digest")
+          for name in ring_source["licenses"]:
+              if not (root / "ring-licenses" / name.replace("/", "__")).is_file():
+                  raise SystemExit(f"Missing delivered ring license: {name}")
+          notice_root = root / "collector-licenses"
+          notice_index_bytes = (notice_root / "index.json").read_bytes()
+          notice_index = json.loads(notice_index_bytes)
+          assert notice_index["target"] == "aarch64-unknown-linux-gnu"
+          assert notice_index["features"] == ["mqtt"]
+          assert notice_index["edges"] == ["normal", "build"]
+          assert notice_index["package_count"] == len(notice_index["packages"]) > 0
+          assert (notice_root / "README.txt").stat().st_size > 0
+          documents = list(notice_index["additional_documents"])
+          assert documents
+          for package in notice_index["packages"]:
+              assert package["documents"], f"Missing notices for {package['name']}"
+              documents.extend(package["documents"])
+          for document in documents:
+              relative = Path(document["file"])
+              assert not relative.is_absolute() and ".." not in relative.parts
+              data = (notice_root / relative).read_bytes()
+              assert data and hashlib.sha256(data).hexdigest() == document["sha256"]
+          receipt = {
+              "image_platform": "linux/arm64",
+              "binary_bytes": len(binary),
+              "binary_sha256": hashlib.sha256(binary).hexdigest(),
+              "native_test_suite_pass_counts": counts,
+              "ring_policy_patch_sha256": patch_hash,
+              "license_package_count": notice_index["package_count"],
+              "license_index_sha256": hashlib.sha256(notice_index_bytes).hexdigest(),
+              "arm64_runtime_executed": False,
+              "hardware_executed": False,
+          }
+          (root / "build-receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
+          print(json.dumps(receipt, indent=2))
+          PY
+          readelf -h "$RUNNER_TEMP/collector-artifacts/sensing-server" \
+            > "$RUNNER_TEMP/collector-artifacts/elf-header.txt"
+          readelf -d "$RUNNER_TEMP/collector-artifacts/sensing-server" \
+            > "$RUNNER_TEMP/collector-artifacts/dynamic-linkage.txt"
+      - name: Preserve collector build outputs and diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: collector-build-${{ github.sha }}
+          path: ${{ runner.temp }}/collector-artifacts/
+          if-no-files-found: error
+          retention-days: 7
   bridge-container:
     needs: public-boundary
     # Native ARM64 validates the documented architecture without emulation.
@@ -93,9 +351,12 @@ jobs:
           python -m pip install --require-hashes --only-binary=:all: -r requirements.txt
       - name: Verify imports use the installed public distribution
         run: python scripts/test-public-adapter-installed.py
+      - name: Install synthetic certificate test dependencies
+        run: |
+          python -m pip install --only-binary=:all: -r tests/requirements-security.txt
       - run: python -m pip install ruff==0.16.5 esp-idf-nvs-partition-gen==0.3.0 esptool==5.1.0
-      - run: ruff check bridge.py module_observations.py ruview_http.py scripts tools tests firmware/*.py firmware/tests firmware/fleet firmware/wisp-pilot collector/*.py collector/ui/export-floor-config.py inference server-modules/*.py server-modules/tests assumed_activity radar wisp_pilot
-      - run: ruff format --check bridge.py module_observations.py ruview_http.py scripts tools tests firmware/*.py firmware/tests firmware/fleet firmware/wisp-pilot collector/*.py collector/ui/export-floor-config.py inference server-modules/*.py server-modules/tests assumed_activity radar wisp_pilot
+      - run: ruff check bridge.py module_observations.py ruview_http.py scripts tools tests firmware/*.py firmware/tests firmware/fleet firmware/wisp-pilot firmware/wifi-security collector/*.py collector/ui/export-floor-config.py inference server-modules/*.py server-modules/tests assumed_activity radar wisp_pilot
+      - run: ruff format --check bridge.py module_observations.py ruview_http.py scripts tools tests firmware/*.py firmware/tests firmware/fleet firmware/wisp-pilot firmware/wifi-security collector/*.py collector/ui/export-floor-config.py inference server-modules/*.py server-modules/tests assumed_activity radar wisp_pilot
       - run: node --test collector/ui/tests/*.test.mjs
       - run: python -m unittest discover -s assumed_activity/tests -v
       - run: python -m unittest discover -s radar/tests -v
@@ -124,6 +385,7 @@ jobs:
           git -C "$RUNNER_TEMP/wasm3" fetch --depth 1 origin 6b8bcb1e07bf26ebef09a7211b0a37a446eafd52
           git -C "$RUNNER_TEMP/wasm3" checkout --detach FETCH_HEAD
           python firmware/tests/test_component.py "$RUNNER_TEMP/ruview-firmware/source" "$RUNNER_TEMP/wasm3"
+          python firmware/tests/test_alias_safe_words.py "$RUNNER_TEMP/ruview-firmware/source" "$RUNNER_TEMP/wasm3"
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # shared toolkit pin
         with:
           toolchain: '1.96.1'
@@ -246,7 +508,7 @@ jobs:
   gate:
     name: Public CI gate
     if: ${{ always() }}
-    needs: [public-boundary, bridge-container, assumed-activity-container, validate, packages, enclosure, security]
+    needs: [public-boundary, firmware-build, collector-build, bridge-container, assumed-activity-container, validate, packages, enclosure, security]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

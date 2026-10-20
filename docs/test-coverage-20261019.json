@@ -1,0 +1,73 @@
+{
+  "schema": "ruview.python-coverage-snapshot.v1",
+  "date": "2026-10-19",
+  "base_commit": "b2bdbeb8c6122bf7fc184d591ecaca85f6e64a53",
+  "changes_from_base": {
+    "assumed_activity/service.py": "4b9584c90ddcc4cebc3cc73db3d3e23e204d8e3930c020830bc9c73cded9e9b2",
+    "assumed_activity/__main__.py": "9daffa108b7cbcb4bb2c10fd463f8eb2fd1958474c693000778afa84737ef0d5",
+    "assumed_activity/tests/test_cli.py": "5e33b3ac60a4307ab9338818c58a240772dfac8184ce53282f5f4c96fd559a89",
+    "pyproject.toml": "7fe9e614c783eb20a141bbc62e9fd3b88540220ebc719e51d6cae38e2eac0a58"
+  },
+  "python": "3.14.7",
+  "coverage_py": "7.16.2",
+  "source_inventory_files": 97,
+  "source_policy": "source=. ; include_namespace_packages=true ; omit=*/tests/*,*/test_*.py",
+  "tests": 1024,
+  "suites": [
+    {
+      "directory": "tests",
+      "tests": 461,
+      "exit_code": 0
+    },
+    {
+      "directory": "assumed_activity/tests",
+      "tests": 100,
+      "exit_code": 0
+    },
+    {
+      "directory": "inference/tests",
+      "tests": 244,
+      "exit_code": 0
+    },
+    {
+      "directory": "radar/tests",
+      "tests": 30,
+      "exit_code": 0
+    },
+    {
+      "directory": "wisp_pilot/tests",
+      "tests": 53,
+      "exit_code": 0
+    },
+    {
+      "directory": "firmware/fleet/tests",
+      "tests": 78,
+      "exit_code": 0
+    },
+    {
+      "directory": "firmware/wisp-pilot/tests",
+      "tests": 6,
+      "exit_code": 0
+    },
+    {
+      "directory": "server-modules/tests",
+      "tests": 40,
+      "exit_code": 0
+    },
+    {
+      "directory": "tools/tests",
+      "tests": 12,
+      "exit_code": 0
+    }
+  ],
+  "covered_statements": 10048,
+  "statements": 12347,
+  "covered_branches": 2657,
+  "branches": 3590,
+  "excluded_lines": 0,
+  "limits": [
+    "This snapshot precedes the subsequent integrated transport-security tests and implementation changes.",
+    "Python source only; no cross-language or physical-device qualification.",
+    "Uninstrumented child processes may undercount execution."
+  ]
+}

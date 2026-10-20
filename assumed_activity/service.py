@@ -1,5 +1,6 @@
 """Read-only source polling and expiring HTTP/MQTT activity envelopes."""
 
+import argparse
 import copy
 import ipaddress
 import json
@@ -16,6 +17,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
 
 from ruview_http import decode_http_body
+from scripts.transport_security import configure_mqtt_tls, http_opener
 
 from .configuration import pinned_bytes
 from .core import Producer, digest, encoded, require
@@ -186,7 +188,7 @@ def read_json(url, timeout, token=None, max_document=MAX_DOCUMENT):
     if token:
         headers["Authorization"] = "Bearer " + token
     request = urllib.request.Request(url, headers=headers, method="GET")
-    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+    opener = http_opener(NoRedirect())
     with opener.open(request, timeout=timeout) as response:
         require(response.status == 200, "source_http_status")
         raw = response.read(max_document + 1)
@@ -619,6 +621,19 @@ def load_configuration():
     )
 
 
+def cli(argv=None):
+    """Parse the console interface before loading configuration or opening I/O."""
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        epilog=(
+            "Configure this service through the ASSUMED_ACTIVITY_*, RUVIEW_* and "
+            "MQTT_* environment variables described in docs/interfaces.md."
+        ),
+    )
+    parser.parse_args(argv)
+    main()
+
+
 def main():
     bind = http_bind()
     (
@@ -637,6 +652,7 @@ def main():
         mqtt.CallbackAPIVersion.VERSION2, client_id="ruview-assumed-activity"
     )
     client.username_pw_set(os.environ["MQTT_USERNAME"], os.environ["MQTT_PASSWORD"])
+    configure_mqtt_tls(client)
     client.reconnect_delay_set(min_delay=1, max_delay=30)
     publisher = Publisher(client, policy)
     service = Service(

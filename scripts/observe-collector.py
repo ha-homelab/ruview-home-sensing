@@ -12,10 +12,12 @@ from pathlib import Path
 
 try:
     from collector_profile import add_profile_arguments, load_profile
+    from transport_security import http_opener
 except ModuleNotFoundError as exc:
     if exc.name != "collector_profile":
         raise
     from scripts.collector_profile import add_profile_arguments, load_profile
+    from scripts.transport_security import http_opener
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -96,7 +98,7 @@ def main():
     token = os.environ.get("RUVIEW_API_TOKEN", "")
     if not token:
         parser.error("Set RUVIEW_API_TOKEN from the private credential source")
-    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+    opener = http_opener(NoRedirect())
 
     def get(path):
         revalidate()

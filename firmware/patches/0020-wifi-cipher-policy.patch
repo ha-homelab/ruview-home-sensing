@@ -1,0 +1,36 @@
+--- a/main/main.c
++++ b/main/main.c
+@@ -118,10 +118,13 @@
+             .scan_method = WIFI_ALL_CHANNEL_SCAN,
+             .sort_method = WIFI_CONNECT_AP_BY_SIGNAL,
+ #endif
+-            /* WPA_PSK (not WPA2_PSK) so routers running WPA/WPA2-mixed
+-             * compatibility mode aren't rejected with
+-             * WIFI_REASON_NO_AP_FOUND_IN_AUTHMODE_THRESHOLD (#1050). */
++#if defined(CONFIG_HOME_WIFI_ALLOW_LEGACY_SECURITY) && CONFIG_HOME_WIFI_ALLOW_LEGACY_SECURITY
++            /* Explicit legacy compatibility; never selected by default. */
+             .threshold.authmode = WIFI_AUTH_WPA_PSK,
++#else
++            /* RSN/AES is additionally enforced before the key handshake. */
++            .threshold.authmode = WIFI_AUTH_WPA2_PSK,
++#endif
+         },
+     };
+ 
+--- a/main/Kconfig.projbuild
++++ b/main/Kconfig.projbuild
+@@ -562,3 +562,14 @@
+             colormap, in milli-units (250 = 0.25). Lower = more sensitive
+             (reaches yellow with less motion).
+ endmenu
++
++menu "RuView Wi-Fi cipher policy"
++    config HOME_WIFI_ALLOW_LEGACY_SECURITY
++        bool "Allow insecure legacy WPA/TKIP compatibility"
++        default n
++        help
++            Permit the upstream WPA1/TKIP behavior. This disables the local
++            pre-handshake AES-only policy. Use only when explicitly required
++            for a legacy access point; prefer WPA2/WPA3 with AES instead.
++            It does not encrypt HTTP, MQTT, or other application traffic.
++endmenu

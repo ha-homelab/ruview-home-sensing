@@ -1,0 +1,147 @@
+--- a/v2/crates/wifi-densepose-sensing-server/src/main.rs
++++ b/v2/crates/wifi-densepose-sensing-server/src/main.rs
+@@ -7041,10 +7041,17 @@
+     // `GET /api/v1/recordings` (and the success response below) sees it.
+     let watermark = s.source_state().export_watermark();
+ 
+-    // Create the recording file
+-    let rec_path = PathBuf::from("data/recordings").join(format!("{}.jsonl", id));
+-    let file = match std::fs::File::create(&rec_path) {
+-        Ok(f) => f,
++    if !wifi_densepose_sensing_server::security_boundaries::valid_recording_id(&id) {
++        return Json(serde_json::json!({
++            "error": "invalid recording id", "success": false,
++        }));
++    }
++    // Operator-owned parent; atomically reject existing files and symlinks.
++    let (rec_path, file) = match
++        wifi_densepose_sensing_server::security_boundaries::create_recording(
++            std::path::Path::new("data/recordings"), &id,
++        ) {
++        Ok(created) => created,
+         Err(e) => {
+             // ADR-080 #2: the OS error can carry the recordings path; log it
+             // server-side only and return a generic body + correlation id.
+--- a/v2/crates/wifi-densepose-sensing-server/src/lib.rs
++++ b/v2/crates/wifi-densepose-sensing-server/src/lib.rs
+@@ -35,6 +35,7 @@
+ /// signed RuField `FieldEvent`s on the additive `/api/field` + `/ws/field`
+ /// endpoints, via the `wifi-densepose-rufield` anti-corruption bridge.
+ pub mod rufield_surface;
++pub mod security_boundaries;
+ pub mod rvf_container;
+ pub mod rvf_pipeline;
+ pub mod semconv;
+--- a/v2/crates/wifi-densepose-sensing-server/src/rufield_surface.rs
++++ b/v2/crates/wifi-densepose-sensing-server/src/rufield_surface.rs
+@@ -60,13 +60,12 @@
+ pub const FIELD_BROADCAST_CAPACITY: usize = 256;
+ 
+ /// Environment variable carrying the 32-byte hex/raw signing seed for the
+-/// dedicated RuField sensing signer. When unset, a deterministic dev default is
+-/// used (with a logged warning). See [`FieldSurface::from_env`].
++/// dedicated RuField sensing signer. When unset, an ephemeral OS-random key is
++/// used. See [`FieldSurface::from_env`] for the identity-rotation boundary.
+ pub const SIGNING_SEED_ENV: &str = "WDP_RUFIELD_SIGNING_SEED";
+ 
+-/// Deterministic dev signing seed used when [`SIGNING_SEED_ENV`] is unset. This
+-/// is a **dev/sensing key**, intentionally standalone (ADR-262 §8 Q1 — the
+-/// `cog-ha-matter` key reuse is the deferred P2 decision, not pre-empted here).
++/// Public fixture seed: never selected by the runtime environment loader.
++#[cfg(test)]
+ const DEV_SIGNING_SEED: &[u8; 32] = b"adr262-ruview-rufield-dev-seed!!";
+ 
+ /// The live RuField surface state held in `AppStateInner` (ADR-262 P3).
+@@ -100,31 +99,29 @@
+ 
+     /// Build a surface from the environment (ADR-262 §4 P3 / open-question 1).
+     ///
+-    /// Reads [`SIGNING_SEED_ENV`] as either a 64-char hex string or a raw 32+
+-    /// byte UTF-8 value (first 32 bytes used). When unset/invalid it falls back
+-    /// to the deterministic [`DEV_SIGNING_SEED`] and logs a `WARN` — the key is
+-    /// a standalone **dev/sensing** key, NOT the deferred-P2 `cog-ha-matter`
+-    /// key.
++    /// Reads exactly 64 hex characters or 32 raw bytes. Invalid explicit
++    /// configuration fails startup. Without configuration, the OS RNG creates
++    /// an ephemeral identity: consumers must not assume continuity on restart.
+     #[must_use]
+     pub fn from_env() -> Self {
+-        match std::env::var(SIGNING_SEED_ENV).ok().and_then(|v| parse_seed(&v)) {
+-            Some(seed) => {
+-                tracing::info!(
+-                    "ADR-262 P3: RuField surface using signing seed from {SIGNING_SEED_ENV} \
+-                     (dedicated sensing key)"
+-                );
+-                Self::from_seed(&seed, false)
+-            }
+-            None => {
+-                tracing::warn!(
+-                    "ADR-262 P3: {SIGNING_SEED_ENV} unset/invalid — RuField surface using the \
+-                     DETERMINISTIC DEV signing key. This is a dev/sensing key pending the \
+-                     ADR-262 §8 Q1 (P2) key-ownership decision; set {SIGNING_SEED_ENV} (64-hex \
+-                     or 32-byte value) for a real deployment."
+-                );
+-                Self::from_seed(DEV_SIGNING_SEED, true)
+-            }
+-        }
++        use rand::RngCore;
++        let configured = match std::env::var(SIGNING_SEED_ENV) {
++            Ok(value) => Some(value),
++            Err(std::env::VarError::NotPresent) => None,
++            Err(std::env::VarError::NotUnicode(_)) =>
++                panic!("invalid RuField signing seed encoding"),
++        };
++        let seed = crate::security_boundaries::signing_seed(
++            configured.as_deref(),
++            |out| rand::rngs::OsRng.try_fill_bytes(out),
++        ).expect("RuField signing identity could not be initialized");
++        if configured.is_none() {
++            tracing::warn!(
++                "RuField uses an ephemeral OS-random signing identity; configure \
++                 {SIGNING_SEED_ENV} to preserve identity across restarts"
++            );
++        }
++        Self::from_seed(&seed, false)
+     }
+ 
+     /// The public key of the dedicated signer (hex), so consumers can verify
+@@ -197,28 +194,9 @@
+     }
+ }
+ 
+-/// Parse [`SIGNING_SEED_ENV`] as 64-char hex or a raw 32+ byte UTF-8 value.
++#[cfg(test)]
+ fn parse_seed(v: &str) -> Option<[u8; 32]> {
+-    let v = v.trim();
+-    // 64 hex chars → 32 bytes.
+-    if v.len() == 64 && v.bytes().all(|b| b.is_ascii_hexdigit()) {
+-        let mut out = [0u8; 32];
+-        for (i, chunk) in v.as_bytes().chunks(2).enumerate() {
+-            let hi = (chunk[0] as char).to_digit(16)?;
+-            let lo = (chunk[1] as char).to_digit(16)?;
+-            out[i] = ((hi << 4) | lo) as u8;
+-        }
+-        return Some(out);
+-    }
+-    // Otherwise: first 32 bytes of the raw value (must be at least 32 long so a
+-    // short/typo'd value fails closed to the dev key rather than a weak key).
+-    let bytes = v.as_bytes();
+-    if bytes.len() >= 32 {
+-        let mut out = [0u8; 32];
+-        out.copy_from_slice(&bytes[..32]);
+-        return Some(out);
+-    }
+-    None
++    crate::security_boundaries::signing_seed(Some(v), |_| Err(())).ok()
+ }
+ 
+ /// Build a [`SensingSnapshot`] from the real per-cycle values (ADR-262 P3 §4.2).
+@@ -371,7 +349,7 @@
+         assert_eq!(parsed[31], 0xff);
+         // Raw 32-byte value.
+         assert!(parse_seed("0123456789abcdef0123456789abcdef").is_some());
+-        // Too short → fail closed (None → dev key).
++        // Too short is rejected; runtime never substitutes the public fixture key.
+         assert!(parse_seed("short").is_none());
+     }
+ 

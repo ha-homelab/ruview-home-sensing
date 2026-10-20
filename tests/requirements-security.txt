@@ -1,0 +1,2 @@
+# Certificate generation for real in-memory TLS regression tests only.
+cryptography==50.0.2

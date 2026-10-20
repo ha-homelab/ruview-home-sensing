@@ -114,6 +114,16 @@ def main():
             cwd=root,
             check=True,
         )
+        subprocess.run(
+            [
+                "git",
+                "apply",
+                "--include=components/wasm3/wasm3-src/*",
+                str(ROOT / "patches/0021-alias-safe-words.patch"),
+            ],
+            cwd=root,
+            check=True,
+        )
         compiler = wasm3_copy / "m3_compile.c"
         text = compiler.read_text().replace(
             "M3Result  CompileFunction  (IM3Function io_function)\n{",
@@ -457,6 +467,11 @@ int main(int argc, char **argv) {
         command = [
             "cc",
             "-std=c11",
+            "-Werror=int-conversion",
+            "-Werror=incompatible-pointer-types",
+            "-Werror=implicit-function-declaration",
+            "-Werror=return-type",
+            "-Werror=format",
             "-D_POSIX_C_SOURCE=200809L",
             "-D_DEFAULT_SOURCE",
             "-D_DARWIN_C_SOURCE",

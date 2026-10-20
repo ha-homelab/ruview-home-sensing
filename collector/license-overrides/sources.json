@@ -1,0 +1,367 @@
+{
+  "scope": "Original upstream license texts omitted from these exact published crate archives. No license substitution or exemption.",
+  "packages": [
+    {
+      "name": "anndists",
+      "version": "0.1.5",
+      "crate_sha256": "9a8396b473aa0bceed68fb32462505387ea39fa47c7029417e0a49f10592b036",
+      "declared_license": "MIT/Apache-2.0",
+      "repository": "https://github.com/jean-pierreBoth/anndists",
+      "vcs_revision": "da78e0076c8d1a27488bb7702c8f0ef56e341e0a",
+      "path_in_vcs": "",
+      "documents": [
+        {
+          "path": "texts/bf65985ba152a4343da920014792661c59667cf82a454417842a727e5e8fb197.txt",
+          "sha256": "bf65985ba152a4343da920014792661c59667cf82a454417842a727e5e8fb197",
+          "url": "https://github.com/jean-pierreBoth/anndists/blob/da78e0076c8d1a27488bb7702c8f0ef56e341e0a/README.md"
+        },
+        {
+          "path": "texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "url": "https://www.apache.org/licenses/LICENSE-2.0.txt"
+        }
+      ],
+      "basis": "The unaltered archive README explicitly grants the choice of Apache2.0 and links this official license; upstream commit omits standalone license files. Include the original grant and official terms, without inventing a copyright notice."
+    },
+    {
+      "name": "midstreamer-attractor",
+      "version": "0.2.1",
+      "crate_sha256": "bebe548a4e74b80ecb8dd058e352a91fed9e5685c49c5d3fa5062520c660c6c9",
+      "declared_license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/ruvnet/midstream",
+      "vcs_revision": "bb73ff37eab5f96fd47b0d37bbdb394de2307be3",
+      "path_in_vcs": "crates/temporal-attractor-studio",
+      "documents": [
+        {
+          "path": "texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "upstream_path": "LICENSE-APACHE",
+          "git_blob_sha": "261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64",
+          "url": "https://github.com/ruvnet/midstream/blob/bb73ff37eab5f96fd47b0d37bbdb394de2307be3/LICENSE-APACHE"
+        },
+        {
+          "path": "texts/52d9ff34ef21ecebe8720573bdea0e4052457ae2b77372b126f5859057dc34c2.txt",
+          "sha256": "52d9ff34ef21ecebe8720573bdea0e4052457ae2b77372b126f5859057dc34c2",
+          "upstream_path": "LICENSE-MIT",
+          "git_blob_sha": "43053844d64cd19c38431c0aed252c72fe325174",
+          "url": "https://github.com/ruvnet/midstream/blob/bb73ff37eab5f96fd47b0d37bbdb394de2307be3/LICENSE-MIT"
+        },
+        {
+          "path": "texts/648dbb0ef38ea8c12818e7ef13632183dd5ec50a935ebbcfce4b8c2d43961620.txt",
+          "sha256": "648dbb0ef38ea8c12818e7ef13632183dd5ec50a935ebbcfce4b8c2d43961620",
+          "upstream_path": "NOTICE",
+          "git_blob_sha": "7aa738ca05fec6b7dfb8d360d1c34d0baec52e07",
+          "url": "https://github.com/ruvnet/midstream/blob/bb73ff37eab5f96fd47b0d37bbdb394de2307be3/NOTICE"
+        }
+      ]
+    },
+    {
+      "name": "midstreamer-quic",
+      "version": "0.3.0",
+      "crate_sha256": "9d4dcf971dfa9eb5087e9c79e078f88c1508110bf010b8bb2d29b0b7229fd229",
+      "declared_license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/ruvnet/midstream",
+      "vcs_revision": "8f70d2bb9d64a8ddee7745bc18bc4ff9e151845e",
+      "path_in_vcs": "crates/quic-multistream",
+      "documents": [
+        {
+          "path": "texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "upstream_path": "LICENSE-APACHE",
+          "git_blob_sha": "261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64",
+          "url": "https://github.com/ruvnet/midstream/blob/8f70d2bb9d64a8ddee7745bc18bc4ff9e151845e/LICENSE-APACHE"
+        },
+        {
+          "path": "texts/52d9ff34ef21ecebe8720573bdea0e4052457ae2b77372b126f5859057dc34c2.txt",
+          "sha256": "52d9ff34ef21ecebe8720573bdea0e4052457ae2b77372b126f5859057dc34c2",
+          "upstream_path": "LICENSE-MIT",
+          "git_blob_sha": "43053844d64cd19c38431c0aed252c72fe325174",
+          "url": "https://github.com/ruvnet/midstream/blob/8f70d2bb9d64a8ddee7745bc18bc4ff9e151845e/LICENSE-MIT"
+        },
+        {
+          "path": "texts/648dbb0ef38ea8c12818e7ef13632183dd5ec50a935ebbcfce4b8c2d43961620.txt",
+          "sha256": "648dbb0ef38ea8c12818e7ef13632183dd5ec50a935ebbcfce4b8c2d43961620",
+          "upstream_path": "NOTICE",
+          "git_blob_sha": "7aa738ca05fec6b7dfb8d360d1c34d0baec52e07",
+          "url": "https://github.com/ruvnet/midstream/blob/8f70d2bb9d64a8ddee7745bc18bc4ff9e151845e/NOTICE"
+        }
+      ]
+    },
+    {
+      "name": "midstreamer-scheduler",
+      "version": "0.2.1",
+      "crate_sha256": "a8085dbcfb13808d075c0b31681022b41acc1c8021313d45fa7461e97d7767ff",
+      "declared_license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/ruvnet/midstream",
+      "vcs_revision": "bb73ff37eab5f96fd47b0d37bbdb394de2307be3",
+      "path_in_vcs": "crates/nanosecond-scheduler",
+      "documents": [
+        {
+          "path": "texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "upstream_path": "LICENSE-APACHE",
+          "git_blob_sha": "261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64",
+          "url": "https://github.com/ruvnet/midstream/blob/bb73ff37eab5f96fd47b0d37bbdb394de2307be3/LICENSE-APACHE"
+        },
+        {
+          "path": "texts/52d9ff34ef21ecebe8720573bdea0e4052457ae2b77372b126f5859057dc34c2.txt",
+          "sha256": "52d9ff34ef21ecebe8720573bdea0e4052457ae2b77372b126f5859057dc34c2",
+          "upstream_path": "LICENSE-MIT",
+          "git_blob_sha": "43053844d64cd19c38431c0aed252c72fe325174",
+          "url": "https://github.com/ruvnet/midstream/blob/bb73ff37eab5f96fd47b0d37bbdb394de2307be3/LICENSE-MIT"
+        },
+        {
+          "path": "texts/648dbb0ef38ea8c12818e7ef13632183dd5ec50a935ebbcfce4b8c2d43961620.txt",
+          "sha256": "648dbb0ef38ea8c12818e7ef13632183dd5ec50a935ebbcfce4b8c2d43961620",
+          "upstream_path": "NOTICE",
+          "git_blob_sha": "7aa738ca05fec6b7dfb8d360d1c34d0baec52e07",
+          "url": "https://github.com/ruvnet/midstream/blob/bb73ff37eab5f96fd47b0d37bbdb394de2307be3/NOTICE"
+        }
+      ]
+    },
+    {
+      "name": "midstreamer-temporal-compare",
+      "version": "0.2.1",
+      "crate_sha256": "b87063b1eb79672a76f88377799152d8e149328e9a19455345851a264bdced20",
+      "declared_license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/ruvnet/midstream",
+      "vcs_revision": "bb73ff37eab5f96fd47b0d37bbdb394de2307be3",
+      "path_in_vcs": "crates/temporal-compare",
+      "documents": [
+        {
+          "path": "texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "upstream_path": "LICENSE-APACHE",
+          "git_blob_sha": "261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64",
+          "url": "https://github.com/ruvnet/midstream/blob/bb73ff37eab5f96fd47b0d37bbdb394de2307be3/LICENSE-APACHE"
+        },
+        {
+          "path": "texts/52d9ff34ef21ecebe8720573bdea0e4052457ae2b77372b126f5859057dc34c2.txt",
+          "sha256": "52d9ff34ef21ecebe8720573bdea0e4052457ae2b77372b126f5859057dc34c2",
+          "upstream_path": "LICENSE-MIT",
+          "git_blob_sha": "43053844d64cd19c38431c0aed252c72fe325174",
+          "url": "https://github.com/ruvnet/midstream/blob/bb73ff37eab5f96fd47b0d37bbdb394de2307be3/LICENSE-MIT"
+        },
+        {
+          "path": "texts/648dbb0ef38ea8c12818e7ef13632183dd5ec50a935ebbcfce4b8c2d43961620.txt",
+          "sha256": "648dbb0ef38ea8c12818e7ef13632183dd5ec50a935ebbcfce4b8c2d43961620",
+          "upstream_path": "NOTICE",
+          "git_blob_sha": "7aa738ca05fec6b7dfb8d360d1c34d0baec52e07",
+          "url": "https://github.com/ruvnet/midstream/blob/bb73ff37eab5f96fd47b0d37bbdb394de2307be3/NOTICE"
+        }
+      ]
+    },
+    {
+      "name": "mqttbytes-core-next",
+      "version": "0.34.0",
+      "crate_sha256": "366b6ba2b4209ca4bc5ac731ccddf570d09831981eed07e5fbd63564cf0cf1aa",
+      "declared_license": "Apache-2.0",
+      "repository": "https://github.com/thehouseisonfire/rumqtt",
+      "vcs_revision": "aa7a694f9b76b17d4c31200cf73d79616acae9b3",
+      "path_in_vcs": "mqttbytes-core",
+      "documents": [
+        {
+          "path": "texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "upstream_path": "LICENSE",
+          "git_blob_sha": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+          "url": "https://github.com/thehouseisonfire/rumqtt/blob/aa7a694f9b76b17d4c31200cf73d79616acae9b3/LICENSE"
+        }
+      ]
+    },
+    {
+      "name": "roaring",
+      "version": "0.10.12",
+      "crate_sha256": "19e8d2cfa184d94d0726d650a9f4a1be7f9b76ac9fdb954219878dc00c1c1e7b",
+      "declared_license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/RoaringBitmap/roaring-rs",
+      "vcs_revision": "9496afe1e6ad93a8875f901c2579761f7acdc5b0",
+      "path_in_vcs": "roaring",
+      "documents": [
+        {
+          "path": "texts/a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "upstream_path": "LICENSE-APACHE",
+          "git_blob_sha": "16fe87b06e802f094b3fbb0894b137bca2b16ef1",
+          "url": "https://github.com/RoaringBitmap/roaring-rs/blob/9496afe1e6ad93a8875f901c2579761f7acdc5b0/LICENSE-APACHE"
+        },
+        {
+          "path": "texts/42d3bf7e7d4d49d72c0555d14ed99c3ee7ce9ce3cbffbc38bbafe8c103f50969.txt",
+          "sha256": "42d3bf7e7d4d49d72c0555d14ed99c3ee7ce9ce3cbffbc38bbafe8c103f50969",
+          "upstream_path": "LICENSE-MIT",
+          "git_blob_sha": "e60058490df8913c9b689820502f1f7d9d8dc50b",
+          "url": "https://github.com/RoaringBitmap/roaring-rs/blob/9496afe1e6ad93a8875f901c2579761f7acdc5b0/LICENSE-MIT"
+        }
+      ]
+    },
+    {
+      "name": "rumqttc-core-next",
+      "version": "0.34.0",
+      "crate_sha256": "249896ab27ed630590971738264baa8f722f18965d2e387c706c40a3c2a572cc",
+      "declared_license": "Apache-2.0",
+      "repository": "https://github.com/thehouseisonfire/rumqtt",
+      "vcs_revision": "aa7a694f9b76b17d4c31200cf73d79616acae9b3",
+      "path_in_vcs": "rumqttc-core",
+      "documents": [
+        {
+          "path": "texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "upstream_path": "LICENSE",
+          "git_blob_sha": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+          "url": "https://github.com/thehouseisonfire/rumqtt/blob/aa7a694f9b76b17d4c31200cf73d79616acae9b3/LICENSE"
+        }
+      ]
+    },
+    {
+      "name": "rumqttc-v4-next",
+      "version": "0.34.0",
+      "crate_sha256": "b3767dde22a804ea806107d0f4331e33cb794d1b8468b11c86fb0c1366f07054",
+      "declared_license": "Apache-2.0",
+      "repository": "https://github.com/thehouseisonfire/rumqtt",
+      "vcs_revision": "aa7a694f9b76b17d4c31200cf73d79616acae9b3",
+      "path_in_vcs": "rumqttc-v4",
+      "documents": [
+        {
+          "path": "texts/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "upstream_path": "LICENSE",
+          "git_blob_sha": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+          "url": "https://github.com/thehouseisonfire/rumqtt/blob/aa7a694f9b76b17d4c31200cf73d79616acae9b3/LICENSE"
+        }
+      ]
+    },
+    {
+      "name": "ruvector-attn-mincut",
+      "version": "2.0.4",
+      "crate_sha256": "6c8ec5e03cc7a435945c81f1b151a2bc5f64f2206bf50150cab0f89981ce8c94",
+      "declared_license": "MIT",
+      "repository": "https://github.com/ruvnet/ruvector",
+      "vcs_revision": "ab53f233a32f6f1d2adcd1a1f2b3f7db166a4d6b",
+      "path_in_vcs": "crates/ruvector-attn-mincut",
+      "documents": [
+        {
+          "path": "texts/50fefb93560af4421369c99c93cc214cd835b3181ab7f16323f9e6f2ded870e3.txt",
+          "sha256": "50fefb93560af4421369c99c93cc214cd835b3181ab7f16323f9e6f2ded870e3",
+          "upstream_path": "LICENSE",
+          "git_blob_sha": "2dd524ac380d7e2f68710913b95e3dbd4cce7319",
+          "url": "https://github.com/ruvnet/ruvector/blob/ab53f233a32f6f1d2adcd1a1f2b3f7db166a4d6b/LICENSE"
+        }
+      ]
+    },
+    {
+      "name": "ruvector-core",
+      "version": "2.3.0",
+      "crate_sha256": "ecaff2299e821f1f9aacd85f6fd16a16de6e7245b67843415d4f49f2f5f70084",
+      "declared_license": "MIT",
+      "repository": "https://github.com/ruvnet/ruvector",
+      "vcs_revision": "d811d42a61f2fca40df9c3fb96441e8f721468f7",
+      "path_in_vcs": "crates/ruvector-core",
+      "documents": [
+        {
+          "path": "texts/50fefb93560af4421369c99c93cc214cd835b3181ab7f16323f9e6f2ded870e3.txt",
+          "sha256": "50fefb93560af4421369c99c93cc214cd835b3181ab7f16323f9e6f2ded870e3",
+          "upstream_path": "LICENSE",
+          "git_blob_sha": "2dd524ac380d7e2f68710913b95e3dbd4cce7319",
+          "url": "https://github.com/ruvnet/ruvector/blob/d811d42a61f2fca40df9c3fb96441e8f721468f7/LICENSE"
+        }
+      ]
+    },
+    {
+      "name": "ruvector-mincut",
+      "version": "2.0.6",
+      "crate_sha256": "d60947433f740d0f589a2911d7b72a02e07a916e7257e478b14386f0ff068fb7",
+      "declared_license": "MIT",
+      "repository": "https://github.com/ruvnet/ruvector",
+      "vcs_revision": "3e0b5723dae57aa24540b76a4cb3c75d111e9f89",
+      "path_in_vcs": "crates/ruvector-mincut",
+      "documents": [
+        {
+          "path": "texts/50fefb93560af4421369c99c93cc214cd835b3181ab7f16323f9e6f2ded870e3.txt",
+          "sha256": "50fefb93560af4421369c99c93cc214cd835b3181ab7f16323f9e6f2ded870e3",
+          "upstream_path": "LICENSE",
+          "git_blob_sha": "2dd524ac380d7e2f68710913b95e3dbd4cce7319",
+          "url": "https://github.com/ruvnet/ruvector/blob/3e0b5723dae57aa24540b76a4cb3c75d111e9f89/LICENSE"
+        }
+      ]
+    },
+    {
+      "name": "ruvector-solver",
+      "version": "2.0.6",
+      "crate_sha256": "9be7c4f61940ae8b451f88b9a629a08ee8ee5c8e6b00ab96ca10ecf59e70f558",
+      "declared_license": "MIT",
+      "repository": "https://github.com/ruvnet/ruvector",
+      "vcs_revision": "3e0b5723dae57aa24540b76a4cb3c75d111e9f89",
+      "path_in_vcs": "crates/ruvector-solver",
+      "documents": [
+        {
+          "path": "texts/50fefb93560af4421369c99c93cc214cd835b3181ab7f16323f9e6f2ded870e3.txt",
+          "sha256": "50fefb93560af4421369c99c93cc214cd835b3181ab7f16323f9e6f2ded870e3",
+          "upstream_path": "LICENSE",
+          "git_blob_sha": "2dd524ac380d7e2f68710913b95e3dbd4cce7319",
+          "url": "https://github.com/ruvnet/ruvector/blob/3e0b5723dae57aa24540b76a4cb3c75d111e9f89/LICENSE"
+        }
+      ]
+    },
+    {
+      "name": "ruvector-temporal-tensor",
+      "version": "2.0.6",
+      "crate_sha256": "753a07254fa68db183949ec6c7575d890da4d42404afabc11d610a720fcf570c",
+      "declared_license": "MIT",
+      "repository": "https://github.com/ruvnet/ruvector",
+      "vcs_revision": "3e0b5723dae57aa24540b76a4cb3c75d111e9f89",
+      "path_in_vcs": "crates/ruvector-temporal-tensor",
+      "documents": [
+        {
+          "path": "texts/50fefb93560af4421369c99c93cc214cd835b3181ab7f16323f9e6f2ded870e3.txt",
+          "sha256": "50fefb93560af4421369c99c93cc214cd835b3181ab7f16323f9e6f2ded870e3",
+          "upstream_path": "LICENSE",
+          "git_blob_sha": "2dd524ac380d7e2f68710913b95e3dbd4cce7319",
+          "url": "https://github.com/ruvnet/ruvector/blob/3e0b5723dae57aa24540b76a4cb3c75d111e9f89/LICENSE"
+        }
+      ]
+    },
+    {
+      "name": "simsimd",
+      "version": "5.9.11",
+      "crate_sha256": "9638f2829f4887c62a01958903b58fa1b740a64d5dc2bbc4a75a33827ee1bd53",
+      "declared_license": "Apache-2.0",
+      "repository": "https://github.com/ashvardanian/SimSIMD",
+      "vcs_revision": "fac489df4e1edbf2262c216883b7fc2d7ec47dd0",
+      "path_in_vcs": "",
+      "documents": [
+        {
+          "path": "texts/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.txt",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "upstream_path": "LICENSE",
+          "git_blob_sha": "261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64",
+          "url": "https://github.com/ashvardanian/SimSIMD/blob/fac489df4e1edbf2262c216883b7fc2d7ec47dd0/LICENSE"
+        }
+      ]
+    },
+    {
+      "name": "yasna",
+      "version": "0.5.2",
+      "crate_sha256": "e17bb3549cc1321ae1296b9cdc2698e2b6cb1992adfa19a8c72e5b7a738f44cd",
+      "declared_license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/qnighy/yasna.rs",
+      "vcs_revision": "b7e65f9a4c317494cce2d18ea02b3d6eaaea7985",
+      "path_in_vcs": "",
+      "documents": [
+        {
+          "path": "texts/a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2.txt",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "upstream_path": "LICENSE-APACHE",
+          "git_blob_sha": "16fe87b06e802f094b3fbb0894b137bca2b16ef1",
+          "url": "https://github.com/qnighy/yasna.rs/blob/b7e65f9a4c317494cce2d18ea02b3d6eaaea7985/LICENSE-APACHE"
+        },
+        {
+          "path": "texts/2a7df90e60fd5512b8bca35d3ce90e068f21c52d962855053fd1d9e2e7ca0f16.txt",
+          "sha256": "2a7df90e60fd5512b8bca35d3ce90e068f21c52d962855053fd1d9e2e7ca0f16",
+          "upstream_path": "LICENSE-MIT",
+          "git_blob_sha": "eaa67b3cb827ab4ece77b37e2de875657fc3cdee",
+          "url": "https://github.com/qnighy/yasna.rs/blob/b7e65f9a4c317494cce2d18ea02b3d6eaaea7985/LICENSE-MIT"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "repository": "https://github.com/espressif/esp-idf",
+  "revision": "296b6eab9445fd720e71aecab961e2d3fbca9944",
+  "tag": "v5.4.4",
+  "source": "components/wpa_supplicant/src/rsn_supp/wpa.c",
+  "source_sha256": "9f28d7428389b846f4aef894622c6ddb00ba0b127903d45f2b2011f031bfe017",
+  "types": "components/esp_wifi/include/esp_wifi_types_generic.h",
+  "types_sha256": "dd4f88824706339ac9768639eeb5776881037c65176a8a15efc3e25351fff305",
+  "defs": "components/wpa_supplicant/src/common/defs.h",
+  "defs_sha256": "1dad9b612cf937b8f68032fd4675dbbfd4b2970458f204b90b7c4c61f5e45f34"
+}

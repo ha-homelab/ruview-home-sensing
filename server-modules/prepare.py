@@ -6,9 +6,13 @@ import hashlib
 import json
 import shutil
 import subprocess
-import urllib.request
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+
+# Support direct source-checkout execution before runtime dependencies exist.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from scripts.transport_security import open_source  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -91,7 +95,7 @@ def prepare(destination, source=None, offline=False):
                 raise ValueError(f"Missing pristine source: {relative}")
             remote = item.get("repository_path", lock["base"] + str(relative))
             url = f"https://raw.githubusercontent.com/ruvnet/RuView/{lock['commit']}/{remote}"
-            with urllib.request.urlopen(url, timeout=30) as response:
+            with open_source(url, timeout=30) as response:
                 data = response.read()
             if sha(data) != item["sha256"]:
                 raise ValueError(f"Upstream hash mismatch: {relative}")

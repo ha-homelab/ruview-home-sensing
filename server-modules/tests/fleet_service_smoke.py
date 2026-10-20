@@ -63,6 +63,7 @@ def close_process_group(process):
         try:
             os.killpg(process.pid, sig)
         except ProcessLookupError:
+            # Exiting before cleanup sends its signal is an expected race.
             pass
 
     def exists():

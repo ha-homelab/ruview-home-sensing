@@ -25,9 +25,9 @@ class NativeRuntimeTests(unittest.TestCase):
         packages = NATIVE.read_lock(NATIVE.LOCK)
         self.assertEqual(len(packages), 11)
         self.assertLess(sum(p["size"] for p in packages), 3 * 1024 * 1024)
-        self.assertTrue(
-            {"libgl1", "libx11-6", "libxrender1", "fonts-dejavu-core"}
-            <= {p["name"] for p in packages}
+        self.assertLessEqual(
+            {"libgl1", "libx11-6", "libxrender1", "fonts-dejavu-core"},
+            {p["name"] for p in packages},
         )
 
     def test_untrusted_archive_origin_is_rejected(self):
@@ -49,9 +49,7 @@ class NativeRuntimeTests(unittest.TestCase):
         for content in (b"bad", b"abcd", b"ab"):
             with self.subTest(content=content), tempfile.TemporaryDirectory() as folder:
                 with (
-                    patch.object(
-                        NATIVE.urllib.request, "urlopen", return_value=Response(content)
-                    ),
+                    patch.object(NATIVE, "open_source", return_value=Response(content)),
                     patch.object(NATIVE.subprocess, "run") as extract,
                 ):
                     with self.assertRaises(ValueError):
@@ -66,9 +64,7 @@ class NativeRuntimeTests(unittest.TestCase):
         }
         with (
             tempfile.TemporaryDirectory() as folder,
-            patch.object(
-                NATIVE.urllib.request, "urlopen", return_value=Response(b"abc")
-            ),
+            patch.object(NATIVE, "open_source", return_value=Response(b"abc")),
         ):
             path = Path(folder) / "archive.deb"
             NATIVE.download(package, path)
@@ -84,8 +80,8 @@ class NativeRuntimeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             with (
                 patch.object(
-                    NATIVE.urllib.request,
-                    "urlopen",
+                    NATIVE,
+                    "open_source",
                     side_effect=[Response(b"abc"), Response(b"bad")],
                 ),
                 patch.object(NATIVE.subprocess, "run") as extract,
@@ -106,7 +102,7 @@ class NativeRuntimeTests(unittest.TestCase):
         response = Response(b"abc")
         response.geturl = lambda: "https://outside.invalid/package.deb"
         with tempfile.TemporaryDirectory() as folder:
-            with patch.object(NATIVE.urllib.request, "urlopen", return_value=response):
+            with patch.object(NATIVE, "open_source", return_value=response):
                 with self.assertRaisesRegex(ValueError, "redirected outside"):
                     NATIVE.download(package, Path(folder) / "archive.deb")
 
