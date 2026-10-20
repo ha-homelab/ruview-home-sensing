@@ -159,10 +159,14 @@ jobs:
               Path("collector/source-lock.json"),
               Path("collector/ring_policy.py"),
               Path("collector/test_ring_policy.py"),
+              Path("collector/bundle_licenses.py"),
+              Path("LICENSE"),
+              Path("NOTICE"),
               Path("scripts/transport_security.py"),
               *sorted(Path("collector/patches").glob("*.patch")),
               *sorted(Path("collector/src").glob("*.rs")),
               *sorted(path for path in Path("collector/ring-policy").rglob("*") if path.is_file()),
+              *sorted(path for path in Path("collector/license-overrides").rglob("*") if path.is_file()),
           ]
           evidence = {
               "local_inputs": {
@@ -210,6 +214,10 @@ jobs:
             "$RUNNER_TEMP/collector-artifacts/ring-policy-receipt.json"
           docker cp "$container:/app/licenses/ring" \
             "$RUNNER_TEMP/collector-artifacts/ring-licenses"
+          docker cp "$container:/app/licenses/collector" \
+            "$RUNNER_TEMP/collector-artifacts/collector-licenses"
+          (cd "$RUNNER_TEMP/collector-artifacts/collector-licenses/runtime-libraries" \
+            && sha256sum --check SHA256SUMS)
           python3 - <<'PY'
           import hashlib
           import json
@@ -246,12 +254,32 @@ jobs:
           for name in ring_source["licenses"]:
               if not (root / "ring-licenses" / name.replace("/", "__")).is_file():
                   raise SystemExit(f"Missing delivered ring license: {name}")
+          notice_root = root / "collector-licenses"
+          notice_index_bytes = (notice_root / "index.json").read_bytes()
+          notice_index = json.loads(notice_index_bytes)
+          assert notice_index["target"] == "aarch64-unknown-linux-gnu"
+          assert notice_index["features"] == ["mqtt"]
+          assert notice_index["edges"] == ["normal", "build"]
+          assert notice_index["package_count"] == len(notice_index["packages"]) > 0
+          assert (notice_root / "README.txt").stat().st_size > 0
+          documents = list(notice_index["additional_documents"])
+          assert documents
+          for package in notice_index["packages"]:
+              assert package["documents"], f"Missing notices for {package['name']}"
+              documents.extend(package["documents"])
+          for document in documents:
+              relative = Path(document["file"])
+              assert not relative.is_absolute() and ".." not in relative.parts
+              data = (notice_root / relative).read_bytes()
+              assert data and hashlib.sha256(data).hexdigest() == document["sha256"]
           receipt = {
               "image_platform": "linux/arm64",
               "binary_bytes": len(binary),
               "binary_sha256": hashlib.sha256(binary).hexdigest(),
               "native_test_suite_pass_counts": counts,
               "ring_policy_patch_sha256": patch_hash,
+              "license_package_count": notice_index["package_count"],
+              "license_index_sha256": hashlib.sha256(notice_index_bytes).hexdigest(),
               "arm64_runtime_executed": False,
               "hardware_executed": False,
           }

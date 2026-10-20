@@ -176,11 +176,17 @@ responses, while the runtime services use their documented standard-library
 HTTP clients. This dated disposition must be revisited before those findings
 cross the 60-day boundary: November 2 for zlib and November 14 for urllib3.
 
-The Rust and ESP-IDF build images have separate findings. Linux header
-package matches in a build image are not evidence that a vulnerable kernel
-is running inside it, but executable build tools and dependencies still need
-their own input and invocation review.
+The [separate build-tool assessment](build-tool-security-review.md) covers
+the actual Rust and ESP-IDF build commands. It identifies and repairs the
+reachable GnuTLS, nghttp2 and urllib3 download paths, and records the remaining
+component and input exclusions. Linux-header matches are distinguished from
+executable tools; they do not identify a running kernel.
 
-The complete old/critical vulnerability criteria remain unqualified while
-these concrete dependency and runtime questions remain unresolved.
-Neither a green build nor the SDK update alone establishes their closure.
+Qualification of a particular revision requires both these dated
+applicability decisions and its successful complete builds. The required
+`Public CI gate` includes the actual IDF dependency checks and downloader
+regression, compiled ring key-floor regression, native collector suites and
+artifact provenance checks. An earlier revision's successful run does not
+qualify later changes. Published source patches can be applied independently
+of the immutable initial prerelease; no installed device is updated by this
+assessment.
