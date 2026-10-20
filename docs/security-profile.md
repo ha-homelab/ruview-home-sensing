@@ -128,6 +128,15 @@ explicitly disabled and legacy-enabled configurations; the host STA initializer
 test also checks all three configurations. These are source/build checks, not
 proof of RF association, device performance or deployment acceptance.
 
+The optional firmware Swarm bridge is disabled until a seed URL is supplied.
+Its present HTTP-client initializer does not configure a CA, certificate-bundle
+callback or global CA store. With the selected SDK's insecure-verification
+option disabled, ESP-TLS rejects an HTTPS connection lacking those verification
+inputs before the TLS handshake. Therefore this optional HTTPS route is not a
+qualified working encrypted transport; it must not be described as accepting
+weak certificates merely because unused curves exist in the SDK configuration.
+Completing its trust configuration would require separate validation.
+
 ## Dependency assessment
 
 The optional inference metadata and its tested requirements both select

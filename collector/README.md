@@ -31,6 +31,8 @@ RSA-PSS verification against each actual compiled native `ring` library:
 2040/2041/2047-bit keys must fail, 2048-bit keys must pass, and modified
 messages must fail. The fixtures contain public keys and signatures only.
 The full collector build remains necessary to qualify integration.
+The unchanged dependency lifetime-syntax warnings have a
+[separate source-specific disposition](../docs/ring-policy.md).
 
 The generated `ruview-dependencies` directory contains the patched source,
 five original license notices and `ring-policy-receipt.json`. The main
