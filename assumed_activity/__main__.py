@@ -1,6 +1,6 @@
 """Run the isolated assumed-geometry activity service."""
 
-from .service import main
+from .service import cli
 
 if __name__ == "__main__":
-    main()
+    cli()

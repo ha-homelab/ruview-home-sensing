@@ -1,5 +1,6 @@
 """Read-only source polling and expiring HTTP/MQTT activity envelopes."""
 
+import argparse
 import copy
 import ipaddress
 import json
@@ -617,6 +618,19 @@ def load_configuration():
         approved_receiver_sha256,
         expected_coordinate_frame,
     )
+
+
+def cli(argv=None):
+    """Parse the console interface before loading configuration or opening I/O."""
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        epilog=(
+            "Configure this service through the ASSUMED_ACTIVITY_*, RUVIEW_* and "
+            "MQTT_* environment variables described in docs/interfaces.md."
+        ),
+    )
+    parser.parse_args(argv)
+    main()
 
 
 def main():

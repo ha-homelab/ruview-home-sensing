@@ -18,7 +18,7 @@ inference = ["numpy==2.5.3"]
 ruview-inference = "inference.__main__:main"
 ruview-radar = "radar.__main__:main"
 ruview-wisp = "wisp_pilot.__main__:main"
-ruview-activity = "assumed_activity.service:main"
+ruview-activity = "assumed_activity.service:cli"
 
 
 [tool.ruff]
