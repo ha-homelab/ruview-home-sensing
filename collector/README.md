@@ -17,6 +17,30 @@ Ed25519 identity. Its public key changes after restart: provision a private,
 random seed if consumers require a stable identity. There is no fallback to
 the public development key or weak random data if OS randomness fails.
 
+The collector also applies a pinned, one-condition policy correction to
+`ring` 0.17.14. Upstream rounded the RSA modulus length up to whole bytes
+before checking its advertised 2048-bit minimum, accepting 2041–2047 bits.
+The local patch compares the actual bit length. Signature algorithms, the
+maximum length and exponent validation are unchanged. The registry still
+listed 0.17.14 as the latest release on 2026-10-19.
+
+`ring-policy/source.json` authenticates the original crate, changed source
+and original workspace manifest/lockfile. Preparation adds a path override
+without changing any package version. The build runs both RSA PKCS#1 and
+RSA-PSS verification against each actual compiled native `ring` library:
+2040/2041/2047-bit keys must fail, 2048-bit keys must pass, and modified
+messages must fail. The fixtures contain public keys and signatures only.
+The full collector build remains necessary to qualify integration.
+
+The generated `ruview-dependencies` directory contains the patched source,
+five original license notices and `ring-policy-receipt.json`. The main
+Dockerfile copies the notices and receipt into the runtime image. If using
+`Dockerfile.runtime` with an already built binary, its context must also
+contain `ring-licenses/` copied from `ruview-dependencies/licenses/ring/`
+and the corresponding receipt. Distribute these files with standalone
+collector binaries. An offline preparation additionally requires
+`--ring-archive /path/to/ring-0.17.14.crate`; the same digest check applies.
+
 ```sh
 python collector/prepare-source.py /tmp/ruview-collector-source
 sh collector/test-grid.sh

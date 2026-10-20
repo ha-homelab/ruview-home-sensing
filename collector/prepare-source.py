@@ -8,6 +8,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from ring_policy import prepare_ring
+
 ROOT = Path(__file__).resolve().parent
 MAIN = Path("v2/crates/wifi-densepose-sensing-server/src/main.rs")
 
@@ -31,7 +33,14 @@ def main():
         action="store_true",
         help="Verify/apply an already fetched checkout",
     )
+    parser.add_argument(
+        "--ring-archive",
+        type=Path,
+        help="Previously downloaded SHA-256-pinned ring crate; required with --offline",
+    )
     args = parser.parse_args()
+    if args.offline and args.ring_archive is None:
+        parser.error("--offline also requires --ring-archive")
     source = args.source.resolve()
     lock = json.loads((ROOT / "source-lock.json").read_text())
     if not (source / ".git").is_dir():
@@ -69,6 +78,7 @@ def main():
     verify_sha(source / "v2/Cargo.lock", lock["cargo_lock_sha256"])
     for path, expected in lock["security_source_sha256"].items():
         verify_sha(source / path, expected)
+    prepare_ring(source, args.ring_archive)
     for name in (
         "0001-expire-csi-grid.patch",
         "0002-raw-csi-mirror.patch",

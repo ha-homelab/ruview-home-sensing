@@ -37,8 +37,30 @@ Its 3072-bit RSA requirement is stricter than OpenSSF's 2048-bit example:
 on 2026-10-19 actual public source endpoints rejected by level 3 included
 `raw.githubusercontent.com` and `archive.ubuntu.com`. Do not bypass trust
 validation to make them work. Ordinary verified HTTPS remains the default.
-The exact smaller-key boundary and all build/runtime clients need separate
-qualification before claiming complete key-length coverage.
+This setting is a way to disable smaller peer keys, not a claim that
+every ordinary endpoint supports the stricter profile.
+
+The collector's `ureq` HTTPS and `rumqttc` MQTT TLS clients use the locked
+Rustls/ring provider. The local, hash-pinned ring policy removes byte rounding
+from its RSA minimum check; the actual signature-verification regression
+rejects 2041/2047-bit keys and accepts 2048-bit keys for both PKCS#1 and PSS.
+Rustls retains its TLS 1.2 ECDHE/AEAD and TLS 1.3 suites and P-256/P-384/Ed25519
+certificate algorithms. This policy does not enable TLS on an HTTP or MQTT
+connection configured without it.
+
+Collector browser-session HMAC keys default to 32 OS-random bytes. If supplying
+`RUVIEW_SESSION_SECRET`, use at least 32 unpredictable bytes; short
+operator-supplied secrets remain possible and are not the recommended profile.
+For system SSH clients, a reviewed config can set `RequiredRSASize 2048`,
+Ed25519/ECDSA or RSA-SHA2 host/public-key algorithms, Curve25519/P-256 key
+exchange and AEAD ciphers. Retain strict host-key verification.
+Wi-Fi PSK derivation uses HMAC-SHA1 as specified by WPA2; this is distinct
+from collision-resistant SHA1 hashing. [NIST's hash policy](https://csrc.nist.gov/projects/hash-functions/nist-policy-on-hash-functions)
+permits those HMAC/KDF uses while recommending transition away from SHA1.
+
+See [collector/README.md](../collector/README.md) for the exact source,
+regression and license-delivery contract. These controls do not establish
+that every operator-selected credential or external deployment is secure.
 
 ## Devices, keys and hashes
 
@@ -82,6 +104,14 @@ cipher is intentionally rejected even with an AES pairwise cipher.
 The public `wpa_sta_connect` and DPP connection paths propagate this failure
 before calling `esp_wifi_sta_connect_internal`. The binary radio driver's
 implementation is not independently inspected here.
+
+This opaque radio component does not introduce a proprietary cryptographic
+protocol. The pinned SDK's [supplicant build](https://github.com/espressif/esp-idf/blob/296b6eab9445fd720e71aecab961e2d3fbca9944/components/wpa_supplicant/CMakeLists.txt)
+selects the published RSN implementation with either Mbed TLS crypto wrappers
+or its BSD-licensed internal AES implementation. The wrappers call Mbed TLS
+AES and HMAC primitives; optional hardware acceleration implements those same
+algorithms. This supports FLOSS implementability of the cryptographic
+functionality, without asserting that the entire radio driver is FLOSS.
 
 `CONFIG_HOME_WIFI_ALLOW_LEGACY_SECURITY` defaults to disabled. A separately
 configured legacy IDF build can explicitly restore the previous WPA1/TKIP

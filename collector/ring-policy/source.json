@@ -1,0 +1,18 @@
+{
+  "crate": "ring",
+  "version": "0.17.14",
+  "url": "https://static.crates.io/crates/ring/ring-0.17.14.crate",
+  "sha256": "a4689e6c2294d81e88dc6261c768b63bc4fcdb852be6d1352498b114f61383b7",
+  "changed_source": "src/rsa/public_modulus.rs",
+  "original_source_sha256": "6b26971c63a5bd3762e52775d769098d915e2116f091a9b6347a0bd3e8a90a9d",
+  "patched_source_sha256": "7bee76cc2c31f1196ab4fd55c2caa3b2551e07af12544032ce936b426abdf91f",
+  "workspace_manifest_sha256": "d64c0ef5080aed5c61ec4cbdae0033a8137c90880347bbe6ebeb163a226819cd",
+  "licenses": [
+    "LICENSE",
+    "LICENSE-other-bits",
+    "LICENSE-BoringSSL",
+    "src/polyfill/once_cell/LICENSE-APACHE",
+    "src/polyfill/once_cell/LICENSE-MIT"
+  ],
+  "workspace_lock_sha256": "f5953f6b547bf89ed54ade28de372bc013418dbdd9e9a541c69bf287bf74d4ff"
+}

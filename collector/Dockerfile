@@ -4,7 +4,7 @@ FROM --platform=linux/amd64 docker.io/library/rust@sha256:d99f7b31f49909348dc59b
 RUN rm -f /etc/apt/sources.list.d/debian.sources \
  && printf '%s\n' 'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian/20260630T000000Z bookworm main' > /etc/apt/sources.list \
  && apt-get -o Acquire::Check-Valid-Until=false update \
- && apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu g++-aarch64-linux-gnu pkg-config cmake \
+ && apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu g++-aarch64-linux-gnu pkg-config cmake python3 \
  && rm -rf /var/lib/apt/lists/* \
  && rustup target add --toolchain 1.96.1 aarch64-unknown-linux-gnu
 ENV RUSTUP_TOOLCHAIN=1.96.1 \
@@ -40,6 +40,7 @@ RUN cargo test --locked -j 4 -p wifi-densepose-sensing-server --bin sensing-serv
  && cargo test --locked -j 4 -p wifi-densepose-sensing-server --bin sensing-server --features mqtt calibration_expiry_tests:: \
  && cargo test --locked -j 4 -p wifi-densepose-sensing-server --lib --features mqtt security_boundaries:: \
  && cargo test --locked -j 4 -p wifi-densepose-sensing-server --lib --features mqtt rufield_surface:: \
+ && python3 /source/ruview-dependencies/test_ring_policy.py target/debug/deps \
  && cargo build --locked -j 4 --release --target aarch64-unknown-linux-gnu -p wifi-densepose-sensing-server --bin sensing-server --features mqtt \
  && aarch64-linux-gnu-readelf -h target/aarch64-unknown-linux-gnu/release/sensing-server \
  && aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/sensing-server
@@ -47,6 +48,8 @@ RUN cargo test --locked -j 4 -p wifi-densepose-sensing-server --bin sensing-serv
 # Reuse the original UI, entrypoint, libraries and auxiliary binaries verbatim.
 FROM --platform=linux/arm64 docker.io/ruvnet/wifi-densepose@sha256:29e6b4ce1893687de205324c509976c53911eff1abdfce3663256de3b82866d7
 COPY --from=build /source/v2/target/aarch64-unknown-linux-gnu/release/sensing-server /app/sensing-server
+COPY --from=build /source/ruview-dependencies/licenses/ring/ /app/licenses/ring/
+COPY --from=build /source/ruview-dependencies/ring-policy-receipt.json /app/ring-policy-receipt.json
 LABEL org.opencontainers.image.revision="7c8aeacea2ad30972070196eb7d8e7200506b742" \
       org.opencontainers.image.version="0.3.5-home-grid.2" \
       io.ha-homelab.ruview.patch="collector/patches/0001-expire-csi-grid.patch,collector/patches/0002-raw-csi-mirror.patch,collector/patches/0003-security-boundaries.patch"
