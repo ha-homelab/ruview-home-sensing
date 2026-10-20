@@ -28,6 +28,11 @@ sources. Their original licenses are not replaced by the repository MIT license.
   the adapted build recipe in LICENSES/Wisp-MIT.txt.
 - Home Assistant bridge: ha-homelab/ruview-home-assistant, MIT, separately
   distributed and checksum-pinned in requirements-public.txt.
+- ring 0.17.14: the collector applies the exact-bit RSA minimum correction
+  documented in collector/ring-policy/source.json. Source preparation verifies
+  the published crate digest and retains its LICENSE, LICENSE-other-bits,
+  LICENSE-BoringSSL and vendored once_cell Apache/MIT license texts. These
+  original terms remain applicable to the patched dependency.
 
 Python, Rust, browser and CAD dependencies retain their respective licenses.
 Lockfiles identify build dependencies; transitive licenses must accompany any
