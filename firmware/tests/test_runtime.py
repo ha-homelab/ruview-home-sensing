@@ -457,6 +457,11 @@ int main(int argc, char **argv) {
         command = [
             "cc",
             "-std=c11",
+            "-Werror=int-conversion",
+            "-Werror=incompatible-pointer-types",
+            "-Werror=implicit-function-declaration",
+            "-Werror=return-type",
+            "-Werror=format",
             "-D_POSIX_C_SOURCE=200809L",
             "-D_DEFAULT_SOURCE",
             "-D_DARWIN_C_SOURCE",

@@ -1,5 +1,9 @@
 # ESP32-S3 firmware source and qualification tools
 
+See [build validation and compiler diagnostics](../docs/build-validation.md)
+for the complete firmware build boundary, required tools and the reviewed
+warnings retained in the pinned upstream module sources.
+
 This directory builds a patched, pinned RuView firmware and verifies its radio,
 module runtime and update protocols. It contains no installed receiver inventory,
 network configuration, trusted deployment key, signed deployment module or

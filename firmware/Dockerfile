@@ -55,8 +55,13 @@ RUN --mount=type=secret,id=preferred_ap,target=/run/secrets/preferred_ap,mode=04
       ! grep -q '^CONFIG_HOME_RUNTIME_RECOVERY_V1=y$' sdkconfig; \
     fi && \
     python3 -c 'import json; c=json.load(open("build/compile_commands.json")); assert any(x["file"].endswith("/main/wasm_runtime.c") and "-DWASM3_AVAILABLE=1" in x["command"] for x in c), "WASM3 must be linked into the real runtime"' && \
-    cmake --build build --parallel 4 && \
+    cmake --build build --parallel 2 && \
     mkdir /out && cp build/esp32-csi-node.bin build/esp32-csi-node.elf build/esp32-csi-node.map build/bootloader/bootloader.bin build/partition_table/partition-table.bin build/ota_data_initial.bin build/flasher_args.json sdkconfig dependencies.lock /out/ && \
+    cp build/compile_commands.json /out/ && \
+    cp /opt/esp/idf/tools/tools.json /out/IDF_TOOLS.json && \
+    (git -C /opt/esp/idf rev-parse HEAD && \
+     idf.py --version && xtensa-esp-elf-gcc --version && \
+     cmake --version && ninja --version && python --version) > /out/BUILD_TOOLS.txt && \
     if [ "$FIRMWARE_PROFILE" = fleet-reviewed ]; then \
       cp /fleet-build/profile.json /fleet-build/sdkconfig.fleet-reviewed /fleet-build/build_profile.py version.txt /out/ && \
       (cd /out && sha256sum profile.json sdkconfig.fleet-reviewed build_profile.py version.txt sdkconfig > BUILD_PROFILE_SHA256SUMS.txt); \
