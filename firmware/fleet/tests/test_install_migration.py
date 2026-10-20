@@ -190,7 +190,12 @@ class MigrationInstallTests(unittest.TestCase):
         _, _, _, blobs, _, layout = self.fixture()
         for key, value in (
             ("idf_commit", "0" * 40),
+            ("idf_commit", "67c1de1eebe095d554d281952fde63c16ee2dca0"),
             ("idf_image", "espressif/idf:v5.4"),
+            (
+                "idf_image",
+                "espressif/idf:v5.4@sha256:f1e9f69dc052b9afc7801ca884e0ef40c17e014bb05ce73d9c09d29290bd17fb",
+            ),
             ("build_exit_code", False),
             ("build_exit_code", 1),
             ("bootloader_sources_unmodified", False),

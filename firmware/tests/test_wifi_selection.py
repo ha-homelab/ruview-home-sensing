@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Exercise the patched STA initializer and actual /wasm/list handler on a host.
 
-The three compile profiles verify selection scope without simulating RF quality.
+The compile profiles verify selection and cipher scope without simulating RF quality.
 The response tests use the real runtime structures and JSON handler, maximum
 valid field widths, and a stub for the read-only AP snapshot. They do not qualify
 ESP32 timing, association success, or antenna performance.
@@ -42,6 +42,7 @@ def main():
             "wasm_runtime.h",
             "wasm_upload.c",
             "ota_update.c",
+            "Kconfig.projbuild",
         ):
             relative = "main/" + name
             source = args.source / relative
@@ -56,11 +57,18 @@ def main():
             "0007-wasm-native-worker.patch",
             "0010-associated-ap-selection.patch",
             "0011-wasm-lifecycle-and-callback-telemetry.patch",
+            "0020-wifi-cipher-policy.patch",
         ):
             subprocess.run(
                 ["git", "apply", str(ROOT / "patches" / patch)], cwd=work, check=True
             )
 
+        config = (work / "main/Kconfig.projbuild").read_text()
+        policy_config = config.split("config HOME_WIFI_ALLOW_LEGACY_SECURITY", 1)[1]
+        require(
+            "default n" in policy_config.split("endmenu", 1)[0],
+            "Insecure legacy policy must be disabled by default",
+        )
         source = (work / "main/main.c").read_text()
         start = source.index("    wifi_config_t wifi_config = {")
         end = source.index("    /* Copy runtime SSID/password", start)
@@ -74,7 +82,7 @@ def main():
 #define CHECK(x) do { if (!(x)) abort(); } while (0)
 enum { WIFI_FAST_SCAN = 0, WIFI_ALL_CHANNEL_SCAN = 1 };
 enum { WIFI_CONNECT_AP_BY_SIGNAL = 0, WIFI_CONNECT_AP_BY_SECURITY = 1 };
-enum { WIFI_AUTH_OPEN = 0, WIFI_AUTH_WPA_PSK = 2 };
+enum { WIFI_AUTH_OPEN = 0, WIFI_AUTH_WPA_PSK = 2, WIFI_AUTH_WPA2_PSK = 3 };
 typedef struct {
     uint8_t ssid[32], password[64];
     int scan_method;
@@ -91,7 +99,11 @@ int main(void) {
     CHECK(wifi_config.sta.scan_method ==
           (EXPECT_ALL_CHANNELS ? WIFI_ALL_CHANNEL_SCAN : WIFI_FAST_SCAN));
     CHECK(wifi_config.sta.sort_method == WIFI_CONNECT_AP_BY_SIGNAL);
+#if defined(CONFIG_HOME_WIFI_ALLOW_LEGACY_SECURITY) && CONFIG_HOME_WIFI_ALLOW_LEGACY_SECURITY
     CHECK(wifi_config.sta.threshold.authmode == WIFI_AUTH_WPA_PSK);
+#else
+    CHECK(wifi_config.sta.threshold.authmode == WIFI_AUTH_WPA2_PSK);
+#endif
     CHECK(wifi_config.sta.threshold.rssi == 0);
     CHECK(wifi_config.sta.channel == 0 && !wifi_config.sta.bssid_set);
     for (unsigned i = 0; i < sizeof(wifi_config.sta.bssid); ++i)
@@ -120,19 +132,26 @@ int main(void) {
             ),
         )
         for name, expected, *defines in profiles:
-            binary = work / name
-            subprocess.run(
-                [compiler, "-std=c11", "-Wall", "-Wextra", "-Werror"]
-                + ["-D" + define + "=1" for define in defines]
-                + [
-                    f"-DEXPECT_ALL_CHANNELS={expected}",
-                    str(harness),
-                    "-o",
-                    str(binary),
-                ],
-                check=True,
-            )
-            subprocess.run([str(binary)], check=True)
+            for legacy in (None, 0, 1):
+                binary = work / name
+                flags = (
+                    []
+                    if legacy is None
+                    else [f"-DCONFIG_HOME_WIFI_ALLOW_LEGACY_SECURITY={legacy}"]
+                )
+                subprocess.run(
+                    [compiler, "-std=c11", "-Wall", "-Wextra", "-Werror"]
+                    + ["-D" + define + "=1" for define in defines]
+                    + flags
+                    + [
+                        f"-DEXPECT_ALL_CHANNELS={expected}",
+                        str(harness),
+                        "-o",
+                        str(binary),
+                    ],
+                    check=True,
+                )
+                subprocess.run([str(binary)], check=True)
 
         (work / "main/esp_err.h").write_text(
             "#pragma once\ntypedef int esp_err_t;\n#define ESP_OK 0\n"
@@ -285,7 +304,7 @@ int main(void) {
             }
             require(document["wifi"] == expected, "Incorrect AP/error/null snapshot")
         print(
-            "Three actual-source STA profiles and four full-slot AP JSON cases passed "
+            "Nine actual-source STA/security profiles and four full-slot AP JSON cases passed "
             f"under ASan/UBSan; maximum response {max(map(len, output))}/4096 bytes."
         )
 

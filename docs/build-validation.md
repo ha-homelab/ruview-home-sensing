@@ -14,21 +14,34 @@ physical sensing accuracy, deployment acceptance or a safe provisioning policy.
 
 ## Required build tools
 
-The recipe pins the official ESP-IDF v5.4 container by digest
-`sha256:f1e9f69dc052b9afc7801ca884e0ef40c17e014bb05ce73d9c09d29290bd17fb`.
-[Espressif documents this image](https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32s3/api-guides/tools/idf-docker-image.html)
+The recipe pins the official ESP-IDF v5.4.4 container by digest
+`sha256:9ce51d4ace496845678065dc86f8e55fb9c25fc9f01f45597042afa7ed546926`.
+[Espressif documents this image](https://docs.espressif.com/projects/esp-idf/en/v5.4.4/esp32s3/api-guides/tools/idf-docker-image.html)
 as an automated application/library build environment with Python, CMake, Ninja
 and its cross compilers. The build uses two compiler workers.
 
-The [IDF v5.4 tool manifest](https://github.com/espressif/esp-idf/blob/v5.4/tools/tools.json)
+The [IDF v5.4.4 tool manifest](https://github.com/espressif/esp-idf/blob/v5.4.4/tools/tools.json)
 identifies the Xtensa GCC toolchain as GPL-3.0 with the GCC exception, CMake as
 BSD-3-Clause and Ninja as Apache-2.0. IDF's Python build scripts use its
-[Apache-2.0 license](https://github.com/espressif/esp-idf/blob/v5.4/LICENSE).
+[Apache-2.0 license](https://github.com/espressif/esp-idf/blob/v5.4.4/LICENSE).
 The actual container's tool manifest and executed tool versions are exported
 alongside the firmware, rather than inferred only from its tag. The recipe
 uses the FLOSS Docker Engine/BuildKit interfaces; Docker Desktop is not required.
 It does not require a proprietary IDE, programmer application or cloud build
 service.
+
+This update fixes the SDK-side ESP-NOW receive vulnerability described in
+[GHSA-hqhh-cp47-fv5g](https://github.com/espressif/esp-idf/security/advisories/GHSA-hqhh-cp47-fv5g),
+published on 2025-06-24. The selected ESP32-S3 application calls
+`c6_sync_espnow_init()` after Wi-Fi connection and registers an ESP-NOW receive
+callback; the affected protocol is therefore used, despite the helper's `c6`
+name. Espressif identifies v5.4.2 and later as patched and states that v5.4
+has no application-level workaround. The
+[v5.4.4 release](https://github.com/espressif/esp-idf/releases/tag/v5.4.4)
+retains the 5.4 API series. The pin update requires a new complete firmware
+build; earlier builds do not qualify its output. This is a specific security
+fix, not a claim that every optional SDK feature or build-image package has
+been audited.
 
 The other produced software uses Rust/Cargo 1.96.1
 ([MIT or Apache-2.0](https://github.com/rust-lang/rust/tree/1.96.1)),

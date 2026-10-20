@@ -111,7 +111,7 @@ def copy_build_inputs(
     if key_header.exists() and key_header.read_bytes() != header:
         raise ValueError("Refusing to replace a different verification key")
     key_header.write_bytes(header)
-    for name in ["patches", "vendor"]:
+    for name in ["patches", "vendor", "wifi-security"]:
         shutil.copytree(ROOT / name, output / name, dirs_exist_ok=True)
 
 

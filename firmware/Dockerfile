@@ -1,4 +1,4 @@
-ARG IDF_IMAGE=espressif/idf:v5.4@sha256:f1e9f69dc052b9afc7801ca884e0ef40c17e014bb05ce73d9c09d29290bd17fb
+ARG IDF_IMAGE=espressif/idf:v5.4.4@sha256:9ce51d4ace496845678065dc86f8e55fb9c25fc9f01f45597042afa7ed546926
 FROM ${IDF_IMAGE} AS build
 SHELL ["/bin/bash", "-c"]
 WORKDIR /project
@@ -20,6 +20,7 @@ RUN --mount=type=secret,id=preferred_ap,target=/run/secrets/preferred_ap,mode=04
 COPY sdkconfig.home-s3-n16r8 ./
 COPY vendor/monocypher/ components/monocypher/
 COPY patches/ /patches/
+COPY wifi-security/ /wifi-security/
 COPY home_wasm_pubkey.h main/
 RUN git apply /patches/*.patch && \
     if [ "$FIRMWARE_PROFILE" = fleet-reviewed ]; then \
@@ -27,6 +28,14 @@ RUN git apply /patches/*.patch && \
     else printf "0.8.8.8\n" > version.txt; fi
 # Pin the only managed component needed on a display-less board.
 RUN printf 'dependencies:\n  espressif/led_strip: "3.0.1"\n' > main/idf_component.yml
+# Refuse changed IDF inputs and exercise the actual injected entry guard before
+# compiling the same patched supplicant into the firmware.
+RUN python3 /wifi-security/test_policy.py \
+      /opt/esp/idf/components/wpa_supplicant/src/rsn_supp/wpa.c \
+      /opt/esp/idf/components/esp_wifi/include/esp_wifi_types_generic.h \
+      /opt/esp/idf/components/wpa_supplicant/src/common/defs.h && \
+    python3 /wifi-security/apply.py /opt/esp/idf \
+      --receipt /tmp/ruview-wifi-policy.json
 RUN --mount=type=secret,id=preferred_ap,target=/run/secrets/preferred_ap,mode=0400 \
     if [ "$FIRMWARE_PROFILE" = node2-preferred-ap ]; then \
       python3 /fleet-build/build_profile.py configure-preferred /run/secrets/preferred_ap "$PREFERRED_AP_SHA256" /project || exit 1; \
@@ -44,6 +53,7 @@ RUN --mount=type=secret,id=preferred_ap,target=/run/secrets/preferred_ap,mode=04
     grep -q '^CONFIG_ESP_WIFI_STATIC_TX_BUFFER=y$' sdkconfig && \
     grep -q '^CONFIG_ESP_WIFI_TX_BUFFER_TYPE=0$' sdkconfig && \
     grep -q '^CONFIG_HOME_CSI_ASSOCIATED_ONLY=y$' sdkconfig && \
+    ! grep -q '^CONFIG_HOME_WIFI_ALLOW_LEGACY_SECURITY=y$' sdkconfig && \
     if [ "$FIRMWARE_PROFILE" = node2-preferred-ap ]; then \
       python3 /fleet-build/build_profile.py verify-preferred /run/secrets/preferred_ap "$PREFERRED_AP_SHA256" /project/sdkconfig; \
     elif [ "$FIRMWARE_PROFILE" = fleet-reviewed ]; then \
@@ -62,6 +72,7 @@ RUN --mount=type=secret,id=preferred_ap,target=/run/secrets/preferred_ap,mode=04
     (git -C /opt/esp/idf rev-parse HEAD && \
      idf.py --version && xtensa-esp-elf-gcc --version && \
      cmake --version && ninja --version && python --version) > /out/BUILD_TOOLS.txt && \
+    cp /tmp/ruview-wifi-policy.json /out/ && \
     if [ "$FIRMWARE_PROFILE" = fleet-reviewed ]; then \
       cp /fleet-build/profile.json /fleet-build/sdkconfig.fleet-reviewed /fleet-build/build_profile.py version.txt /out/ && \
       (cd /out && sha256sum profile.json sdkconfig.fleet-reviewed build_profile.py version.txt sdkconfig > BUILD_PROFILE_SHA256SUMS.txt); \

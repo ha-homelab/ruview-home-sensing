@@ -70,7 +70,7 @@ jobs:
           for path in esp32-csi-node.bin esp32-csi-node.elf esp32-csi-node.map \
             bootloader.bin partition-table.bin ota_data_initial.bin \
             flasher_args.json sdkconfig dependencies.lock compile_commands.json \
-            BUILD_TOOLS.txt IDF_TOOLS.json licenses/RuView-LICENSE \
+            BUILD_TOOLS.txt IDF_TOOLS.json ruview-wifi-policy.json licenses/RuView-LICENSE \
             licenses/Monocypher-LICENCE.md licenses/WASM3-LICENSE licenses/ESP-IDF-LICENSE; do
             test -s "$path"
           done
@@ -86,6 +86,10 @@ jobs:
           assert any(row["file"].endswith("/main/wasm_runtime.c") and
                      "-DWASM3_AVAILABLE=1" in row["command"] for row in commands)
           assert any(row["file"].endswith("/monocypher.c") for row in commands)
+          policy = json.loads(Path("ruview-wifi-policy.json").read_text())
+          assert policy["revision"] == Path("BUILD_TOOLS.txt").read_text().splitlines()[0], \
+              "Wi-Fi policy must target the actual compiled SDK"
+          assert len(policy["patched_sha256"]) == 64 and len(policy["policy_sha256"]) == 64
           print("Verified linked Xtensa firmware and real WASM3/Monocypher compile inputs")
           PY
       - name: Preserve firmware build outputs and diagnostics
@@ -283,8 +287,8 @@ jobs:
         run: |
           python -m pip install --only-binary=:all: -r tests/requirements-security.txt
       - run: python -m pip install ruff==0.16.5 esp-idf-nvs-partition-gen==0.3.0 esptool==5.1.0
-      - run: ruff check bridge.py module_observations.py ruview_http.py scripts tools tests firmware/*.py firmware/tests firmware/fleet firmware/wisp-pilot collector/*.py collector/ui/export-floor-config.py inference server-modules/*.py server-modules/tests assumed_activity radar wisp_pilot
-      - run: ruff format --check bridge.py module_observations.py ruview_http.py scripts tools tests firmware/*.py firmware/tests firmware/fleet firmware/wisp-pilot collector/*.py collector/ui/export-floor-config.py inference server-modules/*.py server-modules/tests assumed_activity radar wisp_pilot
+      - run: ruff check bridge.py module_observations.py ruview_http.py scripts tools tests firmware/*.py firmware/tests firmware/fleet firmware/wisp-pilot firmware/wifi-security collector/*.py collector/ui/export-floor-config.py inference server-modules/*.py server-modules/tests assumed_activity radar wisp_pilot
+      - run: ruff format --check bridge.py module_observations.py ruview_http.py scripts tools tests firmware/*.py firmware/tests firmware/fleet firmware/wisp-pilot firmware/wifi-security collector/*.py collector/ui/export-floor-config.py inference server-modules/*.py server-modules/tests assumed_activity radar wisp_pilot
       - run: node --test collector/ui/tests/*.test.mjs
       - run: python -m unittest discover -s assumed_activity/tests -v
       - run: python -m unittest discover -s radar/tests -v
@@ -313,6 +317,7 @@ jobs:
           git -C "$RUNNER_TEMP/wasm3" fetch --depth 1 origin 6b8bcb1e07bf26ebef09a7211b0a37a446eafd52
           git -C "$RUNNER_TEMP/wasm3" checkout --detach FETCH_HEAD
           python firmware/tests/test_component.py "$RUNNER_TEMP/ruview-firmware/source" "$RUNNER_TEMP/wasm3"
+          python firmware/tests/test_alias_safe_words.py "$RUNNER_TEMP/ruview-firmware/source" "$RUNNER_TEMP/wasm3"
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # shared toolkit pin
         with:
           toolchain: '1.96.1'

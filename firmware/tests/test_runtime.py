@@ -114,6 +114,16 @@ def main():
             cwd=root,
             check=True,
         )
+        subprocess.run(
+            [
+                "git",
+                "apply",
+                "--include=components/wasm3/wasm3-src/*",
+                str(ROOT / "patches/0021-alias-safe-words.patch"),
+            ],
+            cwd=root,
+            check=True,
+        )
         compiler = wasm3_copy / "m3_compile.c"
         text = compiler.read_text().replace(
             "M3Result  CompileFunction  (IM3Function io_function)\n{",

@@ -6,12 +6,12 @@ import build_profile
 from fleetlib import require, sha
 from plan_migration import TARGET, strict_json
 
-IDF_COMMIT = "67c1de1eebe095d554d281952fde63c16ee2dca0"
-IDF_IMAGE = "espressif/idf:v5.4@sha256:f1e9f69dc052b9afc7801ca884e0ef40c17e014bb05ce73d9c09d29290bd17fb"
+IDF_COMMIT = "296b6eab9445fd720e71aecab961e2d3fbca9944"
+IDF_IMAGE = "espressif/idf:v5.4.4@sha256:9ce51d4ace496845678065dc86f8e55fb9c25fc9f01f45597042afa7ed546926"
 IDF_SOURCES = {
     "components/bootloader_support/src/bootloader_utility.c": "5ae38992cce9e7a9f919a9923bf6acbbf6f74a24d4f4c13ce3cf6c488cbe8401",
-    "components/bootloader_support/src/bootloader_common_loader.c": "b036254d126187fcfcc4a630e6b21658afeaa93e30456576ab62e856a9204c24",
-    "components/bootloader/subproject/main/bootloader_start.c": "02825e360f143711c497b539ad734eab9b38e067f9c0accd9147f8bbe466a7c1",
+    "components/bootloader_support/src/bootloader_common_loader.c": "24e78c681997257648a66673d78f923e8b91c087c6f8f7edddd9a78ec56c1981",
+    "components/bootloader/subproject/main/bootloader_start.c": "b9be53d67dd3b319f8bba3474e605e6cf867e11515240e79cd7282e4a7c7a08f",
 }
 BOOT_ARTIFACTS = (
     "bootloader.bin",

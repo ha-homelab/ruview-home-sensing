@@ -68,6 +68,36 @@ they are not a database of end-user password verifiers. Keep their provisioning
 files and backups private. This fact does not imply that their plaintext
 transport is protected.
 
+## Wi-Fi association policy
+
+For password-protected networks, the normal ESP32-S3 firmware now requires
+WPA2 or WPA3 association and an AES data cipher for both pairwise and group traffic. Raising the scan threshold
+alone would still permit WPA2/TKIP. The separately pinned ESP-IDF 5.4.4
+supplicant patch therefore checks the driver's selected protocol and cipher
+enum values at `wpa_set_bss`, before the original PMK/cache/nonce processing.
+It accepts RSN with CCMP, GCMP or GCMP-256 and rejects WPA1, WEP, TKIP and
+unsupported cipher values. An AP advertising mixed capabilities remains usable
+when the driver selects RSN and AES for both data cipher roles; a TKIP group
+cipher is intentionally rejected even with an AES pairwise cipher.
+The public `wpa_sta_connect` and DPP connection paths propagate this failure
+before calling `esp_wifi_sta_connect_internal`. The binary radio driver's
+implementation is not independently inspected here.
+
+`CONFIG_HOME_WIFI_ALLOW_LEGACY_SECURITY` defaults to disabled. A separately
+configured legacy IDF build can explicitly restore the previous WPA1/TKIP
+behavior, at the cost of disabling this policy. The public Docker build
+requires the option to remain disabled and exports the exact SDK configuration
+and patch digest. An explicitly empty Wi-Fi password still selects an open
+network: that offers no link confidentiality and must not be described as
+encrypted Wi-Fi. WPA2-PSK does not supply forward secrecy; this change does not
+turn a downstream HTTP/MQTT connection into TLS.
+
+The patcher refuses any unreviewed upstream source bytes. The build executes
+the real injected C entry guard against the pinned IDF declarations in default,
+explicitly disabled and legacy-enabled configurations; the host STA initializer
+test also checks all three configurations. These are source/build checks, not
+proof of RF association, device performance or deployment acceptance.
+
 ## Dependency assessment
 
 The optional inference metadata and its tested requirements both select
