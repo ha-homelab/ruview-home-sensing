@@ -27,6 +27,15 @@ its [firmware evidence](https://github.com/ha-homelab/ruview-home-sensing/action
 contains the actual SDK configuration, tool versions, map and ELF. This source
 fix does not update already installed devices.
 
+The [22-advisory SDK assessment](evidence/esp-idf-advisory-review.json)
+uses this exact ESP32-S3 configuration, linked symbols and maintained callers.
+The former ESP-NOW receive issue is fixed by the SDK update. Other rows have
+specific version, target or entrypoint exclusions. In particular, the DHCP
+server is compiled and linked, but this S3 application starts station mode
+only; the upstream AP+STA branch requires both ESP32-C6 and its SoftAP option.
+That exclusion does not qualify an optional C6 SoftAP build. The selected
+5.4.4 version also meets the WPS advisory's patched-version minimum.
+
 That SDK selects Mbed TLS 3.6.5 at
 [`ffb280bb63c78bfec1e1ab55040671768c85c923`](https://github.com/espressif/mbedtls/tree/ffb280bb63c78bfec1e1ab55040671768c85c923).
 The [19-row assessment](evidence/firmware-mbedtls-review.json) compares the

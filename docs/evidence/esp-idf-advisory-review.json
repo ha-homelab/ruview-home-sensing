@@ -1,0 +1,192 @@
+{
+  "review_date": "2026-10-19",
+  "scope": "22 official Espressif SDK advisories against exact selected ESP32-S3 IDF5.4.4 target; MbedTLS separate",
+  "idf_version": "5.4.4",
+  "idf_revision": "296b6eab9445fd720e71aecab961e2d3fbca9944",
+  "reviewed_source": "4b21c43ed5dae2c2d621e026069f9a7411d6062b",
+  "artifact_url": "https://github.com/ha-homelab/ruview-home-sensing/actions/runs/39367804957/artifacts/12239999153",
+  "rows": [
+    {
+      "id": "GHSA-xcpr-5mqp-9qvv",
+      "cve": "CVE-2026-81508",
+      "published": "2026-09-03T11:01:53Z",
+      "severity": "medium",
+      "url": "https://github.com/espressif/esp-idf/security/advisories/GHSA-xcpr-5mqp-9qvv",
+      "reason": "Actual ESP32-S3 sdkconfig disables CONFIG_BT_ENABLED; no maintained Bluetooth/BluFi/protocomm BLE entrypoint is started."
+    },
+    {
+      "id": "GHSA-v335-fxwc-rc44",
+      "cve": "CVE-2026-81507",
+      "published": "2026-09-03T11:01:49Z",
+      "severity": "medium",
+      "url": "https://github.com/espressif/esp-idf/security/advisories/GHSA-v335-fxwc-rc44",
+      "reason": "Actual ESP32-S3 sdkconfig disables CONFIG_BT_ENABLED; no maintained Bluetooth/BluFi/protocomm BLE entrypoint is started."
+    },
+    {
+      "id": "GHSA-v6r2-f6p2-88cj",
+      "cve": "CVE-2026-55687",
+      "published": "2026-06-22T16:00:51Z",
+      "severity": "high",
+      "url": "https://github.com/espressif/esp-idf/security/advisories/GHSA-v6r2-f6p2-88cj",
+      "reason": "Affected ESP32-P4 JPEG driver is not the selected ESP32-S3 firmware path. No owned JPEG decode call or driver jpeg decode symbol is linked; the SoC ROM capability macro is not use of the affected P4 driver."
+    },
+    {
+      "id": "GHSA-3pp8-42fh-3j3c",
+      "cve": "CVE-2026-46532",
+      "published": "2026-05-19T07:09:04Z",
+      "severity": "medium",
+      "url": "https://github.com/espressif/esp-idf/security/advisories/GHSA-3pp8-42fh-3j3c",
+      "reason": "Actual ESP32-S3 sdkconfig disables CONFIG_BT_ENABLED; no maintained Bluetooth/BluFi/protocomm BLE entrypoint is started."
+    },
+    {
+      "id": "GHSA-w82j-7q63-7pqm",
+      "cve": "CVE-2026-45329",
+      "published": "2026-05-13T05:16:20Z",
+      "severity": "high",
+      "url": "https://github.com/espressif/esp-idf/security/advisories/GHSA-w82j-7q63-7pqm",
+      "reason": "Affected ESP-TEE 5.5/6.x wrappers are outside selected IDF 5.4.4 ESP32-S3 Xtensa target; no owned TEE service or linked wrapper."
+    },
+    {
+      "id": "GHSA-mmgp-73p4-92xp",
+      "cve": "CVE-2026-45328",
+      "published": "2026-05-13T05:15:30Z",
+      "severity": "critical",
+      "url": "https://github.com/espressif/esp-idf/security/advisories/GHSA-mmgp-73p4-92xp",
+      "reason": "Affected ESP-TEE 5.5/6.x wrappers are outside selected IDF 5.4.4 ESP32-S3 Xtensa target; no owned TEE service or linked wrapper."
+    },
+    {
+      "id": "GHSA-9r76-858f-v6jh",
+      "cve": "CVE-2026-45542",
+      "published": "2026-05-18T16:13:03Z",
+      "severity": "high",
+      "url": "https://github.com/espressif/esp-idf/security/advisories/GHSA-9r76-858f-v6jh",
+      "reason": "Actual ESP32-S3 sdkconfig disables CONFIG_BT_ENABLED; no maintained Bluetooth/BluFi/protocomm BLE entrypoint is started."
+    },
+    {
+      "id": "GHSA-3j8v-xgrq-5vg8",
+      "cve": "CVE-2026-45541",
+      "published": "2026-05-15T05:23:12Z",
+      "severity": "high",
+      "url": "https://github.com/espressif/esp-idf/security/advisories/GHSA-3j8v-xgrq-5vg8",
+      "reason": "CONFIG_HTTPD_WS_SUPPORT is disabled in actual firmware. The OTA HTTP server does not supply a WebSocket endpoint."
+    },
+    {
+      "id": "GHSA-g764-gwc3-75m5",
+      "cve": "CVE-2026-45160",
+      "published": "2026-05-21T14:17:07Z",
+      "severity": "medium",
+      "url": "https://github.com/espressif/esp-idf/security/advisories/GHSA-g764-gwc3-75m5",
+      "reason": "The DHCP server is compiled and linked, but selected ESP32-S3 main creates a station interface and WIFI_MODE_STA. The AP+STA branch is guarded by both ESP32C6 and CONFIG_C6_SOFTAP_HE_ENABLE; neither applies. No owned DHCP server start or AP mode exists in this target. This does not clear an optional C6 SoftAP build."
+    },
+    {
+      "id": "GHSA-h7r3-gmg9-xjmg",
+      "cve": "CVE-2026-25507",
+      "published": "2026-02-03T04:59:17Z",
+      "severity": "medium",
+      "url": "https://github.com/espressif/esp-idf/security/advisories/GHSA-h7r3-gmg9-xjmg",
+      "reason": "Actual ESP32-S3 sdkconfig disables CONFIG_BT_ENABLED; no maintained Bluetooth/BluFi/protocomm BLE entrypoint is started."
+    },
+    {
+      "id": "GHSA-9j5x-rf36-54x9",
+      "cve": "CVE-2026-25508",
+      "published": "2026-02-03T04:59:04Z",
+      "severity": "medium",
+      "url": "https://github.com/espressif/esp-idf/security/advisories/GHSA-9j5x-rf36-54x9",
+      "reason": "Actual ESP32-S3 sdkconfig disables CONFIG_BT_ENABLED; no maintained Bluetooth/BluFi/protocomm BLE entrypoint is started."
+    },
+    {
+      "id": "GHSA-m2h2-683f-9mw7",
+      "cve": "CVE-2026-25532",
+      "published": "2026-02-04T02:22:47Z",
+      "severity": "medium",
+      "url": "https://github.com/espressif/esp-idf/security/advisories/GHSA-m2h2-683f-9mw7",
+      "reason": "Selected 5.4.4 meets the advisory patched 5.4.4 minimum, and maintained provisioning does not call WPS enrollee APIs."
+    },
+    {
+      "id": "GHSA-hmjj-rjvv-w8pq",
+      "cve": "CVE-2025-68473",
+      "published": "2025-12-25T04:58:25Z",
+      "severity": "medium",
+      "url": "https://github.com/espressif/esp-idf/security/advisories/GHSA-hmjj-rjvv-w8pq",
+      "reason": "Actual ESP32-S3 sdkconfig disables CONFIG_BT_ENABLED; no maintained Bluetooth/BluFi/protocomm BLE entrypoint is started."
+    },
+    {
+      "id": "GHSA-43gh-7r4f-qp57",
+      "cve": "CVE-2025-68474",
+      "published": "2025-12-25T04:57:13Z",
+      "severity": "medium",
+      "url": "https://github.com/espressif/esp-idf/security/advisories/GHSA-43gh-7r4f-qp57",
+      "reason": "Actual ESP32-S3 sdkconfig disables CONFIG_BT_ENABLED; no maintained Bluetooth/BluFi/protocomm BLE entrypoint is started."
+    },
+    {
+      "id": "GHSA-vcw6-jc3p-4gj8",
+      "cve": "CVE-2025-65092",
+      "published": "2025-11-20T04:34:19Z",
+      "severity": "medium",
+      "url": "https://github.com/espressif/esp-idf/security/advisories/GHSA-vcw6-jc3p-4gj8",
+      "reason": "Affected ESP32-P4 JPEG driver is not the selected ESP32-S3 firmware path. No owned JPEG decode call or driver jpeg decode symbol is linked; the SoC ROM capability macro is not use of the affected P4 driver."
+    },
+    {
+      "id": "GHSA-qhf9-vr2h-jh96",
+      "cve": "CVE-2025-66409",
+      "published": "2025-12-02T07:32:00Z",
+      "severity": "medium",
+      "url": "https://github.com/espressif/esp-idf/security/advisories/GHSA-qhf9-vr2h-jh96",
+      "reason": "Actual ESP32-S3 sdkconfig disables CONFIG_BT_ENABLED; no maintained Bluetooth/BluFi/protocomm BLE entrypoint is started."
+    },
+    {
+      "id": "GHSA-8mg7-9qpg-p92v",
+      "cve": "CVE-2025-64342",
+      "published": "2025-11-17T11:35:56Z",
+      "severity": "medium",
+      "url": "https://github.com/espressif/esp-idf/security/advisories/GHSA-8mg7-9qpg-p92v",
+      "reason": "Actual ESP32-S3 sdkconfig disables CONFIG_BT_ENABLED; no maintained Bluetooth/BluFi/protocomm BLE entrypoint is started."
+    },
+    {
+      "id": "GHSA-9w88-r2vm-qfc4",
+      "cve": "CVE-2025-55297",
+      "published": "2025-08-21T04:08:29Z",
+      "severity": "medium",
+      "url": "https://github.com/espressif/esp-idf/security/advisories/GHSA-9w88-r2vm-qfc4",
+      "reason": "Actual ESP32-S3 sdkconfig disables CONFIG_BT_ENABLED; no maintained Bluetooth/BluFi/protocomm BLE entrypoint is started."
+    },
+    {
+      "id": "GHSA-hqhh-cp47-fv5g",
+      "cve": "CVE-2025-52471",
+      "published": "2025-06-24T04:35:46Z",
+      "severity": "medium",
+      "url": "https://github.com/espressif/esp-idf/security/advisories/GHSA-hqhh-cp47-fv5g",
+      "reason": "Actual ESP-NOW receive path was affected in former 5.4.0. Selected 5.4.4 includes official fix d4dafbdc3572387cd4f9a62b776580bc4ac3bde7; ancestry and full build independently verified."
+    },
+    {
+      "id": "GHSA-wm57-466g-mhrr",
+      "cve": "CVE-2024-53845",
+      "published": "2024-12-11T09:36:08Z",
+      "severity": "medium",
+      "url": "https://github.com/espressif/esp-idf/security/advisories/GHSA-wm57-466g-mhrr",
+      "reason": "Selected 5.4.4 is outside listed vulnerable 5.3.1/5.2.3/5.1.5/5.0.7 versions; maintained firmware does not call ESPTouch/SmartConfig provisioning."
+    },
+    {
+      "id": "GHSA-22x6-3756-pfp8",
+      "cve": "CVE-2024-28183",
+      "published": "2024-03-25T07:43:42Z",
+      "severity": "medium",
+      "url": "https://github.com/espressif/esp-idf/security/advisories/GHSA-22x6-3756-pfp8",
+      "reason": "Selected 5.4.4 is beyond corrected 5.2.1/5.1.4/5.0.7/4.4.7 branches; parent separately revalidated actual 5.4.4 boot source gate."
+    },
+    {
+      "id": "GHSA-7f7f-jj2q-28wm",
+      "cve": "CVE-2022-24893",
+      "published": "2022-06-23T11:43:07Z",
+      "severity": "medium",
+      "url": "https://github.com/espressif/esp-idf/security/advisories/GHSA-7f7f-jj2q-28wm",
+      "reason": "Actual ESP32-S3 sdkconfig disables CONFIG_BT_ENABLED; no maintained Bluetooth/BluFi/protocomm BLE entrypoint is started."
+    }
+  ],
+  "limitations": [
+    "Only maintained ESP32-S3 station firmware configuration is assessed. Optional upstream C6 SoftAP, Bluetooth, JPEG and ESP-TEE products are not qualified by this record.",
+    "SDK component findings and MbedTLS findings are assessed separately.",
+    "This records source/configuration applicability, not hardware or sensing-accuracy acceptance."
+  ],
+  "independent_review_completed": true
+}
