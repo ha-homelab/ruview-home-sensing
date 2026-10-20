@@ -105,6 +105,7 @@ def copy_build_inputs(
     for name in [
         "Dockerfile",
         "sdkconfig.home-s3-n16r8",
+        "license_bundle.py",
     ]:
         shutil.copy(ROOT / name, output / name)
     key_header = output / "home_wasm_pubkey.h"

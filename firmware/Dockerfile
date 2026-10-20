@@ -26,6 +26,7 @@ RUN cd /build-security && sha256sum --check SHA256SUMS && \
     grep -q 'libnghttp2.so' /tmp/git-https-libraries.txt && \
     cat /tmp/git-https-libraries.txt >> /tmp/ruview-build-tools.txt
 WORKDIR /project
+COPY license_bundle.py /license_bundle.py
 COPY source/ ./
 COPY fleet-build/ /fleet-build/
 ARG FIRMWARE_PROFILE=home-s3-n16r8
@@ -108,6 +109,7 @@ RUN --mount=type=secret,id=preferred_ap,target=/run/secrets/preferred_ap,mode=04
     cp /project/components/monocypher/LICENCE.md /out/licenses/Monocypher-LICENCE.md && \
     cp /project/components/wasm3/wasm3-src/LICENSE /out/licenses/WASM3-LICENSE && \
     cp /opt/esp/idf/LICENSE /out/licenses/ESP-IDF-LICENSE && \
+    python3 /license_bundle.py --idf-root /opt/esp/idf --project-root /project --output /out/licenses/third-party && \
     (cd /out && sha256sum ./*.bin ./*.elf ./*.map > SHA256SUMS.txt) && \
     rm -f /project/sdkconfig.home-node2-preferred-ap
 FROM scratch AS artifacts
