@@ -1,6 +1,30 @@
 ARG IDF_IMAGE=espressif/idf:v5.4.4@sha256:9ce51d4ace496845678065dc86f8e55fb9c25fc9f01f45597042afa7ed546926
 FROM ${IDF_IMAGE} AS build
 SHELL ["/bin/bash", "-c"]
+ENV IDF_PYTHON_CHECK_CONSTRAINTS=yes
+COPY build-security/ /build-security/
+# Verified local packages repair the clients before Git/component downloads.
+RUN cd /build-security && sha256sum --check SHA256SUMS && \
+    arch="$(dpkg --print-architecture)" && \
+    dpkg --install \
+      "debs/$arch/libgnutls30t64_3.8.3-1.1ubuntu3.6_${arch}.deb" \
+      "debs/$arch/libnghttp2-14_1.59.0-1ubuntu0.4_${arch}.deb" && \
+    test "$(dpkg-query -W -f='${Version}' libgnutls30t64)" = 3.8.3-1.1ubuntu3.6 && \
+    test "$(dpkg-query -W -f='${Version}' libnghttp2-14)" = 1.59.0-1ubuntu0.4 && \
+    /opt/esp/python_env/idf5.4_py3.12_env/bin/python -m pip install \
+      --disable-pip-version-check --no-index --no-deps --require-hashes \
+      --find-links wheels -r requirements.txt && \
+    /opt/esp/python_env/idf5.4_py3.12_env/bin/python -m pip check && \
+    test -f /opt/esp/espidf.constraints.v5.4.txt && \
+    /opt/esp/python_env/idf5.4_py3.12_env/bin/python /opt/esp/idf/tools/idf_tools.py check-python-dependencies && \
+    /opt/esp/python_env/idf5.4_py3.12_env/bin/python test_download.py && \
+    dpkg-query -W libgnutls30t64 libnghttp2-14 > /tmp/ruview-build-tools.txt && \
+    /opt/esp/python_env/idf5.4_py3.12_env/bin/python -m pip show urllib3 >> /tmp/ruview-build-tools.txt && \
+    ldd "$(git --exec-path)/git-remote-https" > /tmp/git-https-libraries.txt && \
+    ! grep -q 'not found' /tmp/git-https-libraries.txt && \
+    grep -q 'libgnutls.so' /tmp/git-https-libraries.txt && \
+    grep -q 'libnghttp2.so' /tmp/git-https-libraries.txt && \
+    cat /tmp/git-https-libraries.txt >> /tmp/ruview-build-tools.txt
 WORKDIR /project
 COPY source/ ./
 COPY fleet-build/ /fleet-build/
@@ -73,6 +97,8 @@ RUN --mount=type=secret,id=preferred_ap,target=/run/secrets/preferred_ap,mode=04
      idf.py --version && xtensa-esp-elf-gcc --version && \
      cmake --version && ninja --version && python --version) > /out/BUILD_TOOLS.txt && \
     cp /tmp/ruview-wifi-policy.json /out/ && \
+    cp /tmp/ruview-build-tools.txt /out/BUILD_TRANSPORT.txt && \
+    cp /build-security/packages.json /out/BUILD_TRANSPORT_PACKAGES.json && \
     if [ "$FIRMWARE_PROFILE" = fleet-reviewed ]; then \
       cp /fleet-build/profile.json /fleet-build/sdkconfig.fleet-reviewed /fleet-build/build_profile.py version.txt /out/ && \
       (cd /out && sha256sum profile.json sdkconfig.fleet-reviewed build_profile.py version.txt sdkconfig > BUILD_PROFILE_SHA256SUMS.txt); \

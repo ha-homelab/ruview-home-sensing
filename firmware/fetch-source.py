@@ -111,8 +111,32 @@ def copy_build_inputs(
     if key_header.exists() and key_header.read_bytes() != header:
         raise ValueError("Refusing to replace a different verification key")
     key_header.write_bytes(header)
-    for name in ["patches", "vendor", "wifi-security"]:
+    for name in ["patches", "vendor", "wifi-security", "build-security"]:
         shutil.copytree(ROOT / name, output / name, dirs_exist_ok=True)
+
+
+def fetch_build_tools(output):
+    """Stage verified build-only updates before running any affected client."""
+    target = output / "build-security"
+    lock = json.loads((ROOT / "build-security/packages.json").read_text())
+    sums = []
+    for item in lock["files"]:
+        relative = Path(item["path"])
+        if relative.is_absolute() or ".." in relative.parts:
+            raise ValueError("Unsafe build dependency path")
+        dest = target / relative
+        if (
+            not dest.exists()
+            or hashlib.sha256(dest.read_bytes()).hexdigest() != item["sha256"]
+        ):
+            with open_source(item["url"], timeout=60) as response:
+                data = response.read()
+            if hashlib.sha256(data).hexdigest() != item["sha256"]:
+                raise ValueError(f"Build dependency hash mismatch: {relative}")
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(data)
+        sums.append(f"{item['sha256']}  {relative.as_posix()}\n")
+    (target / "SHA256SUMS").write_text("".join(sums), encoding="utf-8")
 
 
 def main():
@@ -138,6 +162,7 @@ def main():
         args.wasm_public_key,
         args.wasm_public_key_sha256,
     )
+    fetch_build_tools(args.output)
     lock = json.loads((ROOT / "upstream-files.json").read_text())
     base = f"https://raw.githubusercontent.com/ruvnet/RuView/{lock['commit']}/firmware/esp32-csi-node/"
     args.output.mkdir(parents=True, exist_ok=True)
