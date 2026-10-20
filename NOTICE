@@ -36,8 +36,16 @@ sources. Their original licenses are not replaced by the repository MIT license.
 
 Python, Rust, browser and CAD dependencies retain their respective licenses.
 Lockfiles identify build dependencies; transitive licenses must accompany any
-redistributed binary/container distribution. This source release does not
-redistribute model weights, an upstream firmware binary or a built container.
+redistributed binary/container distribution. Source archives do not embed
+model weights, prebuilt firmware or containers. CI separately retains complete
+firmware and collector build outputs with their license and provenance bundles;
+keep those accompanying notices when redistributing the outputs.
+
+The selected ESP-IDF Wi-Fi, PHY and coexistence object libraries carry their
+upstream Apache-2.0 license texts. Their inclusion does not mean this project
+supplies the complete radio-driver source. Firmware notices include the exact
+SDK and component texts; an included notice does not by itself mean that every
+optional component was linked.
 
 The enclosure documentation links to a manufacturer's dimensional reference.
 The reference drawing is not redistributed and is not licensed by this project.
