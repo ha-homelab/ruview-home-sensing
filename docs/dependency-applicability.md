@@ -109,9 +109,33 @@ MiniZip component. That specific exclusion does not resolve the other
 runtime matches, including the installed Perl and privileged utility
 findings.
 
-The pinned Python Alpine images likewise report pip-vendored component
-matches. A vendored copy is not automatically safe: the exact included
-implementation and its callers must be compared with the advisory.
+The three pinned Python Alpine runtime bases each report seven advisory IDs.
+Their 293 pip-vendored files were compared byte for byte with the PyPI
+`pip-26.2.1-py3-none-any.whl`
+(`71138adf1f4ca900cdb7d289c21b7494329f2332b6d85f0e1c42108c0384ed3e`).
+The old findings have these specific dispositions:
+
+- **msgpack 1.1.2,
+  [GHSA-6v7p-g79w-8964](https://github.com/msgpack/msgpack-python/security/advisories/GHSA-6v7p-g79w-8964):**
+  the included implementation is the Python fallback; the native
+  `_cmsgpack` extension is absent. Moreover, pip's CacheControl calls
+  `loads`/`unpackb`, which creates a fresh unpacker, rather than reusing a
+  streaming unpacker after a caught error. The reported native use-after-free
+  and reuse trigger are therefore absent in this included caller.
+- **setuptools 70.3.0, CVE-2025-47273 and CVE-2026-59890:** pip includes only
+  the `pkg_resources` subset. The affected `PackageIndex` downloader and
+  `FileList` source-distribution builder are absent. The project's separate
+  source-distribution build selects setuptools 84.0.0.
+
+The other four matches are newer than 60 days at this review date:
+zlib CVE-2026-85091 (published September 3), and urllib3
+CVE-2026-97687, CVE-2026-97688 and CVE-2026-97689 (September 29).
+They are not Critical-rated and are not excluded merely because of their age.
+They remain maintenance candidates: pip's HTTPS downloader can reach remote
+responses, while the runtime services use their documented standard-library
+HTTP clients. This dated disposition must be revisited before those findings
+cross the 60-day boundary.
+
 The Rust and ESP-IDF build images have separate findings. Linux header
 package matches in a build image are not evidence that a vulnerable kernel
 is running inside it, but executable build tools and dependencies still need
