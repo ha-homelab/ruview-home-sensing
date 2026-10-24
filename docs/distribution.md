@@ -7,7 +7,7 @@ The source/tool archive is the supported distribution for firmware, native worke
 ```sh
 python scripts/build-release.py --revision "$REVIEWED_COMMIT" --output ruview-home-sensing-tools.tar.gz
 python -m pip wheel --no-deps --wheel-dir dist .
-python scripts/test-installed-wheel.py dist/ruview_home_sensing-0.4.0rc3-py3-none-any.whl
+python scripts/test-installed-wheel.py dist/ruview_home_sensing-0.4.0-py3-none-any.whl
 ```
 
 `REVIEWED_COMMIT` must be an exact 40-character Git commit. The archive builder reads committed blobs only, rejects links/submodules, records SHA-256, size and mode for every file, and writes fixed archive timestamps and ownership. Local untracked inputs and Git history are never included. Run the repository publication gate against both source and generated artifacts before upload. Build the wheel from a clean checkout; set `SOURCE_DATE_EPOCH` consistently when comparing reproducibility.
@@ -30,7 +30,7 @@ A release provides software mechanisms and synthetic test evidence. It does not 
 
 CI reuses the pinned shared Python setup and security workflow while the project validates its own runtime, firmware, CAD and distribution contracts on GitHub-hosted runners. The full shared release-promotion engine is not installed. There is no automatic stable publication or promotion.
 
-The current source candidate is a prerelease: its tools archive and wheel are bound to one reviewed immutable commit and their published SHA-256 inventory. A stable release requires a separate reviewed decision and artifact acceptance. Adopting shared signing, SBOM and promotion automation later must preserve the exact source-archive contract, public-data gate and hosted-runner boundary.
+The 0.4.0 software release follows separate review and artifact acceptance of the 0.4.0-rc.3 candidate. Its tools archive and wheel remain bound to one reviewed immutable commit and their published SHA-256 inventory. Software release status does not establish physical installation acceptance. Adopting shared signing, SBOM and promotion automation later must preserve the exact source-archive contract, public-data gate and hosted-runner boundary.
 
 ## Version notes
 
