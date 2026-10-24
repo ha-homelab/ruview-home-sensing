@@ -24,13 +24,14 @@ Home Assistant publication is implemented once in [ruview-home-assistant](https:
 
 Software tests establish the contracts they exercise. They do not establish recognition accuracy in a building. CSI activity is a hypothesis, not a measured person count or coordinate. Posture, position and fall outputs require suitable independent reference data, evaluation and explicitly approved artifacts. This project is experimental and is not a medical or emergency-response system.
 
-## Prerelease status
+## Software release
 
-The **0.4.0-rc.3** candidate uses `0.4.0rc3` for Python. See the
+The **0.4.0** software release follows the reviewed `0.4.0-rc.3` candidate. See the
 [release notes](docs/release-notes.md) for the bridge freshness correction and
 explicit collector-scope migration, and [distribution instructions](docs/distribution.md)
-for verified source and wheel consumption. Publishing a prerelease does not
-update devices or promote experimental inference outputs.
+for verified source and wheel consumption. The release keeps the candidate's
+runtime and dependency pins. Software release status does not establish
+installation acceptance, update devices or promote experimental inference outputs.
 
 ## Development
 

@@ -1,5 +1,18 @@
 # Release notes
 
+## 0.4.0
+
+The software release retains the runtime implementation and exact dependency
+pins of `0.4.0-rc.3`. Package metadata now uses `0.4.0`; installation instructions
+refer to the final wheel. The source/tool archive and Python wheel are rebuilt
+from the reviewed release commit and receive their own immutable checksums.
+
+The migration requirements and evidence limits described below remain in force.
+In particular, collector observation requires an explicit receiver scope, and
+the separate Home Assistant bridge remains pinned to its qualified `0.1.3b1`
+wheel digest. This is not a firmware deployment or a claim of calibrated
+coordinates, recognition accuracy, fall-detection reliability or enclosure fit.
+
 ## 0.4.0-rc.3
 
 Changes since `0.4.0-rc.2` address delayed observations and make collector
