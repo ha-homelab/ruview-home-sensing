@@ -8,7 +8,7 @@ COPY assumed_activity/requirements.txt /app/assumed_activity/requirements.txt
 RUN pip install --no-cache-dir --require-hashes --only-binary=:all: \
     --platform any --target /dependencies -r /app/assumed_activity/requirements.txt
 
-FROM --platform=linux/amd64 python:3.14-alpine@sha256:f6a589d43c42b9e7f7dc67a12d37132491f362859a5d750607710cc56da3bc72
+FROM --platform=linux/amd64 python:3.15-alpine@sha256:d44b1254cb92329418d164b22b20d86bbd3869d48e80e09e476531a409a728bb
 WORKDIR /app
 COPY --from=dependencies /dependencies/ /opt/python-dependencies/
 COPY ruview_http.py ./
