@@ -4,6 +4,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Update this independently reviewed composite together with tools/check_workflows.py.
+    ignore:
+      - dependency-name: "victron-venus/venus-os-ci-toolkit/actions/setup-python"
     groups:
       workflow-actions:
         patterns: ["*"]
