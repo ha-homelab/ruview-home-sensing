@@ -340,7 +340,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
-      - uses: victron-venus/venus-os-ci-toolkit/actions/setup-python@5d5f3c5d94a3845e0906131348e55f4d221831e3 # shared, immutable
+      - uses: victron-venus/venus-os-ci-toolkit/actions/setup-python@21a366f200f0371a10a6de7ad6ca263af230b842 # shared, immutable
         with:
           python-version: '3.13'
       - name: Install the pinned CMake wheel for host component checks
@@ -462,7 +462,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: victron-venus/venus-os-ci-toolkit/actions/setup-python@5d5f3c5d94a3845e0906131348e55f4d221831e3
+      - uses: victron-venus/venus-os-ci-toolkit/actions/setup-python@21a366f200f0371a10a6de7ad6ca263af230b842
         with:
           python-version: '3.13'
       - name: Install locked runtime and numerical dependencies
