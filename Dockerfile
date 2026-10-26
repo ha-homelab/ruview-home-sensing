@@ -8,7 +8,7 @@ COPY requirements.txt requirements-public.txt ./
 RUN pip install --no-cache-dir --require-hashes --only-binary=:all: \
     --platform any --target /dependencies -r requirements.txt
 
-FROM --platform=linux/arm64 python:3.14-alpine@sha256:aae362254cea6b75fe812f0b428f10b3b361a090fe5655fb1d03937f6d38cda9
+FROM --platform=linux/arm64 python:3.15-alpine@sha256:d44b1254cb92329418d164b22b20d86bbd3869d48e80e09e476531a409a728bb
 WORKDIR /app
 COPY --from=dependencies /dependencies/ /opt/python-dependencies/
 COPY bridge.py module_observations.py ruview_http.py ./
