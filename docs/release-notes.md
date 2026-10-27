@@ -1,5 +1,24 @@
 # Release notes
 
+## 0.4.1-beta.1
+
+Versions the already reviewed Python 3.15 Alpine runtime images and their
+architecture-specific manifest pins from #18, plus the updated setuptools
+packaging backend. The Home Assistant bridge dependency and its immutable wheel
+digest remain unchanged. This metadata change introduces no new inference,
+firmware or deployment behavior.
+
+The source/tool archive and wheel must be built from the final reviewed commit,
+with package metadata `0.4.1b1`. Publish them under a new prerelease identity;
+never replace the existing 0.4.0 artifacts. Before publication, require the full
+source CI, installed-wheel entrypoint checks, archive reproducibility and
+publication-boundary scans. Container checks qualify the runtime images;
+source tests alone do not establish Python 3.15 container compatibility.
+
+The package retains Python 3.11+ support, with Python 3.12+ for the inference
+extra. Physical installation, sensing accuracy and enclosure fit still require
+independent acceptance.
+
 ## 0.4.0
 
 The software release retains the runtime implementation and exact dependency

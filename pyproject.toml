@@ -1,6 +1,6 @@
 [project]
 name = "ruview-home-sensing"
-version = "0.4.0"
+version = "0.4.1b1"
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE", "NOTICE"]
