@@ -37,6 +37,14 @@ with guessed IDs:
 - `max_lag_seconds`: positive and at most 1.5; default 1.5.
 - `max_clock_disagreement_ms`: from zero through 500; default 100. UTC receipt
   difference must agree with the shared monotonic difference within this bound.
+- `epoch_stability_samples`: two through sixty; default two subsequent fresh
+  primary observations after a routine gap.
+- `epoch_stability_seconds`: one through sixty; default one second of elapsed
+  monotonic time before recovery. This is an explicit observed-input stability
+  policy, not a claim that a feature-history window has been reconstructed.
+- `minimum_observation_index`: defaults to zero. A separately reviewed new
+  binding can select a later journal segment after a non-routine reset. Earlier
+  bytes remain fully verified, but cannot supply features or guard history.
 
 The adapter rechecks the reference export's examples hash, each retained source
 prefix and capture metadata hash. It also rechecks the journal metadata hash,
@@ -49,10 +57,22 @@ identities are private data.
 Only an earlier observation may join. Gaps, unavailable nodes, missing values,
 profile changes and clock-epoch changes are exclusions. The adapter never falls
 back to an older apparently healthy sample across a newer invalid observation.
-Normal `bounded_history_renewal` node epochs are permitted; other node epoch
-changes require a new reviewed segment/binding. Epochs and discontinuities are
-preserved in each example's lineage. A profile change never silently changes a
-model's feature contract.
+Normal `bounded_history_renewal` node epochs are permitted. `sequence_gap`,
+`receipt_gap` and an increasing sequence-discontinuity counter exclude the
+boundary observation and enter an observed-input stability interval. Recovery
+requires the configured number of subsequent fresh, available samples with
+strictly increasing primary source timestamps, positive observed frame rate,
+unchanged bound profile and the configured elapsed time. Another gap restarts
+the interval; unavailable, frozen or stale inputs cannot complete it. No
+missing sample is synthesized. Each recovery's boundary and accepted sample
+are retained in joined lineage, with counts in the export receipt.
+
+Unknown boot/clock epoch reasons and decreasing discontinuity counters require
+a new reviewed segment/binding; the explicit index anchor allows that without
+restarting the journal. Changed profiles remain ineligible for the old binding.
+Epochs and discontinuities are preserved in each example's lineage. Recovery
+policy and anchor are part of the model feature contract, so they cannot change
+silently beneath an already trained artifact.
 
 The output has a distinct `full_node_features_same_boot_shadow_join` contract,
 with original reference and full-journal lineage. Its feature interval begins at

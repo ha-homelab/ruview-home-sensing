@@ -16,6 +16,7 @@ import re
 import shutil
 import signal
 import socket
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -34,6 +35,28 @@ MAX_ROW = 256 * 1024
 RESERVED_BYTES = 256 * 1024
 FEATURE_KEY = re.compile(r"[a-z][a-z0-9_]{0,63}\Z")
 IDENTITY = re.compile(r"[A-Za-z0-9_.:-]{1,128}\Z")
+_HTTP_LOCAL = threading.local()
+
+
+def thread_http_opener():
+    """Reuse TLS initialization per worker without sharing request credentials.
+
+    urllib constructs a verified TLS context even for plain HTTP through our
+    common transport policy. Rebuilding its certificate store every second can
+    consume most of a short polling deadline on a busy host. Handlers stay
+    thread-local; Authorization remains solely on each new Request object.
+    """
+    signature = (
+        http_opener,
+        os.environ.get("RUVIEW_STRICT_TLS"),
+        os.environ.get("SSL_CERT_FILE"),
+        os.environ.get("SSL_CERT_DIR"),
+    )
+    if getattr(_HTTP_LOCAL, "signature", None) != signature:
+        opener = http_opener()
+        _HTTP_LOCAL.opener = opener
+        _HTTP_LOCAL.signature = signature
+    return _HTTP_LOCAL.opener
 
 
 def encoded(value):
@@ -148,7 +171,7 @@ def read_json(url, timeout, token=None):
         headers["Authorization"] = "Bearer " + token
     request = urllib.request.Request(url, headers=headers, method="GET")
     before = time.monotonic()
-    with http_opener().open(request, timeout=timeout) as response:
+    with thread_http_opener().open(request, timeout=timeout) as response:
         if response.status != 200:
             raise ValueError("http_status")
         if response.getheader("Content-Encoding", "identity") not in ("", "identity"):

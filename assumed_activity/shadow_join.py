@@ -342,6 +342,17 @@ def configuration(config):
         0 <= config.get("max_clock_disagreement_ms", 100) <= 500,
         "invalid_clock_tolerance",
     )
+    anchor = config.get("minimum_observation_index", 0)
+    require(type(anchor) is int and 0 <= anchor <= 2**31 - 1, "invalid_binding_anchor")
+    samples = config.get("epoch_stability_samples", 2)
+    seconds = config.get("epoch_stability_seconds", 1.0)
+    require(
+        type(samples) is int and 2 <= samples <= 60, "invalid_epoch_stability_samples"
+    )
+    require(
+        type(seconds) in (int, float) and math.isfinite(seconds) and 1 <= seconds <= 60,
+        "invalid_epoch_stability_seconds",
+    )
     identity = {
         key: copy.deepcopy(config[key])
         for key in (
@@ -356,6 +367,10 @@ def configuration(config):
         "direction": "backward_only",
         "max_lag_seconds": config.get("max_lag_seconds", 1.5),
         "max_clock_disagreement_ms": config.get("max_clock_disagreement_ms", 100),
+        "minimum_observation_index": anchor,
+        "epoch_stability_samples": samples,
+        "epoch_stability_seconds": seconds,
+        "recoverable_epoch_reasons": ["sequence_gap", "receipt_gap"],
     }
     contract = {
         "name": "full_node_features_same_boot_shadow_join",
@@ -365,6 +380,125 @@ def configuration(config):
     }
     validate_contract(contract)
     return contract
+
+
+class InputStability:
+    """Exclude a gap, then observe new primary inputs; never infer continuity."""
+
+    def __init__(self, config, max_age_ms=2500):
+        self.samples = config.get("epoch_stability_samples", 2)
+        self.delay_ns = int(config.get("epoch_stability_seconds", 1.0) * 1e9)
+        self.keys = config["feature_keys"]
+        self.max_age_ms = max_age_ms
+        self.nodes = {}
+        self.summary = {"gap_boundaries": 0, "recoveries": 0, "hard_invalidations": 0}
+
+    def interrupt(self, node, row):
+        state = self.nodes.get(node)
+        if state and state["gap"]:
+            state["gap"].update(stable_samples=0, stable_after_ns=row["monotonic_ns"])
+
+    def observe(self, node, entry, row, uninterrupted):
+        worker = entry.get("worker", {})
+        epoch, count = worker.get("node_epoch"), worker.get("sequence_discontinuities")
+        state = self.nodes.get(node)
+        if state is None:
+            self.nodes[node] = {
+                "epoch": epoch,
+                "count": count,
+                "gap": None,
+                "blocked": None,
+                "last_recovery": None,
+            }
+            return None
+        gap_reason = None
+        if epoch != state["epoch"]:
+            reason = worker.get("epoch_reason")
+            if reason in ("sequence_gap", "receipt_gap"):
+                gap_reason = reason
+            elif reason != "bounded_history_renewal":
+                state["blocked"] = "node_epoch_requires_new_binding"
+                self.summary["hard_invalidations"] += 1
+        if (
+            type(count) is int
+            and type(state["count"]) is int
+            and count != state["count"]
+        ):
+            if count < state["count"]:
+                state["blocked"] = "discontinuity_counter_reset_requires_new_binding"
+                self.summary["hard_invalidations"] += 1
+            else:
+                gap_reason = gap_reason or "sequence_discontinuity"
+        state.update(epoch=epoch, count=count)
+        if state["blocked"]:
+            return state["blocked"]
+        if gap_reason:
+            state["gap"] = {
+                "reason": gap_reason,
+                "boundary_index": row["index"],
+                "boundary_monotonic_ns": row["monotonic_ns"],
+                "stable_after_ns": row["monotonic_ns"],
+                "stable_samples": 0,
+                "last_source_time_ns": entry.get("source_time_ns"),
+            }
+            self.summary["gap_boundaries"] += 1
+            return "observed_input_stability_pending"
+        gap = state["gap"]
+        if gap is None:
+            return None
+        source = entry.get("source_time_ns")
+        age = entry.get("source_age_ms")
+        rate = entry.get("features", {}).get("frame_rate_hz")
+        valid_metrics = all(
+            type(entry.get("features", {}).get(key)) in (int, float)
+            and math.isfinite(entry["features"][key])
+            for key in self.keys
+        )
+        fresh = (
+            uninterrupted
+            and entry.get("available") is True
+            and valid_metrics
+            and type(source) is int
+            and source <= row["utc_ns"]
+            and type(gap["last_source_time_ns"]) is int
+            and source > gap["last_source_time_ns"]
+            and type(age) in (int, float)
+            and math.isfinite(age)
+            and 0 <= age <= self.max_age_ms
+            and type(rate) in (int, float)
+            and math.isfinite(rate)
+            and rate > 0
+        )
+        if fresh:
+            gap["stable_samples"] += 1
+            gap["last_source_time_ns"] = source
+        else:
+            gap.update(
+                stable_samples=0,
+                stable_after_ns=row["monotonic_ns"],
+                last_source_time_ns=source,
+            )
+        if (
+            gap["stable_samples"] >= self.samples
+            and row["monotonic_ns"] - gap["stable_after_ns"] >= self.delay_ns
+        ):
+            state["last_recovery"] = {
+                **gap,
+                "recovery_index": row["index"],
+                "recovery_monotonic_ns": row["monotonic_ns"],
+                "meaning": "new_observed_inputs_not_reconstructed_continuity",
+            }
+            state["gap"] = None
+            self.summary["recoveries"] += 1
+            return None
+        return "observed_input_stability_pending"
+
+    def evidence(self):
+        return {
+            str(node): copy.deepcopy(state["last_recovery"])
+            for node, state in self.nodes.items()
+            if state["last_recovery"] is not None
+        }
 
 
 def join(examples, observations, reference_metadata, journal_metadata, config):
@@ -377,9 +511,20 @@ def join(examples, observations, reference_metadata, journal_metadata, config):
     )
     max_lag_ns = int(config.get("max_lag_seconds", 1.5) * 1e9)
     tolerance_ns = int(config.get("max_clock_disagreement_ms", 100) * 1e6)
-    previous_epochs, blocked_epochs = {}, set()
+    max_age_ms = journal_metadata.get("configuration", {}).get(
+        "max_source_age_ms", 2500
+    )
+    require(
+        type(max_age_ms) in (int, float)
+        and math.isfinite(max_age_ms)
+        and 0 < max_age_ms <= 60000,
+        "invalid_journal_source_age_limit",
+    )
+    stability = InputStability(config, max_age_ms)
 
     def guarded(row):
+        if row["index"] < config.get("minimum_observation_index", 0):
+            return row, "before_binding_anchor", {}
         reason = None
         nodes = {n["node_id"]: n for n in row["nodes"]}
         require(len(nodes) == len(row["nodes"]), "duplicate_journal_node")
@@ -387,24 +532,20 @@ def join(examples, observations, reference_metadata, journal_metadata, config):
             reason = "journal_clock_epoch_changed"
         if row.get("late_interval") is True or row.get("_index_gap") is True:
             reason = reason or "journal_gap"
+        uninterrupted = reason is None
         for node in config["node_ids"]:
             entry = nodes.get(node)
             if entry is None or entry.get("available") is not True:
                 reason = reason or "feature_node_unavailable"
+                stability.interrupt(node, row)
                 continue
             if profile_identity(entry) != config["expected_profiles"][str(node)]:
                 reason = reason or "profile_binding_changed"
-            epoch = entry.get("worker", {}).get("node_epoch")
-            if node in previous_epochs and epoch != previous_epochs[node]:
-                if (
-                    entry.get("worker", {}).get("epoch_reason")
-                    != "bounded_history_renewal"
-                ):
-                    blocked_epochs.add(node)
-            previous_epochs[node] = epoch
-            if node in blocked_epochs:
-                reason = reason or "node_epoch_requires_new_binding"
-        return row, reason
+                stability.interrupt(node, row)
+                continue
+            stability_reason = stability.observe(node, entry, row, uninterrupted)
+            reason = reason or stability_reason
+        return row, reason, stability.evidence()
 
     iterator = iter(observations)
     previous_mono = -1
@@ -449,7 +590,7 @@ def join(examples, observations, reference_metadata, journal_metadata, config):
         if last is None:
             reject("no_earlier_feature_observation")
             continue
-        row, guard_reason = last
+        row, guard_reason, continuity_evidence = last
         lag = target_ns - row["monotonic_ns"]
         if lag > max_lag_ns:
             reject("feature_observation_too_old")
@@ -503,6 +644,7 @@ def join(examples, observations, reference_metadata, journal_metadata, config):
             feature_lag_ns=lag,
             shared_boot_id=expected_boot,
             node_evidence=node_evidence,
+            observed_input_recovery=continuity_evidence,
             native_profile_qualified=False,
         )
         output.append(example)
@@ -515,6 +657,7 @@ def join(examples, observations, reference_metadata, journal_metadata, config):
         "discarded": discarded,
         "feature_contract": contract,
         "configuration_sha256": sha(config),
+        "observed_input_stability": stability.summary,
         "reference_is_ground_truth": False,
         "recognition_validated": False,
         "publish_to_ha": False,

@@ -33,7 +33,13 @@ def observation(index=1, epoch=1, reason="first_frame"):
             {
                 "node_id": 7,
                 "available": True,
-                "features": {"motion_band_power": 3.0, "variance": 7.0},
+                "features": {
+                    "motion_band_power": 3.0,
+                    "variance": 7.0,
+                    "frame_rate_hz": 30,
+                },
+                "source_time_ns": UTC + index * 1_000_000_000 - 20_000_000,
+                "source_age_ms": 20,
                 "collector_diagnostics": {
                     "subcarrier_count": 64,
                     "frequency_mhz": None,
@@ -109,6 +115,22 @@ def config():
     }
 
 
+def reference_at(index):
+    row = example()
+    instant = journal.utc(UTC + index * 1_000_000_000)
+    row.update(
+        example_id=f"reference-{index}",
+        observed_at_utc=instant,
+        interval_start_utc=instant,
+        interval_end_utc=instant,
+    )
+    row["provenance"].update(
+        receipt_monotonic_ns=index * 1_000_000_000, transport_confirmed_at_utc=instant
+    )
+    row["references"][0]["observed_at_utc"] = instant
+    return row
+
+
 def joined(observations=None, references=None, settings=None, boot=BOOT):
     return joiner.join(
         references or [example()],
@@ -120,6 +142,123 @@ def joined(observations=None, references=None, settings=None, boot=BOOT):
 
 
 class JoinTests(unittest.TestCase):
+    def test_sequence_gap_excludes_boundary_then_recovers_on_new_primary_inputs(self):
+        observations = [
+            observation(),
+            observation(2, 2, "sequence_gap"),
+            observation(3, 2, "sequence_gap"),
+            observation(4, 2, "sequence_gap"),
+        ]
+        rows, receipt = joined(observations, [reference_at(i) for i in (2, 3, 4)])
+        self.assertEqual(
+            [r["provenance"]["journal_observation_index"] for r in rows], [4]
+        )
+        self.assertEqual(receipt["discarded"], {"observed_input_stability_pending": 2})
+        self.assertEqual(receipt["observed_input_stability"]["recoveries"], 1)
+        proof = rows[0]["provenance"]["observed_input_recovery"]["7"]
+        self.assertEqual(proof["boundary_index"], 2)
+        self.assertEqual(proof["recovery_index"], 4)
+        self.assertEqual(proof["stable_samples"], 2)
+
+    def test_repeated_gap_restarts_observed_input_stability(self):
+        observations = [
+            observation(),
+            observation(2, 2, "sequence_gap"),
+            observation(3, 2, "sequence_gap"),
+            observation(4, 3, "receipt_gap"),
+            observation(5, 3, "receipt_gap"),
+            observation(6, 3, "receipt_gap"),
+        ]
+        rows, receipt = joined(observations, [reference_at(i) for i in (4, 5, 6)])
+        self.assertEqual(
+            [r["provenance"]["journal_observation_index"] for r in rows], [6]
+        )
+        self.assertEqual(receipt["observed_input_stability"]["gap_boundaries"], 2)
+
+    def test_frozen_stale_or_unavailable_primary_cannot_recover(self):
+        for kind in ("frozen", "stale", "unavailable", "missing_rate"):
+            with self.subTest(kind=kind):
+                observations = [
+                    observation(),
+                    observation(2, 2, "sequence_gap"),
+                    observation(3, 2, "sequence_gap"),
+                    observation(4, 2, "sequence_gap"),
+                ]
+                for row in observations[2:]:
+                    node = row["nodes"][0]
+                    if kind == "frozen":
+                        node["source_time_ns"] = observations[1]["nodes"][0][
+                            "source_time_ns"
+                        ]
+                    elif kind == "stale":
+                        node["source_age_ms"] = 3000
+                    elif kind == "unavailable":
+                        node["available"] = False
+                    else:
+                        del node["features"]["frame_rate_hz"]
+                self.assertEqual(joined(observations, [reference_at(4)])[0], [])
+
+    def test_counter_increase_recovers_but_reset_remains_blocked(self):
+        observations = [observation(i) for i in (1, 2, 3, 4)]
+        for row in observations[1:]:
+            row["nodes"][0]["worker"]["sequence_discontinuities"] = 1
+        rows, _ = joined(observations, [reference_at(4)])
+        self.assertEqual(len(rows), 1)
+        reset = observation(5)
+        observations.extend([reset, observation(6), observation(7)])
+        rows, receipt = joined(observations, [reference_at(7)])
+        self.assertEqual(rows, [])
+        self.assertIn(
+            "discontinuity_counter_reset_requires_new_binding", receipt["discarded"]
+        )
+
+    def test_unavailable_sample_restarts_fresh_sample_count_then_can_recover(self):
+        observations = [
+            observation(),
+            *[observation(i, 2, "sequence_gap") for i in (2, 3, 4, 5)],
+        ]
+        observations[2]["nodes"][0]["available"] = False
+        rows, _ = joined(observations, [reference_at(4), reference_at(5)])
+        self.assertEqual(
+            [r["provenance"]["journal_observation_index"] for r in rows], [5]
+        )
+
+    def test_recovery_policy_binds_contract_and_requires_minimum_elapsed_time(self):
+        settings = config()
+        settings["epoch_stability_seconds"] = 4
+        self.assertNotEqual(
+            joiner.configuration(settings), joiner.configuration(config())
+        )
+        observations = [
+            observation(),
+            *[observation(i, 2, "sequence_gap") for i in (2, 3, 4, 5, 6)],
+        ]
+        rows, _ = joined(observations, [reference_at(4), reference_at(6)], settings)
+        self.assertEqual(
+            [r["provenance"]["journal_observation_index"] for r in rows], [6]
+        )
+
+    def test_reviewed_anchor_changes_contract_and_skips_old_guard_state(self):
+        observations = [
+            observation(),
+            observation(2, 2, "sequence_backwards_boot_unknown"),
+            observation(3, 2, "sequence_backwards_boot_unknown"),
+            observation(4, 2, "sequence_backwards_boot_unknown"),
+        ]
+        self.assertEqual(joined(observations, [reference_at(4)])[0], [])
+        settings = config()
+        settings["minimum_observation_index"] = 3
+        self.assertNotEqual(
+            joiner.configuration(settings), joiner.configuration(config())
+        )
+        rows, receipt = joined(
+            observations, [reference_at(2), reference_at(4)], settings
+        )
+        self.assertEqual(
+            [r["provenance"]["journal_observation_index"] for r in rows], [4]
+        )
+        self.assertIn("before_binding_anchor", receipt["discarded"])
+
     def test_stream_failure_after_last_join_still_fails_the_export(self):
         def records():
             yield observation()
@@ -128,6 +267,16 @@ class JoinTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "late source"):
             joined(records())
+
+    def test_binding_anchor_does_not_bypass_earlier_prefix_verification(self):
+        def records():
+            yield observation()
+            raise ValueError("earlier prefix verification failed")
+
+        settings = config()
+        settings["minimum_observation_index"] = 5
+        with self.assertRaisesRegex(ValueError, "earlier prefix"):
+            joined(records(), [reference_at(6)], settings)
 
     def test_previous_sample_preserves_references_and_lineages(self):
         original = example()

@@ -206,6 +206,89 @@ class JournalTests(unittest.TestCase):
 
 
 class TransportTests(unittest.TestCase):
+    def test_same_thread_reuses_opener_without_sharing_between_threads(self):
+        observations = []
+        with (
+            mock.patch.object(journal, "_HTTP_LOCAL", threading.local()),
+            mock.patch.object(
+                journal, "http_opener", side_effect=lambda: object()
+            ) as factory,
+        ):
+            first = journal.thread_http_opener()
+            self.assertIs(journal.thread_http_opener(), first)
+
+            def observe():
+                value = journal.thread_http_opener()
+                observations.append((value, journal.thread_http_opener()))
+
+            workers = [threading.Thread(target=observe) for _ in range(2)]
+            for worker_thread in workers:
+                worker_thread.start()
+            for worker_thread in workers:
+                worker_thread.join()
+            self.assertEqual(factory.call_count, 3)
+            self.assertTrue(all(a is b for a, b in observations))
+            self.assertTrue(all(a is not first for a, _ in observations))
+            self.assertIsNot(observations[0][0], observations[1][0])
+
+    def test_tls_policy_change_rebuilds_thread_opener(self):
+        with (
+            mock.patch.object(journal, "_HTTP_LOCAL", threading.local()),
+            mock.patch.object(
+                journal, "http_opener", side_effect=lambda: object()
+            ) as factory,
+        ):
+            with mock.patch.dict("os.environ", {"RUVIEW_STRICT_TLS": "false"}):
+                first = journal.thread_http_opener()
+            with mock.patch.dict("os.environ", {"RUVIEW_STRICT_TLS": "true"}):
+                second = journal.thread_http_opener()
+                self.assertIs(journal.thread_http_opener(), second)
+            self.assertIsNot(first, second)
+            self.assertEqual(factory.call_count, 2)
+
+    def test_reused_opener_does_not_persist_authorization(self):
+        requests = []
+
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *_args):
+                pass
+
+            def do_GET(self):
+                requests.append((self.path, self.headers.get("Authorization")))
+                body = b'{"ok":true}'
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base = f"http://127.0.0.1:{server.server_port}"
+            with (
+                mock.patch.object(journal, "_HTTP_LOCAL", threading.local()),
+                mock.patch.object(
+                    journal, "http_opener", wraps=journal.http_opener
+                ) as factory,
+            ):
+                journal.read_json(base + "/sensing", 2, "first-test-token")
+                journal.read_json(base + "/worker", 2)
+                journal.read_json(base + "/sensing", 2, "second-test-token")
+                self.assertEqual(factory.call_count, 1)
+            self.assertEqual(
+                requests,
+                [
+                    ("/sensing", "Bearer first-test-token"),
+                    ("/worker", None),
+                    ("/sensing", "Bearer second-test-token"),
+                ],
+            )
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join()
+
     def test_capture_closes_at_deadline_and_scopes_token(self):
         requests = []
 
