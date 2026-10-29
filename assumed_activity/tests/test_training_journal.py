@@ -4,11 +4,10 @@ import json
 import tempfile
 import threading
 import time
-import unittest
 import urllib.error
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from unittest import mock
+from unittest import TestCase, main, mock
 
 from assumed_activity import training_journal as journal
 
@@ -72,7 +71,7 @@ def worker():
     }
 
 
-class ProjectionTests(unittest.TestCase):
+class ProjectionTests(TestCase):
     def test_wrong_source_schema_cannot_supply_training_features(self):
         for field, value in (("source", "simulated"), ("type", "unrelated")):
             source = sensing()
@@ -151,7 +150,7 @@ class ProjectionTests(unittest.TestCase):
         self.assertIsNone(result["receiver_proof"])
 
 
-class JournalTests(unittest.TestCase):
+class JournalTests(TestCase):
     def test_boot_identity_is_bounded_canonical_and_optional(self):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "boot_id"
@@ -205,14 +204,12 @@ class JournalTests(unittest.TestCase):
             target.finish("test")
 
 
-class TransportTests(unittest.TestCase):
+class TransportTests(TestCase):
     def test_same_thread_reuses_opener_without_sharing_between_threads(self):
         observations = []
         with (
             mock.patch.object(journal, "_HTTP_LOCAL", threading.local()),
-            mock.patch.object(
-                journal, "http_opener", side_effect=lambda: object()
-            ) as factory,
+            mock.patch.object(journal, "http_opener", side_effect=object) as factory,
         ):
             first = journal.thread_http_opener()
             self.assertIs(journal.thread_http_opener(), first)
@@ -234,9 +231,7 @@ class TransportTests(unittest.TestCase):
     def test_tls_policy_change_rebuilds_thread_opener(self):
         with (
             mock.patch.object(journal, "_HTTP_LOCAL", threading.local()),
-            mock.patch.object(
-                journal, "http_opener", side_effect=lambda: object()
-            ) as factory,
+            mock.patch.object(journal, "http_opener", side_effect=object) as factory,
         ):
             with mock.patch.dict("os.environ", {"RUVIEW_STRICT_TLS": "false"}):
                 first = journal.thread_http_opener()
@@ -410,4 +405,4 @@ class TransportTests(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    main()

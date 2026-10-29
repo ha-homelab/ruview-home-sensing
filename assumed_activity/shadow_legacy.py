@@ -170,7 +170,7 @@ def extract(root, config):
                     elif (
                         kind == "ruview_sample"
                         and row.get("endpoint") == "nodes"
-                        and start <= t < end
+                        and t >= start
                     ):
                         if not connected or last_ha_ns is None:
                             reject("no_reference_baseline")
