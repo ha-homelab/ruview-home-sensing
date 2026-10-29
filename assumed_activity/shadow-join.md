@@ -1,10 +1,17 @@
-# Join complete features to verified proxy references
+# Join primary API telemetry to verified proxy references
 
 `python -m assumed_activity.shadow_join` joins a verified `shadow_legacy` export
-to the most recent earlier full-feature observation from `training_journal`.
+to the most recent earlier primary API observation from `training_journal`.
 It preserves the reference examples' five-second cadence and copies their
 independent binary targets unchanged. It does not interpret OFF as an empty
 room and does not reconstruct spectral features in the old capture.
+
+The joined numeric values are **mixed or opaque API telemetry**, not qualified
+CSI measurements. The current primary API can populate feature paths using
+host-side CSI processing or firmware `motion_energy`. Per-feature producer
+provenance is absent from this evidence, so a familiar metric name does not
+establish which producer supplied a value. A predictor learning these values
+must be described as a primary-telemetry proxy model, not a trained CSI model.
 
 ```sh
 python -m assumed_activity.shadow_join \
@@ -23,17 +30,20 @@ with guessed IDs:
   RSSI feature contract, computed with `shadow_join.sha`.
 - `journal_metadata_sha256`: byte SHA-256 of the journal's `metadata.json`.
 - `expected_boot_id`: the same nonzero canonical Linux boot UUID present in the
-  reference capture metadata and full-feature journal. A missing or different
+  reference capture metadata and telemetry journal. A missing or different
   UUID fails closed. `training_journal` also declares `CLOCK_MONOTONIC`.
 - `expected_clock_epoch`: the admitted journal clock epoch, normally zero.
-- `node_ids` and `feature_keys`: explicit ordered inputs. Typical full-feature
+- `node_ids` and `feature_keys`: explicit ordered inputs. Typical API field
   keys are `motion_band_power`, `variance`, `spectral_power` and `mean_rssi`.
   Every selected value must exist and be finite for every required node.
 - `expected_profiles`: a dictionary keyed by string node ID, containing the
   exact result of `shadow_join.profile_identity(node)` for each admitted
-  observation. This binds collector radio diagnostics and worker run/config/
-  clock/grid identity. Unknown native profiles may remain explicitly null;
-  they are not qualified native evidence.
+  observation. This binds observed collector diagnostic context and worker
+  run/config/clock/grid identity. It does not prove the radio provenance of
+  primary feature values. Unknown native profiles may remain explicitly null;
+  they are not qualified native evidence. The `nodes` diagnostic array can
+  describe a vitals envelope: `subcarrier_count=0` is not evidence of a
+  zero-subcarrier CSI grid. Native-worker context remains a separate source.
 - `max_lag_seconds`: positive and at most 1.5; default 1.5.
 - `max_clock_disagreement_ms`: from zero through 500; default 100. UTC receipt
   difference must agree with the shared monotonic difference within this bound.
@@ -74,10 +84,19 @@ Epochs and discontinuities are preserved in each example's lineage. Recovery
 policy and anchor are part of the model feature contract, so they cannot change
 silently beneath an already trained artifact.
 
-The output has a distinct `full_node_features_same_boot_shadow_join` contract,
-with original reference and full-journal lineage. Its feature interval begins at
-the earlier feature observation and ends at the existing reference boundary.
+The output uses `primary_api_telemetry_same_boot_shadow_join`, version 2, with
+original reference and telemetry-journal lineage. Its identity includes the
+absent per-feature producer provenance, possible mixed host/firmware producer,
+unqualified-CSI status and separate native-worker context. These declarations
+also appear in example provenance and the export receipt. Its feature interval
+begins at the earlier API observation and ends at the existing reference boundary.
 Active prefixes remain explicitly provisional; their receipt is useful for
 bounded shadow fitting, but does not replace final terminal/hash validation.
 The downstream trainer still enforces the chronological split and untouched
 holdout. No joined data, model or profile is automatically published to HA.
+
+Version 2 requires a newly derived contract and artifact. Preserve earlier
+exports, bindings and models as their original versions; do not relabel them.
+If a future API supplies independently verifiable producer lineage, it needs
+a separately defined and reviewed evidence contract. This adapter never
+upgrades its qualification automatically from field names or native context.

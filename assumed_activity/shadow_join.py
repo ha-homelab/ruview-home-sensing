@@ -1,7 +1,8 @@
-"""Join verified weak-reference examples to earlier full-feature observations.
+"""Join verified weak-reference examples to earlier primary-API telemetry.
 
 Only a proven shared host boot permits monotonic alignment. Source recordings
-remain immutable; active journal prefixes are explicitly provisional.
+remain immutable; active journal prefixes are explicitly provisional. Numeric
+API values lack per-feature producer provenance and are not qualified CSI.
 """
 
 from __future__ import annotations
@@ -22,6 +23,17 @@ from .shadow_model import canonical, timestamp, validate_contract
 MAX_BYTES = 1024 * 1024 * 1024
 MAX_ROWS = 250_000
 MAX_LINE = 1024 * 1024
+PRIMARY_API_SEMANTICS = {
+    "interpretation": "mixed_or_opaque_primary_api_telemetry",
+    "feature_value_array": "node_features",
+    "per_feature_producer_provenance": "absent",
+    "may_mix_host_csi_and_firmware_motion_energy": True,
+    "qualified_csi_features": False,
+    "diagnostic_array": "nodes",
+    "diagnostics_establish_radio_provenance": False,
+    "native_worker_context": "separate_from_primary_feature_provenance",
+    "native_context_qualifies_primary_features": False,
+}
 
 
 def require(condition, reason):
@@ -71,7 +83,7 @@ def boot_id(value):
 
 
 def profile_identity(node):
-    """Frozen radio/run identity, excluding normal bounded-history renewals."""
+    """Frozen API context, not proof of the primary values' radio producer."""
     worker = node.get("worker", {})
     diagnostics = node.get("collector_diagnostics", {})
     return {
@@ -372,9 +384,10 @@ def configuration(config):
         "epoch_stability_seconds": seconds,
         "recoverable_epoch_reasons": ["sequence_gap", "receipt_gap"],
     }
+    identity["primary_api_semantics"] = copy.deepcopy(PRIMARY_API_SEMANTICS)
     contract = {
-        "name": "full_node_features_same_boot_shadow_join",
-        "version": 1,
+        "name": "primary_api_telemetry_same_boot_shadow_join",
+        "version": 2,
         "features": [f"node_{node}_{key}" for node in nodes for key in keys],
         "identity": identity,
     }
@@ -636,7 +649,8 @@ def join(examples, observations, reference_metadata, journal_metadata, config):
             original_reference_example_id=reference["example_id"],
             original_reference_example_sha256=sha(reference),
             original_reference_interval_start_utc=reference["interval_start_utc"],
-            features_semantics="Earlier full-feature observation from a separate shadow journal; binary reference copied unchanged",
+            features_semantics="Earlier numeric primary-API telemetry with absent per-feature producer provenance; binary reference copied unchanged",
+            primary_api_semantics=copy.deepcopy(PRIMARY_API_SEMANTICS),
             journal_run_id=row["run_id"],
             journal_observation_index=row["index"],
             journal_metadata_sha256=config["journal_metadata_sha256"],
@@ -657,6 +671,7 @@ def join(examples, observations, reference_metadata, journal_metadata, config):
         "discarded": discarded,
         "feature_contract": contract,
         "configuration_sha256": sha(config),
+        "primary_api_semantics": copy.deepcopy(PRIMARY_API_SEMANTICS),
         "observed_input_stability": stability.summary,
         "reference_is_ground_truth": False,
         "recognition_validated": False,

@@ -142,6 +142,29 @@ def joined(observations=None, references=None, settings=None, boot=BOOT):
 
 
 class JoinTests(unittest.TestCase):
+    def test_contract_explicitly_describes_opaque_telemetry_not_qualified_csi(self):
+        rows, receipt = joined()
+        contract = rows[0]["feature_contract"]
+        self.assertEqual(
+            contract["name"], "primary_api_telemetry_same_boot_shadow_join"
+        )
+        self.assertEqual(contract["version"], 2)
+        semantics = contract["identity"]["primary_api_semantics"]
+        self.assertEqual(
+            semantics["interpretation"], "mixed_or_opaque_primary_api_telemetry"
+        )
+        self.assertEqual(semantics["per_feature_producer_provenance"], "absent")
+        self.assertTrue(semantics["may_mix_host_csi_and_firmware_motion_energy"])
+        self.assertFalse(semantics["qualified_csi_features"])
+        self.assertFalse(semantics["diagnostics_establish_radio_provenance"])
+        self.assertFalse(semantics["native_context_qualifies_primary_features"])
+        self.assertEqual(rows[0]["provenance"]["primary_api_semantics"], semantics)
+        self.assertEqual(receipt["primary_api_semantics"], semantics)
+        self.assertTrue(
+            rows[0]["provenance"]["node_evidence"]["7"]["native_profile_compatible"]
+        )
+        self.assertFalse(rows[0]["provenance"]["native_profile_qualified"])
+
     def test_sequence_gap_excludes_boundary_then_recovers_on_new_primary_inputs(self):
         observations = [
             observation(),

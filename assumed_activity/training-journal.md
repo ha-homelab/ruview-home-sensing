@@ -1,10 +1,16 @@
-# Shadow feature journal
+# Shadow telemetry journal
 
 `python -m assumed_activity.training_journal` records read-only observations at
 a new shadow evaluation boundary. It fixes the loss of full per-node features
 in a projection which retained only `nodes`: the sensing API exposes signal
 metrics under **`node_features`**. This journal includes `motion_band_power`,
 `variance`, other finite numeric feature fields and selected diagnostic values.
+These are primary API telemetry fields with no per-feature producer provenance
+in the journal. Their values may come from host CSI processing or firmware
+`motion_energy`; collecting the full array does not make them qualified CSI
+features. The `nodes` diagnostics and native-worker grid are separate context,
+not proof of the primary values' radio origin. In particular, a diagnostic
+`subcarrier_count=0` may describe a vitals envelope.
 
 It does not change or replay the production producer, publish to Home Assistant,
 label occupancy, or qualify a model. Independent source annotations and a
@@ -62,4 +68,4 @@ must not be labeled clean closure.
 On Linux, metadata records a bounded canonical boot UUID and `CLOCK_MONOTONIC`.
 Unsupported or invalid boot identity remains null. This permits a proven
 same-kernel join to separately verified reference events; it is not a guessed
-UTC clock calibration. See the [verified full-feature join](shadow-join.md).
+UTC clock calibration. See the [verified primary-telemetry join](shadow-join.md).
