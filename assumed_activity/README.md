@@ -13,3 +13,8 @@ and geometry are supplied by the installation and stay private.
 python -m unittest discover -s assumed_activity/tests -v
 python -m assumed_activity --help
 ```
+
+For a separately bounded, read-only stream of complete numeric node features,
+see the [shadow feature journal](training-journal.md). Its observations can feed
+a separately reviewed training adapter; they do not supply recognition labels
+or change this production activity service.
