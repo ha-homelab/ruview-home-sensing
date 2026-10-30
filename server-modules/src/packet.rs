@@ -35,9 +35,18 @@ pub struct Packet {
     pub noise_floor_dbm: i8,
     pub grid: Grid,
     pub iq: [i8; SUBCARRIERS * 2],
+    pub admission: Option<crate::admission::Admission>,
 }
 
 pub fn parse(data: &[u8], allowed_nodes: &[u8]) -> Result<Packet, &'static str> {
+    parse_with_admission(data, allowed_nodes, None)
+}
+
+pub(crate) fn parse_with_admission(
+    data: &[u8],
+    allowed_nodes: &[u8],
+    admission: Option<crate::admission::Admission>,
+) -> Result<Packet, &'static str> {
     if data.len() < HEADER || data.len() > MAX_PACKET {
         return Err("invalid_length");
     }
@@ -66,8 +75,15 @@ pub fn parse(data: &[u8], allowed_nodes: &[u8]) -> Result<Packet, &'static str> 
     }
     // Pinned sender csi_collector.c ADR018/ADR110: bit 4 is sync-valid metadata;
     // bit 0 changes bandwidth and bit 2 denotes STBC. Admit only the observed
-    // 0/0x10 profiles, without treating that flag as a verified device clock.
-    if grid.ppdu_type != 0 || grid.flags & !SYNC_VALID_METADATA != 0 {
+    // 0/0x10 profiles by default. The separate, explicitly reviewed LLTF-only
+    // sender policy may admit STBC metadata, never arbitrary other LTF layouts.
+    // Neither profile treats the sync flag as a verified device clock.
+    let allowed_flags = if admission.is_some() {
+        SYNC_VALID_METADATA | 0x04
+    } else {
+        SYNC_VALID_METADATA
+    };
+    if grid.ppdu_type != 0 || grid.flags & !allowed_flags != 0 {
         return Err("unqualified_ppdu_or_flags");
     }
     let mut iq = [0; SUBCARRIERS * 2];
@@ -81,6 +97,7 @@ pub fn parse(data: &[u8], allowed_nodes: &[u8]) -> Result<Packet, &'static str> 
         noise_floor_dbm: data[17] as i8,
         grid,
         iq,
+        admission,
     })
 }
 

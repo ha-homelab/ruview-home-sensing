@@ -48,6 +48,16 @@ impl Features {
     pub fn update(&mut self, packet: &Packet) {
         self.previous = self.phases;
         for k in 0..64 {
+            // Legacy wire format omits first_word_invalid. The opt-in LLTF
+            // profile conservatively masks both potentially invalid pairs,
+            // retaining all 64 indices. Original packet bytes remain untouched.
+            if packet.admission.as_ref().is_some_and(|a| a.masked_wire_pairs.contains(&k)) {
+                self.amplitudes[k] = 0.;
+                self.phases[k] = 0.;
+                self.previous[k] = 0.;
+                self.last_wrapped[k] = 0.;
+                continue;
+            }
             let i = f32::from(packet.iq[k * 2]);
             let q = f32::from(packet.iq[k * 2 + 1]);
             self.amplitudes[k] = i.hypot(q);
@@ -202,5 +212,32 @@ mod tests {
         assert_eq!(f.amplitudes[0], 5.);
         assert!((f.phases[0] - 4f32.atan2(3.)).abs() < 1e-6);
         assert_eq!(p.iq[0..2], [3, 4]);
+    }
+
+    #[test]
+    fn reviewed_lltf_masks_unknown_first_word_without_shifting_or_rewriting_raw() {
+        let policy = crate::admission::fixture_policy(2, 'c');
+        let mut bytes = crate::packet::fixture(2, 1);
+        bytes[19] = 4;
+        bytes[20..26].copy_from_slice(&[3, 4, 30, 40, 5, 12]);
+        let packet = policy.parse(&bytes, &[2], "127.0.0.1".parse().unwrap()).unwrap();
+        let raw = packet.iq;
+        let mut features = Features::default();
+        features.update(&packet);
+        assert_eq!(features.amplitudes[0..3], [0., 0., 13.]);
+        assert_eq!(features.phases[0..2], [0., 0.]);
+        assert_eq!(packet.iq, raw);
+        let mut changed = packet.clone();
+        changed.iq[0..4].copy_from_slice(&[-128, 127, 127, -128]);
+        features.update(&changed);
+        let mut control = Features::default();
+        control.update(&packet);
+        control.update(&packet);
+        assert_eq!(features.motion, control.motion);
+        assert_eq!(features.variances[0..2], [0., 0.]);
+        let legacy = crate::packet::parse(&crate::packet::fixture(2, 1), &[2]).unwrap();
+        let mut legacy_features = Features::default();
+        legacy_features.update(&legacy);
+        assert!(legacy_features.amplitudes[0] > 0.);
     }
 }

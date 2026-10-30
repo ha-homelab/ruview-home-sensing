@@ -261,6 +261,13 @@ def worker_projection(worker, row):
         "node_epoch": integer(row.get("node_epoch")),
         "sequence_discontinuities": integer(row.get("sequence_discontinuities")),
         "epoch_reason": identity(row.get("epoch_reason")),
+        "legacy_raw64_profile": row.get("admission") is None,
+        "admission_profile": identity(row["admission"].get("profile"))
+        if isinstance(row.get("admission"), dict)
+        else None,
+        "admission_manifest_sha256": identity(row["admission"].get("manifest_sha256"))
+        if isinstance(row.get("admission"), dict)
+        else None,
         "grid": {
             key: integer(grid.get(key))
             for key in (
@@ -334,6 +341,7 @@ def project(sensing, worker, nodes, now_ns, max_age_ms, proofs=None):
                 and grid["subcarriers"] == 64
                 and grid["ppdu_type"] == 0
                 and grid["flags"] in (0, 16)
+                and projected_worker["legacy_raw64_profile"]
             )
         result.append(
             {

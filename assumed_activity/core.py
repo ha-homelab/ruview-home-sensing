@@ -333,6 +333,7 @@ class Producer:
             "source_at_ns": None,
         }
         try:
+            require(worker.get("admission") is None, "ineligible_native_profile")
             grid = worker["grid"]
             require(
                 type(grid["antennas"]) is int

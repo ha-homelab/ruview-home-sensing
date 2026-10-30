@@ -138,6 +138,20 @@ class ProjectionTests(TestCase):
         self.assertFalse(result["native_profile_compatible"])
         self.assertEqual(result["worker"]["grid"]["flags"], 4)
 
+    def test_masked_lltf_is_distinct_even_when_stbc_bit_is_clear(self):
+        source = worker()
+        source["nodes"][0]["admission"] = {
+            "profile": "esp32s3-associated-lltf64-mask2-v1",
+            "manifest_sha256": "a" * 64,
+        }
+        result = journal.project(sensing(), source, [7], NOW, 2500)[0]
+        self.assertFalse(result["native_profile_compatible"])
+        self.assertFalse(result["worker"]["legacy_raw64_profile"])
+        self.assertEqual(result["worker"]["admission_manifest_sha256"], "a" * 64)
+        source["nodes"][0]["admission"] = "malformed"
+        result = journal.project(sensing(), source, [7], NOW, 2500)[0]
+        self.assertFalse(result["native_profile_compatible"])
+
     def test_duplicate_node_ids_do_not_pick_a_favorable_value(self):
         source = sensing()
         source["node_features"].append(copy.deepcopy(source["node_features"][0]))

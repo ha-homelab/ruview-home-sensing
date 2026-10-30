@@ -4,6 +4,7 @@ mod snapshot_cache;
 
 use http_encoding::MAX_HTTP;
 use ruview_server_modules::{
+    admission::{Policy, MAX_MANIFEST_BYTES},
     engine::{self, age_snapshot, Engine, Stamp, FRESH_NS},
     packet, sha256,
 };
@@ -85,6 +86,7 @@ struct Options {
     capture_socket: Option<PathBuf>,
     record_seconds: u64,
     record_bytes: u64,
+    admission: Policy,
 }
 impl Options {
     fn read() -> Result<Self, String> {
@@ -97,11 +99,14 @@ impl Options {
         let mut capture_socket = None;
         let mut record_seconds = 600;
         let mut record_bytes = 100_000_000;
+        let mut admission_manifest = None;
+        let mut admission_sha256 = None;
         let mut args = env::args().skip(1);
         while let Some(arg) = args.next() {
             if arg == "--help" {
                 println!("ruview-server-modules --allow-source PRIVATE_IP_OR_CIDR [--nodes 1,2,3] [--listen-udp 0.0.0.0:5015] [--listen-http 0.0.0.0:5016] [--record-jsonl EXCLUSIVE_PATH --record-seconds 600 --record-max-bytes 100000000] [--capture-directory PRIVATE_SESSION_DIR --capture-admin-socket PRIVATE_NEW_SOCKET]");
                 println!("ruview-server-modules capture-control SOCKET JSON\nruview-server-modules capture-export DIRECTORY SESSION opening|terminal|raw");
+                println!("Optional reviewed sender binding: --csi-admission-manifest PRIVATE_FILE --csi-admission-sha256 INDEPENDENTLY_REVIEWED_SHA256");
                 std::process::exit(0);
             }
             let value = args.next().ok_or("missing argument value")?;
@@ -111,6 +116,8 @@ impl Options {
                 "--nodes" => nodes = value,
                 "--allow-source" => source_text.push(value),
                 "--record-jsonl" => record = Some(PathBuf::from(value)),
+                "--csi-admission-manifest" => admission_manifest = Some(PathBuf::from(value)),
+                "--csi-admission-sha256" => admission_sha256 = Some(value),
                 "--capture-directory" => capture_dir = Some(PathBuf::from(value)),
                 "--capture-admin-socket" => capture_socket = Some(PathBuf::from(value)),
                 "--record-seconds" => {
@@ -151,6 +158,21 @@ impl Options {
         if capture_dir.is_some() != capture_socket.is_some() {
             return Err("both capture directory and Unix admin socket are required".into());
         }
+        let admission = match (admission_manifest, admission_sha256) {
+            (None, None) => Policy::default(),
+            (Some(path), Some(expected)) => {
+                let file = OpenOptions::new().read(true).custom_flags(libc::O_NONBLOCK).open(path)
+                    .map_err(|_| "cannot read admission manifest")?;
+                if !file.metadata().map_err(|_| "cannot stat admission manifest")?.is_file() {
+                    return Err("admission manifest must be a regular file".into());
+                }
+                let mut bytes = Vec::new();
+                file.take((MAX_MANIFEST_BYTES + 1) as u64).read_to_end(&mut bytes)
+                    .map_err(|_| "cannot read admission manifest")?;
+                Policy::from_bytes(&bytes, &expected, &nodes).map_err(str::to_owned)?
+            }
+            _ => return Err("both admission manifest and reviewed SHA256 are required".into()),
+        };
         Ok(Self {
             udp: udp.parse().map_err(|_| "invalid UDP address")?,
             http: http.parse().map_err(|_| "invalid HTTP address")?,
@@ -162,6 +184,7 @@ impl Options {
             capture_socket,
             record_seconds,
             record_bytes,
+            admission,
         })
     }
 }
@@ -319,6 +342,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if options.capture_dir.is_some() {
         configuration["capture_protocol"] = json!("ruview.capture.control.v2");
     }
+    if let Some(admission) = options.admission.configuration() {
+        configuration["csi_admission"] = admission;
+        configuration["allowed_adr018_flags_scope"] = json!("default_policy_for_unlisted_nodes");
+        configuration["feature_contract"] = json!("per_node_profile_legacy_or_lltf64_mask2_v1");
+    }
     let configuration_sha256 = sha256(&serde_json::to_vec(&configuration)?);
     let mut engine = Engine::new(
         &options.nodes,
@@ -380,6 +408,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let recv_counters = counters.clone();
     let nodes = options.nodes.clone();
     let sources = options.sources.clone();
+    let admission = options.admission.clone();
     thread::Builder::new()
         .name("csi-receiver".into())
         .spawn(move || {
@@ -403,7 +432,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .fetch_add(1, Ordering::Relaxed);
                     continue;
                 }
-                let packet = match packet::parse(&buffer[..length], &nodes) {
+                let packet = match admission.parse(&buffer[..length], &nodes, source.ip()) {
                     Ok(v) => v,
                     Err(_) => {
                         recv_counters.rejected.fetch_add(1, Ordering::Relaxed);
@@ -496,6 +525,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         "clock_id":clock_id,"monotonic_origin":"worker_start","sequence":p.sequence,
                         "antennas":p.grid.antennas,"subcarriers":p.grid.subcarriers,"frequency_mhz":p.grid.frequency_mhz,
                         "ppdu_type":p.grid.ppdu_type,"flags":p.grid.flags,"iq":p.iq.as_slice(),"iq_order":"wire_byte_order",
+                        "admission":p.admission,
                         "source_pair_order":"esp_idf_imaginary_real","worker_phase_convention":"ruview_legacy_atan2_byte1_byte0",
                         "configuration_sha256":configuration_sha256,"device_boot_id":Value::Null,"device_timestamp":Value::Null,
                         "rssi_dbm":p.rssi_dbm,"noise_floor_dbm":p.noise_floor_dbm,"raw_datagram_sha256":item.raw_sha});

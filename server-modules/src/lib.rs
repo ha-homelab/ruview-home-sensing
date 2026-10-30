@@ -1,3 +1,4 @@
+pub mod admission;
 pub mod algorithms;
 pub mod engine;
 pub mod features;
