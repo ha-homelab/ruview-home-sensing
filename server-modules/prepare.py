@@ -52,8 +52,9 @@ def worker_inputs():
             "build.sh",
         )
     ]
-    source_inputs += sorted((HERE / "src").glob("*.rs"))
+    source_inputs += sorted((HERE / "src").rglob("*.rs"))
     source_inputs += sorted((HERE / "tests").glob("*.py"))
+    source_inputs += sorted((HERE / "tests").glob("*.rs"))
     source_inputs += [HERE / "tests/fixtures/capture-v2.synthetic.json"]
     source_inputs += [HERE / "patches" / name for name in WORKER_PATCHES]
     return {

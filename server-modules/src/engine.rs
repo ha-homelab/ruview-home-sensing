@@ -136,7 +136,7 @@ impl Node {
                 self.discontinuities += 1;
             } else if stamp.mono_ns <= last.mono_ns || clock_error > 250_000_000 {
                 reason = Some("receipt_clock_discontinuity");
-            } else if !old.grid.same_physical_grid(&packet.grid) {
+            } else if !old.grid.same_physical_grid(&packet.grid) || old.admission != packet.admission {
                 reason = Some("grid_changed");
             } else if delta >= 0x8000_0000 {
                 // Recognize only complete packet content already accepted in
@@ -294,6 +294,7 @@ impl Node {
         }).collect();
         json!({"node_id":self.id,"node_epoch":self.epoch,"epoch_reason":self.epoch_reason,
             "sequence":self.packet.as_ref().map(|p|p.sequence),"grid":self.packet.as_ref().map(|p|p.grid),
+            "admission":self.packet.as_ref().and_then(|p|p.admission.as_ref()),
             "last_received_at_ns":self.stamp.map(|s|s.utc_ns.to_string()),
             "last_received_monotonic_ns":self.stamp.map(|s|s.mono_ns.to_string()),
             "age_ms":Value::Null,"fresh":false,"cadence_hz":self.cadence.rate(),
@@ -974,6 +975,30 @@ mod tests {
         assert_eq!(e.snapshot()["nodes"][0]["node_epoch"], 2);
         assert_eq!(e.snapshot()["nodes"][0]["epoch_reason"], "grid_changed");
         assert!(e.snapshot()["events"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
+    fn reviewed_lltf_has_separate_history_for_stbc_and_provenance_changes() {
+        let mut e = engine();
+        let policy = crate::admission::fixture_policy(1, 'c');
+        let changed_policy = crate::admission::fixture_policy(1, 'd');
+        for seq in 0..90 {
+            let mut bytes = crate::packet::fixture(1, seq);
+            bytes[19] = if seq % 2 == 0 { 4 } else { 20 };
+            let packet = policy.parse(&bytes, &[1], "127.0.0.1".parse().unwrap()).unwrap();
+            e.process(packet, Stamp { utc_ns:1_000_000_000_000+u64::from(seq)*32_000_000, mono_ns:u64::from(seq)*32_000_000 });
+        }
+        assert_eq!(e.snapshot()["nodes"][0]["node_epoch"], 1);
+        assert_eq!(e.snapshot()["nodes"][0]["epoch_frames"], 90);
+        assert_eq!(e.snapshot()["nodes"][0]["admission"]["profile"], crate::admission::PROFILE);
+        for (seq, flags, selected) in [(90, 0, &policy), (91, 0, &changed_policy), (92, 4, &changed_policy)] {
+            let mut bytes = crate::packet::fixture(1, seq); bytes[19] = flags;
+            let packet = selected.parse(&bytes, &[1], "127.0.0.1".parse().unwrap()).unwrap();
+            e.process(packet, Stamp { utc_ns:1_000_000_000_000+u64::from(seq)*32_000_000, mono_ns:u64::from(seq)*32_000_000 });
+            assert_eq!(e.snapshot()["nodes"][0]["epoch_frames"], 1);
+            assert_eq!(e.snapshot()["nodes"][0]["epoch_reason"], "grid_changed");
+        }
+        assert_eq!(e.snapshot()["nodes"][0]["node_epoch"], 4);
     }
     #[test]
     fn real_occupancy_adapter_preserves_all_same_id_group_occurrences() {

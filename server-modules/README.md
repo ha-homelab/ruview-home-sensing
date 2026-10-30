@@ -4,6 +4,10 @@ This Rust worker consumes per-receiver CSI, maintains bounded state, and exports
 freshness, accounting and diagnostic output. `algorithms.json` declares the module
 catalog. Module availability does not establish recognition accuracy.
 
+See [CSI sender profiles](CSI-PROFILES.md) for explicit LLTF/STBC admission,
+provenance, raw preservation, first-word masking and downstream feature
+boundaries. Default admission remains unchanged.
+
 ```sh
 python server-modules/prepare.py /tmp/ruview-native
 cd /tmp/ruview-native/worker

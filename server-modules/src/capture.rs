@@ -322,6 +322,7 @@ fn row(frame: &Frame, identity: &Identity, session: &str) -> Value {
         "node_id":p.node_id,"received_at_ns":frame.stamp.utc_ns,"received_monotonic_ns":frame.stamp.mono_ns,
         "monotonic_origin":"worker_start","sequence":p.sequence,"antennas":p.grid.antennas,"subcarriers":p.grid.subcarriers,
         "frequency_mhz":p.grid.frequency_mhz,"ppdu_type":p.grid.ppdu_type,"flags":p.grid.flags,"iq":p.iq.as_slice(),
+        "admission":p.admission,
         "iq_order":"wire_byte_order","source_pair_order":"esp_idf_imaginary_real","worker_phase_convention":"ruview_legacy_atan2_byte1_byte0",
         "device_boot_id":Value::Null,"device_timestamp":Value::Null,"rssi_dbm":p.rssi_dbm,"noise_floor_dbm":p.noise_floor_dbm,
         "raw_datagram_sha256":sha256(&frame.raw),"raw_datagram_hex":frame.raw.iter().map(|b|format!("{b:02x}")).collect::<String>()}),

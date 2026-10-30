@@ -126,6 +126,9 @@ class CoreTests(unittest.TestCase):
             lambda h, w, s: w.update(generated_at_ns=str(BASE_NS + 10**12)),
             lambda h, w, s: s.update(timestamp=math.nan),
             lambda h, w, s: w["nodes"][0]["grid"].update(flags=20),
+            lambda h, w, s: w["nodes"][0].update(
+                admission={"profile": "esp32s3-associated-lltf64-mask2-v1"}
+            ),
             lambda h, w, s: w["nodes"][0]["grid"].update(antennas=True),
             lambda h, w, s: w["nodes"][0].update(fresh=False),
             lambda h, w, s: w["nodes"][0].update(node_epoch=True),

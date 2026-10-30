@@ -2,6 +2,7 @@
 name = "ruview-server-modules"
 version = "0.2.0"
 edition = "2021"
+default-run = "ruview-server-modules"
 license = "MIT"
 
 [dependencies]
