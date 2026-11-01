@@ -29,10 +29,12 @@ Software tests establish the contracts they exercise. They do not establish reco
 
 ## Software release
 
-The **0.4.1-beta.1** candidate versions the reviewed Python 3.15 container-image
-refresh and updated packaging backend. Its Python package version is `0.4.1b1`.
-See the [candidate notes](docs/release-notes.md#041-beta1) for scope and checks;
-no inference models, firmware payloads or installation state change.
+The **0.4.1-beta.2** candidate includes the upstream collector corrections,
+bounded firmware probe waits, reviewed CSI admission profiles and experimental
+shadow telemetry tooling. Its Python package version is `0.4.1b2`.
+See the [candidate notes](docs/release-notes.md#041-beta2) for compatibility and
+validation limits. Published software does not update installation state or
+qualify a model or device.
 
 The **0.4.0** software release follows the reviewed `0.4.0-rc.3` candidate. See the
 [release notes](docs/release-notes.md) for the bridge freshness correction and

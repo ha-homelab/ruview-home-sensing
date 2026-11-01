@@ -158,6 +158,7 @@ jobs:
               Path("collector/prepare-source.py"),
               Path("collector/source-lock.json"),
               Path("collector/upstream-runtime-fixes.json"),
+              Path("collector/mqtt-freshness-fixes.json"),
               Path("collector/dependency-security.json"),
               Path("collector/dependency_security.py"),
               Path("collector/ring_policy.py"),
@@ -241,9 +242,9 @@ jobs:
               int(value)
               for value in re.findall(r"test result: ok\. (\d+) passed; 0 failed;", log)
           ]
-          # The current Dockerfile runs six separate named suites. If another
+          # The current Dockerfile runs fifteen separate named suites. If another
           # required suite is added, increase this minimum in the same change.
-          if len(counts) < 6 or any(count == 0 for count in counts):
+          if len(counts) < 15 or any(count == 0 for count in counts):
               raise SystemExit(f"Missing or empty native collector regression suite: {counts}")
           if "Actual ring policy checked:" not in log:
               raise SystemExit("Missing actual compiled ring regression")
@@ -259,6 +260,15 @@ jobs:
           for name in ring_source["licenses"]:
               if not (root / "ring-licenses" / name.replace("/", "__")).is_file():
                   raise SystemExit(f"Missing delivered ring license: {name}")
+          dependency_receipt = (root / "dependency-security-receipt.json").read_bytes()
+          dependency_policy = Path("collector/dependency-security.json").read_bytes()
+          if dependency_receipt != dependency_policy:
+              raise SystemExit("Unexpected dependency security receipt")
+          dependency_security = json.loads(dependency_receipt)
+          source_inputs = json.loads((root / "source-inputs.json").read_text())
+          secured_cargo_lock_sha256 = source_inputs.get("cargo_lock_sha256")
+          if secured_cargo_lock_sha256 != dependency_security["lock_after_sha256"]:
+              raise SystemExit("Prepared Cargo.lock does not match dependency security policy")
           notice_root = root / "collector-licenses"
           notice_index_bytes = (notice_root / "index.json").read_bytes()
           notice_index = json.loads(notice_index_bytes)
@@ -283,6 +293,9 @@ jobs:
               "binary_sha256": hashlib.sha256(binary).hexdigest(),
               "native_test_suite_pass_counts": counts,
               "ring_policy_patch_sha256": patch_hash,
+              "dependency_security_receipt_sha256": hashlib.sha256(dependency_receipt).hexdigest(),
+              "dependency_security_patch_sha256": dependency_security["patch_sha256"],
+              "secured_cargo_lock_sha256": secured_cargo_lock_sha256,
               "license_package_count": notice_index["package_count"],
               "license_index_sha256": hashlib.sha256(notice_index_bytes).hexdigest(),
               "arm64_runtime_executed": False,

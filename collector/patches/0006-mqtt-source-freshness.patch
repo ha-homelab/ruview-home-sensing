@@ -1,0 +1,643 @@
+--- a/v2/crates/wifi-densepose-sensing-server/src/main.rs
++++ b/v2/crates/wifi-densepose-sensing-server/src/main.rs
+@@ -11709,6 +11709,158 @@
+     }
+ }
+ 
++/// Lag means some old frames were overwritten, not that the source ended.
++/// Continue from the broadcast receiver's next retained frame after lag.
++#[cfg(feature = "mqtt")]
++async fn mqtt_snapshot_bridge(
++    mut input: broadcast::Receiver<String>,
++    output: broadcast::Sender<wifi_densepose_sensing_server::mqtt::state::VitalsSnapshot>,
++    node_id: String,
++) {
++    loop {
++        let json = match input.recv().await {
++            Ok(json) => json,
++            Err(broadcast::error::RecvError::Lagged(_)) => continue,
++            Err(broadcast::error::RecvError::Closed) => break,
++        };
++        let Ok(value) = serde_json::from_str::<serde_json::Value>(&json) else {
++            continue;
++        };
++        for snapshot in fresh_vitals_snapshots_from_sensing_json(
++            &value, &node_id, chrono::Utc::now().timestamp_millis(),
++        ) {
++            let _ = output.send(snapshot);
++        }
++    }
++}
++
++/// Admit only fresh sensing observations to MQTT. Other broadcasts (WASM,
++/// fused events, etc.) must not become fabricated absent/zero snapshots.
++/// The public JSON stays unchanged; this gate is local to MQTT consumption.
++#[cfg(feature = "mqtt")]
++fn fresh_vitals_snapshots_from_sensing_json(
++    v: &serde_json::Value,
++    base_id: &str,
++    now_ms: i64,
++) -> Vec<wifi_densepose_sensing_server::mqtt::state::VitalsSnapshot> {
++    use wifi_densepose_sensing_server::mqtt::state::snapshot_age_ms;
++
++    let source = v["source"].as_str().unwrap_or("");
++    let timestamp = v["timestamp"].as_f64().unwrap_or(f64::NAN) * 1000.0;
++    if v["type"] != "sensing_update"
++        || source.is_empty()
++        || source.ends_with(":offline")
++        || matches!(source, "offline" | "unavailable" | "unknown")
++        || !timestamp.is_finite()
++        || timestamp <= 0.0
++        || timestamp >= i64::MAX as f64
++        || snapshot_age_ms(timestamp as i64, now_ms).is_none()
++        || v["classification"]["presence"].as_bool().is_none()
++        || v["classification"]["motion_level"] == "unavailable"
++    {
++        return Vec::new();
++    }
++
++    let snapshots = vitals_snapshots_from_sensing_json(v, base_id);
++    let Some(nodes) = v["nodes"].as_array().filter(|nodes| !nodes.is_empty()) else {
++        return snapshots;
++    };
++    snapshots.into_iter().zip(nodes).filter_map(|(mut snap, node)| {
++        // Synthetic/wifi NodeInfo may omit node_inference. An explicit
++        // per-node inference must carry fresh source age, including time
++        // spent in a rebroadcast, not merely a fresh envelope timestamp.
++        if let Some(inference) = node.get("node_inference").filter(|value| !value.is_null()) {
++            let classification = inference["classification"].as_str()?;
++            if matches!(classification, "unavailable" | "unknown" | "") {
++                return None;
++            }
++            let age = i64::try_from(inference["age_ms"].as_u64()?).ok()?;
++            snap.timestamp_ms = snap.timestamp_ms.checked_sub(age)?;
++            snapshot_age_ms(snap.timestamp_ms, now_ms)?;
++        }
++        Some(snap)
++    }).collect()
++}
++
++#[cfg(all(test, feature = "mqtt"))]
++mod mqtt_freshness_tests {
++    use super::*;
++    use serde_json::json;
++
++    fn frame() -> serde_json::Value {
++        json!({"type":"sensing_update", "source":"esp32", "timestamp":20.0,
++               "classification":{"presence":true,"motion_level":"present_still","confidence":0.8},
++               "nodes":[{"node_id":1,"node_inference":{"classification":"present_still","confidence":0.8,"age_ms":100}}]})
++    }
++
++    #[test]
++    fn expired_and_offline_rebroadcasts_never_refresh_mqtt() {
++        assert!(fresh_vitals_snapshots_from_sensing_json(&frame(), "n", 30_000).is_empty());
++        let mut v = frame();
++        v["source"] = json!("esp32:offline");
++        assert!(fresh_vitals_snapshots_from_sensing_json(&v, "n", 20_000).is_empty());
++    }
++
++    #[test]
++    fn invalid_future_and_non_sensing_payloads_are_not_empty_room_observations() {
++        for ts in [serde_json::Value::Null, json!(0), json!(-1), json!(21.0), json!("20")] {
++            let mut v = frame(); v["timestamp"] = ts;
++            assert!(fresh_vitals_snapshots_from_sensing_json(&v, "n", 20_000).is_empty());
++        }
++        let mut v = frame(); v["type"] = json!("wasm_event");
++        assert!(fresh_vitals_snapshots_from_sensing_json(&v, "n", 20_000).is_empty());
++    }
++
++    #[test]
++    fn fresh_absence_is_preserved_but_unavailable_is_withheld() {
++        let mut v = frame();
++        v["classification"]["presence"] = json!(false);
++        v["classification"]["motion_level"] = json!("absent");
++        v["nodes"][0]["node_inference"]["classification"] = json!("absent");
++        let snaps = fresh_vitals_snapshots_from_sensing_json(&v, "n", 20_000);
++        assert_eq!(snaps.len(), 1); assert!(!snaps[0].presence);
++        v["classification"]["motion_level"] = json!("unavailable");
++        assert!(fresh_vitals_snapshots_from_sensing_json(&v, "n", 20_000).is_empty());
++    }
++
++    #[test]
++    fn source_age_includes_rebroadcast_age_without_aggregate_fallback() {
++        let mut v = frame(); v["nodes"][0]["node_inference"]["age_ms"] = json!(9_500);
++        assert!(fresh_vitals_snapshots_from_sensing_json(&v, "n", 20_500).is_empty());
++        v["nodes"][0]["node_inference"]["age_ms"] = json!(100);
++        let snaps = fresh_vitals_snapshots_from_sensing_json(&v, "n", 20_500);
++        assert_eq!(snaps.len(), 1); assert_eq!(snaps[0].timestamp_ms, 19_900);
++        v["nodes"][0]["node_inference"]["age_ms"] = serde_json::Value::Null;
++        assert!(fresh_vitals_snapshots_from_sensing_json(&v, "n", 20_500).is_empty());
++    }
++
++    #[tokio::test]
++    async fn lagged_bridge_continues_with_retained_fresh_frames() {
++        let (input, receiver) = broadcast::channel(2);
++        let (output, mut received) = broadcast::channel(4);
++        let mut v = frame();
++        v["timestamp"] = json!(chrono::Utc::now().timestamp_millis() as f64 / 1000.0);
++        for _ in 0..3 { input.send(v.to_string()).unwrap(); }
++        // Receiver first sees Lagged, then the two retained fresh messages.
++        let task = tokio::spawn(mqtt_snapshot_bridge(receiver, output, "n".into()));
++        let snapshot = tokio::time::timeout(Duration::from_secs(1), received.recv())
++            .await.unwrap().unwrap();
++        assert_eq!(snapshot.node_id, "n-node1");
++        assert!(snapshot.presence);
++        drop(input);
++        tokio::time::timeout(Duration::from_secs(1), task).await.unwrap().unwrap();
++    }
++
++    #[test]
++    fn fresh_legacy_aggregate_and_synthetic_nodes_remain_supported() {
++        let mut v = frame(); v["source"] = json!("simulated");
++        v["nodes"] = json!([]);
++        assert_eq!(fresh_vitals_snapshots_from_sensing_json(&v, "n", 20_000).len(), 1);
++        v["nodes"] = json!([{"node_id":0}]);
++        assert_eq!(fresh_vitals_snapshots_from_sensing_json(&v, "n", 20_000).len(), 1);
++    }
++}
++
+ /// Map one sensing-broadcast JSON document into the `VitalsSnapshot`(s) to
+ /// publish over MQTT (issues #872/#898).
+ ///
+@@ -12909,22 +13061,8 @@
+                     let (vtx, vrx) = broadcast::channel::<mqtt::state::VitalsSnapshot>(64);
+                     let (host, port) = (mcfg.host.clone(), mcfg.port);
+                     mqtt::publisher::spawn(mcfg, builder, vrx);
+-                    let mut jrx = tx.subscribe();
+-                    tokio::spawn(async move {
+-                        while let Ok(json) = jrx.recv().await {
+-                            let Ok(v) = serde_json::from_str::<serde_json::Value>(&json) else {
+-                                continue;
+-                            };
+-                            // #898/#872: emit one snapshot per physical node so
+-                            // each surfaces as its own Home-Assistant device with
+-                            // its *own* presence/motion/RSSI (see
+-                            // vitals_snapshots_from_sensing_json). Falls back to a
+-                            // single aggregate snapshot for per-node-less sources.
+-                            for snap in vitals_snapshots_from_sensing_json(&v, &node_id) {
+-                                let _ = vtx.send(snap);
+-                            }
+-                        }
+-                    });
++                    let jrx = tx.subscribe();
++                    tokio::spawn(mqtt_snapshot_bridge(jrx, vtx, node_id));
+                     tracing::info!("MQTT publisher started -> {host}:{port}");
+                 }
+                 Err(e) => tracing::error!("MQTT config invalid: {e}; publisher not started"),
+--- a/v2/crates/wifi-densepose-sensing-server/src/mqtt/publisher.rs
++++ b/v2/crates/wifi-densepose-sensing-server/src/mqtt/publisher.rs
+@@ -65,11 +65,94 @@
+ /// Heartbeat cadence for availability re-publication (per §3.6).
+ const AVAILABILITY_HEARTBEAT: Duration = Duration::from_secs(30);
+ 
+-/// A node whose broadcast snapshot hasn't arrived within this window is
++/// A node whose source observation is older than this window is
+ /// treated as stale for the availability heartbeat, not just "quiet" (issue
+ /// #1555). Matches `NODE_STALE_AFTER_MS` in `main.rs`'s room-fusion staleness
+ /// window, so "stale" means the same thing on the MQTT and WebSocket paths.
+ const NODE_SNAPSHOT_STALE_AFTER: Duration = Duration::from_secs(10);
++
++/// Source time is anchored to the monotonic availability clock. Repeated
++/// delivery of one observation cannot renew the node's last-seen instant.
++fn snapshot_seen_at(timestamp_ms: i64, now_ms: i64, now: Instant) -> Option<Instant> {
++    let age = super::state::snapshot_age_ms(timestamp_ms, now_ms)?;
++    now.checked_sub(Duration::from_millis(age))
++}
++
++/// Persistent timer; recreated sleeps are cancelled by every incoming frame.
++fn maintenance_timer() -> tokio::time::Interval {
++    let mut timer = tokio::time::interval(Duration::from_secs(1));
++    timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
++    timer
++}
++
++#[cfg(test)]
++mod freshness_tests {
++    use super::*;
++
++    #[test]
++    fn repeated_sample_does_not_renew_source_age() {
++        let now = Instant::now();
++        let first = snapshot_seen_at(20_000, 21_000, now).unwrap();
++        let later = snapshot_seen_at(20_000, 25_000, now + Duration::from_secs(4)).unwrap();
++        assert_eq!(first, later);
++        assert!(snapshot_seen_at(20_000, 30_000, now).is_none());
++        assert!(snapshot_seen_at(21_001, 21_000, now).is_none());
++    }
++
++    #[tokio::test]
++    async fn full_request_queue_returns_without_waiting_for_its_own_event_loop() {
++        let opts = MqttOptions::new("queue-test", ("127.0.0.1", 1883));
++        let (client, _eventloop) = AsyncClient::builder(opts).capacity(1).build();
++        let availability = NodeAvailability { online_topics: vec!["test/availability".into()] };
++        publish_availability(&client, &availability, "online").unwrap();
++        // Never poll the event loop: no socket or broker is opened by this test.
++        assert!(publish_availability(&client, &availability, "offline").is_err());
++    }
++
++    #[test]
++    fn failed_batches_remain_pending_and_fresh_input_restores_availability() {
++        let opts = MqttOptions::new("retry-test", ("127.0.0.1", 1883));
++        let (blocked, _eventloop) = AsyncClient::builder(opts).capacity(1).build();
++        let topics = NodeAvailability { online_topics: vec!["test/availability".into()] };
++        publish_availability(&blocked, &topics, "online").unwrap();
++        let now = Instant::now();
++        let mut node = NodePublication {
++            builder: OwnedDiscoveryBuilder {
++                discovery_prefix: "homeassistant".into(), node_id: "test".into(),
++                node_friendly_name: None, sw_version: "test".into(), model: "test".into(), via_device: None,
++            },
++            availability: topics, last_seen: now - Duration::from_secs(11),
++            discovery_pending: true, availability_pending: false, announced_online: Some(true),
++        };
++        node.queue_maintenance(&blocked, &[EntityKind::Presence], false, false, now);
++        assert!(node.availability_pending && node.discovery_pending);
++        assert_eq!(node.announced_online, Some(true), "failed enqueue is not success");
++        let opts = MqttOptions::new("retry-drained", ("127.0.0.1", 1883));
++        let (drained, _eventloop) = AsyncClient::builder(opts).capacity(16).build();
++        node.queue_maintenance(&drained, &[EntityKind::Presence], false, false, now);
++        assert!(!node.availability_pending && !node.discovery_pending);
++        assert_eq!(node.announced_online, Some(false));
++        node.last_seen = now;
++        node.queue_maintenance(&drained, &[EntityKind::Presence], false, false, now);
++        assert_eq!(node.announced_online, Some(true), "fresh input need not wait thirty seconds");
++    }
++
++    #[tokio::test]
++    async fn persistent_maintenance_wins_even_with_always_ready_input() {
++        let mut timer = maintenance_timer();
++        timer.tick().await; // consume the immediate first tick
++        let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
++        let mut ticks = 0;
++        while tokio::time::Instant::now() < deadline {
++            tokio::select! {
++                biased;
++                _ = timer.tick() => { ticks += 1; break; }
++                _ = std::future::ready(()) => { tokio::task::yield_now().await; }
++            }
++        }
++        assert_eq!(ticks, 1, "ready traffic must not starve maintenance");
++    }
++}
+ 
+ /// Build a `rumqttc::MqttOptions` from validated [`MqttConfig`].
+ fn build_mqtt_options(cfg: &MqttConfig) -> MqttOptions {
+@@ -162,6 +245,52 @@
+     }
+ }
+ 
++/// A successful enqueue is not a broker acknowledgement. Failed batches
++/// remain pending, so later maintenance retries them after the event loop
++/// drains its bounded request queue. Completed nodes do not starve retries.
++struct NodePublication {
++    builder: OwnedDiscoveryBuilder,
++    availability: NodeAvailability,
++    last_seen: Instant,
++    discovery_pending: bool,
++    availability_pending: bool,
++    announced_online: Option<bool>,
++}
++
++impl NodePublication {
++    fn queue_maintenance(
++        &mut self,
++        client: &AsyncClient,
++        entities: &[EntityKind],
++        heartbeat: bool,
++        refresh: bool,
++        now: Instant,
++    ) {
++        let online = now.saturating_duration_since(self.last_seen) < NODE_SNAPSHOT_STALE_AFTER;
++        if heartbeat || self.availability_pending || self.announced_online != Some(online) {
++            match publish_availability(client, &self.availability, if online { "online" } else { "offline" }) {
++                Ok(()) => {
++                    self.announced_online = Some(online);
++                    self.availability_pending = false;
++                }
++                Err(e) => {
++                    self.availability_pending = true;
++                    otel_warn!("[mqtt] availability enqueue failed; will retry: {e}");
++                }
++            }
++        }
++        if refresh || self.discovery_pending {
++            match publish_all_discovery(client, &self.builder.as_borrowed(), entities) {
++                Ok(()) => self.discovery_pending = false,
++                Err(e) => {
++                    self.discovery_pending = true;
++                    otel_warn!("[mqtt] discovery enqueue failed; will retry: {e}");
++                }
++            }
++        }
++    }
++}
++
+ /// Spawn the MQTT publisher background task. Returns the join handle so
+ /// the caller can `await` it on shutdown. Errors during connection are
+ /// retried internally by `rumqttc::EventLoop`.
+@@ -218,8 +347,8 @@
+     }
+ }
+ 
+-/// Core run loop. Pumps the broadcast channel + the MQTT event loop in
+-/// the same `select!` so we never block one on the other.
++/// Core run loop. All request enqueues are nonblocking because this task
++/// also owns the event loop that drains the bounded MQTT request queue.
+ async fn run(
+     cfg: Arc<MqttConfig>,
+     builder_owned: OwnedDiscoveryBuilder,
+@@ -240,19 +369,15 @@
+     // each node's builder + availability are retained here for heartbeats and
+     // the offline LWT. (Previously a single hard-coded builder collapsed every
+     // node into one device.)
+-    // Issue #1555: the third tuple element is the Instant this node's last
+-    // broadcast snapshot arrived, so the heartbeat below can tell a node that
+-    // has genuinely gone quiet from one that's just between publish-rate
+-    // ticks, and stop asserting "online" for it.
+-    let mut nodes: std::collections::HashMap<
+-        String,
+-        (OwnedDiscoveryBuilder, NodeAvailability, Instant),
+-    > = std::collections::HashMap::new();
++    // Preserve observation time separately from enqueue/receipt time.
++    let mut nodes: std::collections::HashMap<String, NodePublication> =
++        std::collections::HashMap::new();
+ 
+     let mut rate_limiter = RateLimiter::new();
+     let mut last_heartbeat = Instant::now();
+     let mut last_refresh = Instant::now();
+     let start_instant = Instant::now();
++    let mut maintenance = maintenance_timer();
+ 
+     info!(
+         host = %cfg.host,
+@@ -266,6 +391,18 @@
+     loop {
+         tokio::select! {
+             biased;
++
++            // Periodic heartbeat / discovery refresh.
++            _ = maintenance.tick() => {
++                let now = Instant::now();
++                let heartbeat = last_heartbeat.elapsed() >= AVAILABILITY_HEARTBEAT;
++                let refresh = last_refresh.elapsed() >= Duration::from_secs(cfg.refresh_secs);
++                for node in nodes.values_mut() {
++                    node.queue_maintenance(&client, &entities, heartbeat, refresh, now);
++                }
++                if heartbeat { last_heartbeat = now; }
++                if refresh { last_refresh = now; }
++            }
+ 
+             // Pump the rumqttc event loop. Errors trigger automatic
+             // reconnect; we just log and continue.
+@@ -281,80 +418,46 @@
+                 }
+             }
+ 
+-            // Periodic heartbeat / discovery refresh.
+-            _ = tokio::time::sleep(Duration::from_secs(1)) => {
+-                if last_heartbeat.elapsed() >= AVAILABILITY_HEARTBEAT {
+-                    for (node_id, (_, na, last_seen)) in &nodes {
+-                        // Issue #1555: a node whose snapshots have actually
+-                        // stopped arriving must go `offline`, not keep
+-                        // reporting `online` on a fixed timer regardless of
+-                        // whether its data is still flowing — a frozen HA
+-                        // entity that still shows "available" is worse than
+-                        // one correctly marked unavailable.
+-                        let state = if last_seen.elapsed() < NODE_SNAPSHOT_STALE_AFTER {
+-                            "online"
+-                        } else {
+-                            "offline"
+-                        };
+-                        if let Err(e) = publish_availability(&client, na, state).await {
+-                            otel_warn!("[mqtt] heartbeat publish failed for node {node_id}: {e}");
+-                        }
+-                    }
+-                    last_heartbeat = Instant::now();
+-                }
+-                if last_refresh.elapsed() >= Duration::from_secs(cfg.refresh_secs) {
+-                    for (nb, _, _) in nodes.values() {
+-                        if let Err(e) =
+-                            publish_all_discovery(&client, &nb.as_borrowed(), &entities).await
+-                        {
+-                            otel_warn!("[mqtt] discovery refresh failed: {e}");
+-                        }
+-                    }
+-                    last_refresh = Instant::now();
+-                }
+-            }
+-
+             // Inbound state snapshot from the rest of sensing-server.
+             recv = state_rx.recv() => {
+                 match recv {
+                     Ok(snap) => {
+                         let elapsed = start_instant.elapsed();
+                         let now = Instant::now();
+-                        // #898: on first sight of a node_id, publish that
+-                        // node's discovery + availability; then route its
+-                        // state to per-node topics.
+-                        if !nodes.contains_key(&snap.node_id) {
+-                            let nb = builder_owned.for_node(&snap.node_id);
+-                            let borrowed = nb.as_borrowed();
+-                            if let Err(e) =
+-                                publish_all_discovery(&client, &borrowed, &entities).await
+-                            {
+-                                otel_warn!("[mqtt] node {} discovery failed: {e}", snap.node_id);
++                        let Some(seen_at) = snapshot_seen_at(
++                            snap.timestamp_ms, chrono::Utc::now().timestamp_millis(), now,
++                        ) else {
++                            // Expired/future/invalid is unknown, never absence.
++                            continue;
++                        };
++                        let node = nodes.entry(snap.node_id.clone()).or_insert_with(|| {
++                            let builder = builder_owned.for_node(&snap.node_id);
++                            let availability = NodeAvailability::for_builder(&builder.as_borrowed(), &entities);
++                            NodePublication {
++                                builder, availability, last_seen: seen_at,
++                                discovery_pending: true, availability_pending: true,
++                                announced_online: None,
+                             }
+-                            let na = NodeAvailability::for_builder(&borrowed, &entities);
+-                            if let Err(e) = publish_availability(&client, &na, "online").await {
+-                                otel_warn!("[mqtt] node {} availability failed: {e}", snap.node_id);
+-                            }
+-                            nodes.insert(snap.node_id.clone(), (nb, na, now));
+-                        } else if let Some(entry) = nodes.get_mut(&snap.node_id) {
+-                            // Issue #1555: record that this node is still
+-                            // alive so the heartbeat above doesn't have to
+-                            // guess from a fixed timer.
+-                            entry.2 = now;
+-                        }
+-                        let borrowed = nodes[&snap.node_id].0.as_borrowed();
+-                        publish_snapshot(&client, &borrowed, &snap, &cfg, &mut rate_limiter, elapsed).await;
++                        });
++                        node.last_seen = seen_at;
++                        // Restore availability promptly on fresh input; pending
++                        // queue failures are also retried by one-second maintenance.
++                        node.queue_maintenance(&client, &entities, false, false, now);
++                        publish_snapshot(&client, &node.builder.as_borrowed(), &snap, &cfg, &mut rate_limiter, elapsed);
++
+                     }
+                     Err(broadcast::error::RecvError::Lagged(n)) => {
+                         warn!("[mqtt] lagged behind broadcast by {n} messages — dropped");
+                     }
+                     Err(broadcast::error::RecvError::Closed) => {
+-                        info!("[mqtt] broadcast channel closed, draining");
+-                        // Publish offline for every known node before exit.
+-                        for (_, na, _) in nodes.values() {
+-                            let _ = publish_availability(&client, na, "offline").await;
++                        info!("[mqtt] broadcast channel closed; attempting offline enqueue");
++                        // Best effort only: queue acceptance is not broker delivery.
++                        for node in nodes.values() {
++                            if let Err(e) = publish_availability(&client, &node.availability, "offline") {
++                                otel_warn!("[mqtt] final offline enqueue failed: {e}");
++                            }
+                         }
+-                        let _ = client.disconnect().await;
++                        let _ = client.try_disconnect();
+                         return;
+                     }
+ 
+@@ -364,7 +467,7 @@
+     }
+ }
+ 
+-async fn publish_all_discovery(
++fn publish_all_discovery(
+     client: &AsyncClient,
+     b: &DiscoveryBuilder<'_>,
+     entities: &[EntityKind],
+@@ -374,34 +477,32 @@
+         let topic = b.config_topic(e);
+         let payload = serde_json::to_string(&cfg).expect("discovery payload always serialises");
+         client
+-            .publish(
++            .try_publish(
+                 &topic,
+                 payload,
+                 PublishOptions::new(QoS::AtLeastOnce).retained(),
+-            )
+-            .await?;
++            )?;
+     }
+     Ok(())
+ }
+ 
+-async fn publish_availability(
++fn publish_availability(
+     client: &AsyncClient,
+     avail: &NodeAvailability,
+     state: &str,
+ ) -> Result<(), ClientError> {
+     for topic in &avail.online_topics {
+         client
+-            .publish(
++            .try_publish(
+                 topic,
+                 state,
+                 PublishOptions::new(QoS::AtLeastOnce).retained(),
+-            )
+-            .await?;
++            )?;
+     }
+     Ok(())
+ }
+ 
+-async fn publish_snapshot(
++fn publish_snapshot(
+     client: &AsyncClient,
+     b: &DiscoveryBuilder<'_>,
+     snap: &VitalsSnapshot,
+@@ -415,7 +516,9 @@
+     // change, but we always publish here because broadcast already debounces
+     // and HA will dedup retained equal values harmlessly).
+     if let Some(m) = encoder.boolean(EntityKind::Presence, snap.presence) {
+-        let _ = publish_state(client, &m).await;
++        if let Err(e) = publish_state(client, &m) {
++            otel_warn!("[mqtt] state enqueue failed; reading not queued: {e}");
++        }
+     }
+ 
+     // Event: fall.
+@@ -426,7 +529,9 @@
+             snap.timestamp_ms,
+             Some(snap.vital_confidence),
+         ) {
+-            let _ = publish_state(client, &m).await;
++            if let Err(e) = publish_state(client, &m) {
++                otel_warn!("[mqtt] state enqueue failed; reading not queued: {e}");
++            }
+         }
+     }
+ 
+@@ -446,24 +551,25 @@
+             continue;
+         }
+         if let Some(m) = encoder.numeric(entity, snap) {
+-            let _ = publish_state(client, &m).await;
+-        }
+-    }
+-}
+-
+-async fn publish_state(client: &AsyncClient, m: &StateMessage) -> Result<(), ClientError> {
++            if let Err(e) = publish_state(client, &m) {
++                otel_warn!("[mqtt] state enqueue failed; reading not queued: {e}");
++            }
++        }
++    }
++}
++
++fn publish_state(client: &AsyncClient, m: &StateMessage) -> Result<(), ClientError> {
+     let qos = match m.qos {
+         0 => QoS::AtMostOnce,
+         1 => QoS::AtLeastOnce,
+         _ => QoS::ExactlyOnce,
+     };
+     client
+-        .publish(
++        .try_publish(
+             &m.topic,
+             m.payload.clone(),
+             PublishOptions::new(qos).retain(m.retain),
+         )
+-        .await
+ }
+ 
+ #[cfg(test)]
+--- a/v2/crates/wifi-densepose-sensing-server/src/mqtt/state.rs
++++ b/v2/crates/wifi-densepose-sensing-server/src/mqtt/state.rs
+@@ -145,6 +145,35 @@
+ }
+ 
+ // ─── Per-entity state payload encoders ───────────────────────────────────
++
++/// Maximum source-sample age accepted by the MQTT path. Receipt of a
++/// rebroadcast does not make its original observation fresh again.
++pub const SNAPSHOT_STALE_AFTER_MS: i64 = 10_000;
++
++/// Missing/invalid, future, expired and overflowing timestamps are unknown,
++/// not an empty-room observation. Keep this independent of transport clocks.
++pub fn snapshot_age_ms(timestamp_ms: i64, now_ms: i64) -> Option<u64> {
++    if timestamp_ms <= 0 {
++        return None;
++    }
++    let age = now_ms.checked_sub(timestamp_ms)?;
++    (0..SNAPSHOT_STALE_AFTER_MS).contains(&age).then_some(age as u64)
++}
++
++#[cfg(test)]
++mod freshness_tests {
++    use super::*;
++
++    #[test]
++    fn only_current_positive_timestamps_are_accepted() {
++        assert_eq!(snapshot_age_ms(20_000, 20_000), Some(0));
++        assert_eq!(snapshot_age_ms(10_001, 20_000), Some(9_999));
++        for ts in [0, -1, 10_000, 20_001, i64::MAX] {
++            assert_eq!(snapshot_age_ms(ts, 20_000), None, "{ts}");
++        }
++        assert_eq!(snapshot_age_ms(i64::MAX, i64::MIN), None);
++    }
++}
+ 
+ /// Inputs the encoder accepts. The caller (publisher loop) projects the
+ /// internal server broadcast into this struct so the encoder never

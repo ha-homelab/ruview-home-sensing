@@ -49,6 +49,9 @@ RUN cargo test --locked -j 4 -p wifi-densepose-sensing-server --bin sensing-serv
  && cargo test --locked -j 4 -p wifi-densepose-sensing-server --bin sensing-server --features mqtt privacy_mode_surface_tests:: \
  && cargo test --locked -j 4 -p wifi-densepose-sensing-server --lib --features mqtt http_bind:: \
  && cargo test --locked -j 4 -p wifi-densepose-sensing-server --lib --features mqtt privacy_filter:: \
+ && cargo test --locked -j 4 -p wifi-densepose-sensing-server --bin sensing-server --features mqtt mqtt_freshness_tests:: \
+ && cargo test --locked -j 4 -p wifi-densepose-sensing-server --lib --features mqtt mqtt::state::freshness_tests:: \
+ && cargo test --locked -j 4 -p wifi-densepose-sensing-server --lib --features mqtt mqtt::publisher::freshness_tests:: \
  && python3 /source/ruview-dependencies/test_ring_policy.py target/debug/deps \
  && cargo build --locked -j 4 --release --target aarch64-unknown-linux-gnu -p wifi-densepose-sensing-server --bin sensing-server --features mqtt \
  && aarch64-linux-gnu-readelf -h target/aarch64-unknown-linux-gnu/release/sensing-server \
@@ -69,5 +72,5 @@ COPY --from=build /source/ruview-dependencies/ring-policy-receipt.json /app/ring
 COPY --from=build /source/ruview-dependencies/dependency-security-receipt.json /app/dependency-security-receipt.json
 COPY --from=build /source/ruview-dependencies/binary-licenses/ /app/licenses/collector/
 LABEL org.opencontainers.image.revision="7c8aeacea2ad30972070196eb7d8e7200506b742" \
-      org.opencontainers.image.version="0.3.5-home-grid.3" \
-      io.ha-homelab.ruview.patch="collector/patches/0001-expire-csi-grid.patch,collector/patches/0002-raw-csi-mirror.patch,collector/patches/0003-security-boundaries.patch,collector/patches/0004-upstream-runtime-fixes.patch,collector/patches/0005-upstream-dependency-security.patch"
+      org.opencontainers.image.version="0.3.5-home-grid.4" \
+      io.ha-homelab.ruview.patch="collector/patches/0001-expire-csi-grid.patch,collector/patches/0002-raw-csi-mirror.patch,collector/patches/0003-security-boundaries.patch,collector/patches/0004-upstream-runtime-fixes.patch,collector/patches/0005-upstream-dependency-security.patch,collector/patches/0006-mqtt-source-freshness.patch"
