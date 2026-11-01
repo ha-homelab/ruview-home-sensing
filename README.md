@@ -1,5 +1,8 @@
 # RuView Home Sensing
 
+The [upstream compatibility review](docs/upstream-sync.md) records component
+drift and selected fixes from the original RuView project.
+
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15634/badge)](https://www.bestpractices.dev/projects/15634)
 
 The badge links to the current OpenSSF assessment, supporting evidence and remaining criteria.

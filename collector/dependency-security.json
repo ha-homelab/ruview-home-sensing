@@ -1,0 +1,300 @@
+{
+  "schema": "ruview.collector-dependency-security.v1",
+  "upstream_repository": "https://github.com/ruvnet/RuView",
+  "original_revision": "7c8aeacea2ad30972070196eb7d8e7200506b742",
+  "upstream_reference": "5728b90949e60e3f908d996997d453147c1794e0",
+  "upstream_security_commits": [
+    "8e846a9a364584c3a7fd8613f886bfa8e11656bc",
+    "3b1479b9a6309e983ecc72cbe0ae11544a8501ec"
+  ],
+  "patch": "0005-upstream-dependency-security.patch",
+  "patch_sha256": "f626c2e8f2406a6f9094bfa7f00a21b93cb15ab8c91fa272b8c65b7170c291a4",
+  "lock_before_sha256": "0e57e7127e6c5927ee3006e017dd94d0d48c506eb26c221c52de48f471fd394e",
+  "lock_after_sha256": "402558b25a5048ff2ec31511e306582e0b07c77e30c64a81901ca2c41380522a",
+  "registry_lock_before_sha256": "f5953f6b547bf89ed54ade28de372bc013418dbdd9e9a541c69bf287bf74d4ff",
+  "registry_lock_after_sha256": "9e7dde6db56ad361ba1b92fcb7bba8e7f8bf6751a42c71a958c4f2ca29fa022b",
+  "target": "aarch64-unknown-linux-gnu",
+  "features": [
+    "mqtt"
+  ],
+  "edges": [
+    "normal",
+    "build"
+  ],
+  "direct_floors": {
+    "rustls": "0.23.46",
+    "rustls-webpki": "0.103.16",
+    "webpki-roots": "1.0.10",
+    "quinn-proto": "0.11.18"
+  },
+  "added_or_updated_packages": [
+    {
+      "name": "fastbloom",
+      "version": "0.17.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "ef975e30683b2d965054bb0a836f8973857c4ebf6acf274fe46617cd285060d8",
+      "dependencies": [
+        "foldhash 0.2.0",
+        "libm",
+        "portable-atomic",
+        "siphasher 1.0.2"
+      ]
+    },
+    {
+      "name": "jni",
+      "version": "0.22.4",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "5efd9a482cf3a427f00d6b35f14332adc7902ce91efb778580e180ff90fa3498",
+      "dependencies": [
+        "cfg-if",
+        "combine",
+        "jni-macros",
+        "jni-sys 0.4.1",
+        "log",
+        "simd_cesu8",
+        "thiserror 2.0.18",
+        "walkdir",
+        "windows-link 0.2.1"
+      ]
+    },
+    {
+      "name": "jni-macros",
+      "version": "0.22.4",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "a00109accc170f0bdb141fed3e393c565b6f5e072365c3bd58f5b062591560a3",
+      "dependencies": [
+        "proc-macro2",
+        "quote",
+        "rustc_version",
+        "simd_cesu8",
+        "syn 2.0.117"
+      ]
+    },
+    {
+      "name": "jni-sys",
+      "version": "0.4.1",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "c6377a88cb3910bee9b0fa88d4f42e1d2da8e79915598f65fb0c7ee14c878af2",
+      "dependencies": [
+        "jni-sys-macros"
+      ]
+    },
+    {
+      "name": "jni-sys-macros",
+      "version": "0.4.1",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "38c0b942f458fe50cdac086d2f946512305e5631e720728f2a61aabcd47a6264",
+      "dependencies": [
+        "quote",
+        "syn 2.0.117"
+      ]
+    },
+    {
+      "name": "quinn-proto",
+      "version": "0.11.18",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "a9746dbde176634f4f2f1faf2404e30a31b2bc1e9cafb5329c95d8177a18c9fc",
+      "dependencies": [
+        "bytes",
+        "fastbloom",
+        "getrandom 0.4.1",
+        "lru-slab",
+        "rand 0.10.2",
+        "rand_pcg 0.10.2",
+        "ring",
+        "rustc-hash 2.1.1",
+        "rustls",
+        "rustls-pki-types",
+        "rustls-platform-verifier 0.7.1",
+        "slab",
+        "thiserror 2.0.18",
+        "tinyvec",
+        "tracing",
+        "web-time"
+      ]
+    },
+    {
+      "name": "rand_pcg",
+      "version": "0.10.2",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "caa0f4137e1c0a72f4c651489402276c8e8e1cf081f3b0ba156d2cbeef09e86a",
+      "dependencies": [
+        "rand_core 0.10.1"
+      ]
+    },
+    {
+      "name": "rustls",
+      "version": "0.23.46",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "48e13bd8c0e9365c43cfa5c9e8f9ad49d3c8444926c9aac819e0e4dc503c8fdf",
+      "dependencies": [
+        "log",
+        "once_cell",
+        "ring",
+        "rustls-pki-types",
+        "rustls-webpki",
+        "subtle",
+        "zeroize"
+      ]
+    },
+    {
+      "name": "rustls-platform-verifier",
+      "version": "0.7.1",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "1167586491e2b18b8bfbb293e8180ec17c201c4f076d7cb3070ca964e7598f98",
+      "dependencies": [
+        "core-foundation 0.10.1",
+        "core-foundation-sys",
+        "jni 0.22.4",
+        "log",
+        "once_cell",
+        "rustls",
+        "rustls-native-certs",
+        "rustls-platform-verifier-android 0.2.0",
+        "rustls-webpki",
+        "security-framework",
+        "security-framework-sys",
+        "webpki-root-certs",
+        "windows-sys 0.59.0"
+      ]
+    },
+    {
+      "name": "rustls-platform-verifier-android",
+      "version": "0.2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "eec689c0bc40ff2458a5977b6619cb718087084a18e02a131c599b62d05e1a5f"
+    },
+    {
+      "name": "rustls-webpki",
+      "version": "0.103.16",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "4443b1b6d39d7c663139942cc4558262562d2c84123bb6282ef177009ca8b281",
+      "dependencies": [
+        "ring",
+        "rustls-pki-types",
+        "untrusted"
+      ]
+    },
+    {
+      "name": "simd_cesu8",
+      "version": "1.2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "11031e251abf8611c80f460e19dbdeb54a66db918e49c65a7065b46ac7aec520",
+      "dependencies": [
+        "rustc_version",
+        "simdutf8"
+      ]
+    },
+    {
+      "name": "webpki-root-certs",
+      "version": "1.0.10",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "58ec80e73fd8baf57bf0d9615554c75348bda990d6d5bbeab964dd068319fecb",
+      "dependencies": [
+        "rustls-pki-types"
+      ]
+    },
+    {
+      "name": "webpki-roots",
+      "version": "1.0.10",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "1c1c8e20c8a38fc7d65abfe74eb7280e4aa667e8eec8bc84996d2874810748d9",
+      "dependencies": [
+        "rustls-pki-types"
+      ]
+    }
+  ],
+  "removed_package_versions": [
+    {
+      "name": "fastbloom",
+      "version": "0.14.1"
+    },
+    {
+      "name": "quinn-proto",
+      "version": "0.11.15"
+    },
+    {
+      "name": "rustls",
+      "version": "0.23.45"
+    },
+    {
+      "name": "rustls-webpki",
+      "version": "0.103.15"
+    },
+    {
+      "name": "webpki-root-certs",
+      "version": "1.0.6"
+    },
+    {
+      "name": "webpki-roots",
+      "version": "1.0.7"
+    }
+  ],
+  "same_version_reference_updates": [
+    {
+      "name": "getrandom",
+      "version": "0.3.4"
+    },
+    {
+      "name": "getrandom",
+      "version": "0.4.1"
+    },
+    {
+      "name": "hyper-rustls",
+      "version": "0.27.9"
+    },
+    {
+      "name": "jni",
+      "version": "0.21.1"
+    },
+    {
+      "name": "midstreamer-quic",
+      "version": "0.3.0"
+    },
+    {
+      "name": "ndk",
+      "version": "0.9.0"
+    },
+    {
+      "name": "ndk-sys",
+      "version": "0.6.0+11769913"
+    },
+    {
+      "name": "rand",
+      "version": "0.7.3"
+    },
+    {
+      "name": "reqwest",
+      "version": "0.12.28"
+    },
+    {
+      "name": "rustls-platform-verifier",
+      "version": "0.6.2"
+    },
+    {
+      "name": "tao",
+      "version": "0.34.6"
+    },
+    {
+      "name": "tauri",
+      "version": "2.10.3"
+    },
+    {
+      "name": "tauri-runtime",
+      "version": "2.10.1"
+    },
+    {
+      "name": "tauri-runtime-wry",
+      "version": "2.10.1"
+    },
+    {
+      "name": "webpki-roots",
+      "version": "0.26.11"
+    },
+    {
+      "name": "wry",
+      "version": "0.54.2"
+    }
+  ],
+  "scope": "Four selected TLS/QUIC security floors and resolver-required supporting packages only. No application manifest, source revision, submodule, model, firmware or deployed image change. Wasmtime/Zstandard/ZIP/libz-sys are absent from this selected graph."
+}

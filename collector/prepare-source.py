@@ -8,6 +8,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from dependency_security import prepare_dependency_security
 from ring_policy import prepare_ring
 
 ROOT = Path(__file__).resolve().parent
@@ -43,6 +44,10 @@ def main():
         parser.error("--offline also requires --ring-archive")
     source = args.source.resolve()
     lock = json.loads((ROOT / "source-lock.json").read_text())
+    runtime_fixes = json.loads((ROOT / "upstream-runtime-fixes.json").read_text())
+    if runtime_fixes["base_revision"] != lock["revision"]:
+        raise ValueError("Runtime backport targets a different upstream revision")
+    verify_sha(ROOT / "patches" / runtime_fixes["patch"], runtime_fixes["patch_sha256"])
     if not (source / ".git").is_dir():
         if args.offline or source.exists():
             raise ValueError("Expected a new directory or the exact Git checkout")
@@ -78,7 +83,10 @@ def main():
     verify_sha(source / "v2/Cargo.lock", lock["cargo_lock_sha256"])
     for path, expected in lock["security_source_sha256"].items():
         verify_sha(source / path, expected)
+    for path, expected in runtime_fixes["source_sha256"].items():
+        verify_sha(source / path, expected)
     prepare_ring(source, args.ring_archive)
+    prepare_dependency_security(source)
     shutil.copyfile(
         ROOT / "bundle_licenses.py", source / "ruview-dependencies/bundle_licenses.py"
     )
@@ -93,6 +101,7 @@ def main():
         "0001-expire-csi-grid.patch",
         "0002-raw-csi-mirror.patch",
         "0003-security-boundaries.patch",
+        runtime_fixes["patch"],
     ):
         patch = ROOT / "patches" / name
         git(source, "apply", "--check", str(patch))

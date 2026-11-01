@@ -157,6 +157,9 @@ jobs:
               Path("collector/Dockerfile"),
               Path("collector/prepare-source.py"),
               Path("collector/source-lock.json"),
+              Path("collector/upstream-runtime-fixes.json"),
+              Path("collector/dependency-security.json"),
+              Path("collector/dependency_security.py"),
               Path("collector/ring_policy.py"),
               Path("collector/test_ring_policy.py"),
               Path("collector/bundle_licenses.py"),
@@ -212,6 +215,8 @@ jobs:
             "$RUNNER_TEMP/collector-artifacts/sensing-server"
           docker cp "$container:/app/ring-policy-receipt.json" \
             "$RUNNER_TEMP/collector-artifacts/ring-policy-receipt.json"
+          docker cp "$container:/app/dependency-security-receipt.json" \
+            "$RUNNER_TEMP/collector-artifacts/dependency-security-receipt.json"
           docker cp "$container:/app/licenses/ring" \
             "$RUNNER_TEMP/collector-artifacts/ring-licenses"
           docker cp "$container:/app/licenses/collector" \
@@ -377,6 +382,7 @@ jobs:
       - run: python firmware/tests/test_http_nodelay.py "$RUNNER_TEMP/ruview-firmware/source"
       - run: python firmware/tests/test_http_status_result.py "$RUNNER_TEMP/ruview-firmware/source"
       - run: python firmware/tests/test_self_ping_recovery.py "$RUNNER_TEMP/ruview-firmware/source"
+      - run: python firmware/tests/test_self_ping_timeout.py "$RUNNER_TEMP/ruview-firmware/source"
       - run: python firmware/tests/test_boot_bound_recovery.py "$RUNNER_TEMP/ruview-firmware/source"
       - run: python firmware/tests/test_csi_sequence_admission.py "$RUNNER_TEMP/ruview-firmware/source"
       - run: |
