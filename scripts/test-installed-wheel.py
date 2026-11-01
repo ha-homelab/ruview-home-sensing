@@ -18,6 +18,9 @@ for name in (
     "assumed_activity.service", "inference.reference_alignment",
     "inference.fall_detection", "radar.config", "wisp_pilot.protocol",
     "scripts.reference_clock",
+    "assumed_activity.training_journal", "assumed_activity.shadow_join",
+    "assumed_activity.shadow_model", "assumed_activity.shadow_cycle",
+    "assumed_activity.shadow_legacy",
 ):
     module = importlib.import_module(name)
     assert pathlib.Path(module.__file__).resolve().is_relative_to(root), name

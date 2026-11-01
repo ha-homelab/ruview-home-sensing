@@ -24,6 +24,25 @@ The `0.3.5-home-grid.3` build additionally:
   recordings as well as MQTT. It withholds heart/breathing rates and keypoints;
   unfilterable JSON is withheld, and refined skeletal REST views return HTTP 403.
 
+The `0.3.5-home-grid.4` follow-up (`mqtt-freshness-fixes.json`) also checks the
+actual MQTT input path. Only fresh sensing observations enter it: expired,
+future/invalid, explicitly offline/unavailable and non-sensing messages are
+withheld, never converted into an empty-room reading. Per-node source age is
+included in the internal MQTT observation timestamp, so rebroadcasting a frozen
+sample cannot renew availability. Source JSON and raw samples are unchanged.
+The ten-second freshness limit and thirty-second refresh heartbeat remain.
+A persistent one-second maintenance timer attempts availability transitions and
+retries pending availability/discovery enqueues even during steady traffic.
+Fresh input attempts a changed online state immediately. MQTT enqueue calls are
+nonblocking, so a full request queue cannot deadlock the task that drains it.
+Rejected state is logged and not credited as delivered; later fresh input can
+publish normally. Queue acceptance is not broker acknowledgement, and neither
+scheduling nor network delivery has a measured wall-time guarantee. Shutdown
+notification remains best effort. A lagged broadcast receiver continues from
+retained fresh input instead of terminating the bridge. The build adds source-age,
+busy-loop, queue saturation and availability-retry regressions; the original
+runtime patch is retained byte-for-byte.
+
 The full collector build runs the upstream regression groups for these paths.
 Consumers must treat a stale response or an evicted node as unavailable rather
 than an empty room. None of these source changes alters a running installation.

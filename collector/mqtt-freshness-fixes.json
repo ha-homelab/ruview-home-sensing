@@ -1,0 +1,40 @@
+{
+  "schema": "ruview.collector-mqtt-freshness.v1",
+  "base_revision": "7c8aeacea2ad30972070196eb7d8e7200506b742",
+  "patch": "0006-mqtt-source-freshness.patch",
+  "patch_sha256": "bd8b682ee33499c6d37beb1d42917ae38a460f2322f1aeb223abfcc4f5cb97ff",
+  "source_sha256": {
+    "v2/crates/wifi-densepose-sensing-server/src/mqtt/publisher.rs": "34c910df42d74be55b7d22c9fd7b2cc604ddbc65603a11446c4514b6d6f1fa8f",
+    "v2/crates/wifi-densepose-sensing-server/src/mqtt/state.rs": "a52b4a8e727182d3053868b011526ae93ee206d747bbf5b8a5b0b81d25cf56f3"
+  },
+  "after_runtime_sha256": {
+    "v2/crates/wifi-densepose-sensing-server/src/main.rs": "9ddaf90111826476e4d03e9755e22065fa3a1eee5429c0eab00289c4b24f149f",
+    "v2/crates/wifi-densepose-sensing-server/src/mqtt/publisher.rs": "34c910df42d74be55b7d22c9fd7b2cc604ddbc65603a11446c4514b6d6f1fa8f",
+    "v2/crates/wifi-densepose-sensing-server/src/mqtt/state.rs": "a52b4a8e727182d3053868b011526ae93ee206d747bbf5b8a5b0b81d25cf56f3"
+  },
+  "result_sha256": {
+    "v2/crates/wifi-densepose-sensing-server/src/main.rs": "627ff8b02324c559e537beafefea869306427df3b6a0fd3ea1ad13c61f250af1",
+    "v2/crates/wifi-densepose-sensing-server/src/mqtt/publisher.rs": "6f6bc2959232bdfca21af06677f3b43d06d9bdbfd1bf1f0bbf9ecd87c1d41a38",
+    "v2/crates/wifi-densepose-sensing-server/src/mqtt/state.rs": "fc970e5c361df4e067a7ce36e050985ff1393166d9c3ba773361b4d777703e62"
+  },
+  "basis": "Local integration regression of the pinned collector after patches 0001\u20130004; not an upstream wholesale update.",
+  "fixes": [
+    "Reject expired, future, invalid, explicitly offline/unavailable and non-sensing MQTT source messages instead of creating false absence.",
+    "Include per-node age in internal MQTT observation time; repeated delivery cannot refresh source age. REST/WebSocket JSON and original source state are not rewritten.",
+    "Keep a persistent one-second maintenance interval before other biased-select branches so traffic cannot cancel or starve heartbeat and discovery timers.",
+    "A lagged broadcast receiver skips overwritten frames and continues with retained fresh input instead of permanently exiting.",
+    "All MQTT request enqueues are nonblocking because the publisher also owns the event loop that drains its bounded request queue.",
+    "Per-node pending availability/discovery failures retry on maintenance; successful enqueues are not broker acknowledgements. Fresh input immediately attempts a changed online state; stale transitions retry on the one-second maintenance timer."
+  ],
+  "tests": [
+    "mqtt_freshness_tests::",
+    "mqtt::state::freshness_tests::",
+    "mqtt::publisher::freshness_tests::"
+  ],
+  "limits": [
+    "No runtime deployment or achieved timing/rate claim.",
+    "Source freshness threshold remains 10 seconds. One-second maintenance attempts availability transitions and pending discovery/availability work; the 30-second heartbeat remains a refresh. Scheduling, connection and broker delivery have no wall-time guarantee.",
+    "Clock-forward or backwards/future timestamps fail closed; old retained readings remain historical until availability changes.",
+    "Queue rejection is logged; rejected state is not delivered or replayed. Later fresh state can publish normally. Shutdown offline/disconnect enqueues remain best effort, without a flush/delivery guarantee."
+  ]
+}

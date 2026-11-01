@@ -45,6 +45,10 @@ def main():
     source = args.source.resolve()
     lock = json.loads((ROOT / "source-lock.json").read_text())
     runtime_fixes = json.loads((ROOT / "upstream-runtime-fixes.json").read_text())
+    mqtt_fixes = json.loads((ROOT / "mqtt-freshness-fixes.json").read_text())
+    if mqtt_fixes["base_revision"] != lock["revision"]:
+        raise ValueError("MQTT freshness patch targets a different upstream revision")
+    verify_sha(ROOT / "patches" / mqtt_fixes["patch"], mqtt_fixes["patch_sha256"])
     if runtime_fixes["base_revision"] != lock["revision"]:
         raise ValueError("Runtime backport targets a different upstream revision")
     verify_sha(ROOT / "patches" / runtime_fixes["patch"], runtime_fixes["patch_sha256"])
@@ -85,6 +89,8 @@ def main():
         verify_sha(source / path, expected)
     for path, expected in runtime_fixes["source_sha256"].items():
         verify_sha(source / path, expected)
+    for path, expected in mqtt_fixes["source_sha256"].items():
+        verify_sha(source / path, expected)
     prepare_ring(source, args.ring_archive)
     prepare_dependency_security(source)
     shutil.copyfile(
@@ -106,6 +112,13 @@ def main():
         patch = ROOT / "patches" / name
         git(source, "apply", "--check", str(patch))
         git(source, "apply", str(patch))
+    for path, expected in mqtt_fixes["after_runtime_sha256"].items():
+        verify_sha(source / path, expected)
+    mqtt_patch = ROOT / "patches" / mqtt_fixes["patch"]
+    git(source, "apply", "--check", str(mqtt_patch))
+    git(source, "apply", str(mqtt_patch))
+    for path, expected in mqtt_fixes["result_sha256"].items():
+        verify_sha(source / path, expected)
     for name in ("grid_gate.rs", "raw_csi_mirror.rs", "security_boundaries.rs"):
         shutil.copyfile(ROOT / "src" / name, source / MAIN.parent / name)
     print(

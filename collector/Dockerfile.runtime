@@ -6,5 +6,5 @@ COPY ring-policy-receipt.json /app/ring-policy-receipt.json
 COPY dependency-security-receipt.json /app/dependency-security-receipt.json
 COPY collector-licenses/ /app/licenses/collector/
 LABEL org.opencontainers.image.revision="7c8aeacea2ad30972070196eb7d8e7200506b742" \
-      org.opencontainers.image.version="0.3.5-home-grid.3" \
-      io.ha-homelab.ruview.patch="collector/patches/0001-expire-csi-grid.patch,collector/patches/0002-raw-csi-mirror.patch,collector/patches/0003-security-boundaries.patch,collector/patches/0004-upstream-runtime-fixes.patch,collector/patches/0005-upstream-dependency-security.patch"
+      org.opencontainers.image.version="0.3.5-home-grid.4" \
+      io.ha-homelab.ruview.patch="collector/patches/0001-expire-csi-grid.patch,collector/patches/0002-raw-csi-mirror.patch,collector/patches/0003-security-boundaries.patch,collector/patches/0004-upstream-runtime-fixes.patch,collector/patches/0005-upstream-dependency-security.patch,collector/patches/0006-mqtt-source-freshness.patch"
