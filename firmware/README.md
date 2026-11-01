@@ -127,3 +127,34 @@ diagnostics, exercises both slot widths and emitted code-cell layouts, and
 checks synthetic normal/engineering radar reports. Existing runtime tests apply
 the same patch. These checks do not establish on-device performance or sensing
 accuracy; the full ESP32-S3 build is a separate required CI job.
+
+### Bounded self-ping receive wait
+
+Patch `0022-self-ping-receive-budget.patch` adapts the timeout correction from
+upstream [`eccf381ac083743f0c6f80430a099c290fc33fed`](https://github.com/ruvnet/RuView/commit/eccf381ac083743f0c6f80430a099c290fc33fed)
+to both the legacy ping path and the optional local recovery supervisor. The
+receive timeout now equals the requested interval (20–100 ms for the existing
+10–50 Hz configuration), instead of waiting up to the SDK default of 1000 ms
+after an unanswered probe. The default rate, allowed rate range, session
+ownership, stop/end barrier, backoff and recovery opt-in remain unchanged.
+An echo timeout still counts as supervisor progress, not evidence of CSI loss.
+AP reply modulation and scheduling determine CSI yield; this change does not
+guarantee a sensing rate or identify a cause of observed lag.
+
+```sh
+python3 firmware/tests/test_self_ping_timeout.py /path/to/pristine/pinned/source
+```
+
+The host test reproduces the previous wait in both paths, then compiles the
+final patched source with the recovery option enabled, disabled and undefined
+at the minimum, maximum and default rates. It also checks invalid-rate
+rejection and reuses the loss/ownership lifecycle cases with ASan/UBSan.
+
+The upstream invalid-first-word change (`a2c662f`) is deliberately not included:
+it rewrites the first four wire payload bytes and adds header flag `0x20`.
+Current native admission and inference contracts reject that flag and preserve
+the received IQ bytes; the reviewed LLTF feature path masks the first two IQ
+pairs without rewriting raw evidence. Adopting the new representation requires
+a coordinated, versioned wire/feature contract and consumer tests, rather than
+widening admission silently. STBC/HE buffer and capture changes likewise remain
+separate from this timeout fix and do not alter the associated-only LLTF profile.

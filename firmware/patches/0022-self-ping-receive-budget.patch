@@ -1,0 +1,53 @@
+--- a/main/csi_collector.c
++++ b/main/csi_collector.c
+@@ -436,9 +436,9 @@
+  * are sparse beacons (often non-OFDM DSSS), so wifi_csi_callback can starve to
+  * yield=0pps -> DEGRADED -> motion/presence=0 (#521, #954).
+  *
+- * This guarantees a ~50 Hz OFDM unicast floor by pinging the STA's own gateway:
+- * the router's ICMP echo replies are OFDM frames destined to this station, which
+- * drive the CSI engine regardless of promiscuous filter state or ambient traffic.
++ * Ping the STA's gateway to request unicast traffic. AP reply rate and
++ * modulation determine CSI yield; ICMP replies at 802.11b rates produce no CSI.
++ * The requested probe interval is not a guaranteed OFDM or sensing rate.
+  * It is ADDITIVE — promiscuous capture (#396/#893) is left fully intact so
+  * multistatic/multi-node sensing still hears other stations' frames. Mirrors
+  * Espressif's esp-csi csi_recv_router reference.
+@@ -476,6 +476,7 @@
+     cfg.target_addr     = target;
+     cfg.count           = ESP_PING_COUNT_INFINITE;
+     cfg.interval_ms     = CSI_SELF_PING_INTERVAL_MS;
++    cfg.timeout_ms      = CSI_SELF_PING_INTERVAL_MS;
+     cfg.data_size       = 1;
+     cfg.task_stack_size = 4096;
+ 
+@@ -488,7 +489,7 @@
+ 
+     if (esp_ping_new_session(&cfg, &cbs, &s_self_ping) == ESP_OK && s_self_ping != NULL) {
+         esp_ping_start(s_self_ping);
+-        ESP_LOGI(TAG, "self-ping started -> %s @%dHz (CSI OFDM source, fix #521/#954)",
++        ESP_LOGI(TAG, "self-ping started -> %s @%dHz (requested probes; CSI yield depends on AP)",
+                  gw_str, CONFIG_CSI_SELF_PING_HZ);
+     } else {
+         ESP_LOGW(TAG, "self-ping: esp_ping_new_session failed");
+--- a/main/home_csi_ping.c
++++ b/main/home_csi_ping.c
+@@ -238,7 +238,8 @@
+     config.target_addr = target;
+     config.count = ESP_PING_COUNT_INFINITE;
+     config.interval_ms = 1000U / CONFIG_CSI_SELF_PING_HZ;
+-    config.timeout_ms = 1000;
++    /* A missing echo must not stall the probe loop for the SDK default 1 s. */
++    config.timeout_ms = config.interval_ms;
+     config.data_size = 1;
+     config.task_stack_size = 4096;
+     const esp_ping_callbacks_t callbacks = {
+@@ -282,7 +283,7 @@
+         increment(&s_work.starts);
+         s_work.state = CSI_PING_RUNNING;
+         s_work.session_started_ms = now;
+-        ESP_LOGI(TAG, "self-ping running at %u Hz", CONFIG_CSI_SELF_PING_HZ);
++        ESP_LOGI(TAG, "self-ping requesting %u probes/s; CSI yield depends on AP", CONFIG_CSI_SELF_PING_HZ);
+     }
+     publish();
+ }

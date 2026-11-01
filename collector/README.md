@@ -5,6 +5,29 @@
 The patches expire stale CSI grids, mirror raw samples with bounded queues,
 confine recording names, and replace the public default RuField signing key.
 
+`upstream-runtime-fixes.json` records selected fixes reviewed against upstream
+`5728b90949e60e3f908d996997d453147c1794e0`. The base revision stays pinned so
+the local grid, raw-mirror and signing protections retain their reviewed inputs.
+This is a source backport, not a full upstream update or a runtime qualification.
+The `0.3.5-home-grid.3` build additionally:
+
+- Returns `status: "stale"`, `age_ms` and `source` instead of an old sensing
+  classification after ten seconds without an update. Fresh responses gain
+  `age_ms`; the existing `status: "no data yet"` response is unchanged.
+- Evicts node state silent for sixty seconds on a thirty-second timer, including
+  when no new packet arrives. Missing nodes remain unavailable observations.
+- Refuses a routable HTTP/WebSocket bind with API authentication disabled unless
+  `RUVIEW_ALLOW_UNAUTHENTICATED=1` is explicitly set. Loopback remains permitted.
+- Keeps presence and person count consistent with the published debounced node
+  classification; this does not validate recognition accuracy.
+- Applies `--privacy-mode` to REST JSON, sensing/pose WebSocket streams and
+  recordings as well as MQTT. It withholds heart/breathing rates and keypoints;
+  unfilterable JSON is withheld, and refined skeletal REST views return HTTP 403.
+
+The full collector build runs the upstream regression groups for these paths.
+Consumers must treat a stale response or an evicted node as unavailable rather
+than an empty room. None of these source changes alters a running installation.
+
 Recording IDs contain at most 128 ASCII letters, digits, `.`, `_` or `-`,
 excluding `.` and `..`. New files are created exclusively and with mode 0600
 on Unix. The recordings directory and its parents must be operator-controlled;
@@ -25,8 +48,8 @@ maximum length and exponent validation are unchanged. The registry still
 listed 0.17.14 as the latest release on 2026-10-19.
 
 `ring-policy/source.json` authenticates the original crate, changed source
-and original workspace manifest/lockfile. Preparation adds a path override
-without changing any package version. The build runs both RSA PKCS#1 and
+and original workspace manifest/lockfile. Its path override keeps the `ring`
+package version unchanged. The build runs both RSA PKCS#1 and
 RSA-PSS verification against each actual compiled native `ring` library:
 2040/2041/2047-bit keys must fail, 2048-bit keys must pass, and modified
 messages must fail. The fixtures contain public keys and signatures only.
@@ -42,6 +65,16 @@ contain `ring-licenses/` copied from `ruview-dependencies/licenses/ring/`
 and the corresponding receipt. Distribute these files with standalone
 collector binaries. An offline preparation additionally requires
 `--ring-archive /path/to/ring-0.17.14.crate`; the same digest check applies.
+
+After the ring override, `dependency_security.py` applies the exact lockfile
+delta recorded in `dependency-security.json`: Rustls 0.23.46, rustls-webpki
+0.103.16, webpki-roots 1.0.10 and quinn-proto 0.11.18, with their required
+support packages. The helper checks the patch and both lockfile hashes. This
+retains the application manifests and source pin. Wasmtime, Zstandard, ZIP and
+libz-sys are absent from the selected ARM64 MQTT normal/build dependency graph;
+their unrelated upstream updates are not imported into this backport.
+The dependency security receipt is included at `/app/dependency-security-receipt.json`.
+Prebuilt-binary contexts for `Dockerfile.runtime` must include that receipt too.
 
 The build also gathers the original license and notice files for every package
 in the selected ARM64 Cargo `normal,build` graph. It reads the already fetched,

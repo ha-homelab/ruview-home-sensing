@@ -1,0 +1,38 @@
+{
+  "repository": "https://github.com/ruvnet/RuView.git",
+  "base_revision": "7c8aeacea2ad30972070196eb7d8e7200506b742",
+  "reviewed_upstream_revision": "5728b90949e60e3f908d996997d453147c1794e0",
+  "patch": "0004-upstream-runtime-fixes.patch",
+  "patch_sha256": "87b0bfdc275ef7ae93254b61eae96c5a0516121c0b4605a3dde7d2440edfe49c",
+  "commits": [
+    {
+      "revision": "1a50162598b84a7cb16ce18b1373caa36f457535",
+      "purpose": "Expire frozen latest sensing responses"
+    },
+    {
+      "revision": "0eb952a9c57632601e676a371b14f04a046046a6",
+      "purpose": "Evict silent node state independently of packet arrival"
+    },
+    {
+      "revision": "fabb0c8233f675b8840aac03d4fb9212523901ad",
+      "purpose": "Refuse unauthenticated routable HTTP and WebSocket binds without opt-in"
+    },
+    {
+      "revision": "da2304985a333abcccb40e8a6c5a9fa9e4c26923",
+      "purpose": "Keep presence and person counts consistent with published node classification"
+    },
+    {
+      "revision": "c51a1cf8884847691b44278b014c24364275aafb",
+      "purpose": "Honor privacy mode for REST, sensing and pose WebSocket streams, and recordings"
+    }
+  ],
+  "source_sha256": {
+    "v2/crates/wifi-densepose-sensing-server/src/cli.rs": "5b85b6d40eeb909132f9762e7f0fd1a7e2b217df85f2e6a95443ab6833fe50ff",
+    "v2/crates/wifi-densepose-sensing-server/src/mqtt/config.rs": "6383600443754a779cf453f0fb9bb08d53401613c7e5cbb253ce35f7e865b77f",
+    "v2/crates/wifi-densepose-sensing-server/examples/mqtt_publisher.rs": "4f6d687d5e341d34c46603569b089faf1939f46a1b502804410d8006de26d1cf"
+  },
+  "adaptations": [
+    "Privacy test fixtures use the current timestamp so the staleness regression remains meaningful."
+  ],
+  "scope": "Selected source fixes only; this is not a full upstream synchronization or runtime qualification."
+}
