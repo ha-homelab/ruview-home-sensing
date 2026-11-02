@@ -5,15 +5,15 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-TOOLKIT = "6b2d99519d513d2b871d2a845ddd6134dea4af2c"
+TOOLKIT = "e71559f44e41f39ad0037bf13c7f43bbbb2ec9af"
 # Composite actions retain their independently pinned implementation.
 TOOLKIT_ACTIONS = "21a366f200f0371a10a6de7ad6ca263af230b842"
 # These reviewed callers execute only pinned toolkit metadata logic on hosted
 # runners. Any byte change needs independent review and an intentional pin update;
 # neither a filename alone nor a privileged event grants an exemption.
 METADATA_CALLERS = {
-    "auto-approve.yml": "6b2fc62b5ae3c0b0163a88728f0e364fc9a7143fc7908716e54ad064d458d7e5",
-    "auto-merge.yml": "c01d953f464c68c6d9fc173b345e9bcd5380e8753fd6659ce5ce841c62e47062",
+    "auto-approve.yml": "64436232f621770b8039c663e82a7e6354bbc49259894cc4ef1b8f6315465598",
+    "auto-merge.yml": "b5b3e3211da2e52f3976b4d47653b8801a1de1030c40078f435f8a8f5dfe70e2",
 }
 
 
