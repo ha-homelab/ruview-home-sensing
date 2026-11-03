@@ -1,5 +1,22 @@
 # Release notes
 
+## 0.4.1-beta.3
+
+Updates the exact Python runtime dependency to `websockets==17.4`, fixing
+[GHSA-6m5v-9gmr-5665](https://github.com/python-websockets/websockets/security/advisories/GHSA-6m5v-9gmr-5665).
+Earlier versions can retain unbounded frame objects when a peer leaves a
+fragmented message unfinished. The affected whole-message `recv()` API is used
+by the floorplan client and runtime observer. The observer's existing receive
+deadline limits exposure duration; it does not replace the dependency fix.
+
+Package version `0.4.1b3` advances the digest-pinned Home Assistant bridge to
+its verified `0.1.4b1` release, which also requires websockets 17.4. Existing
+transport controls and all beta.2 runtime and model limits remain in place.
+The source archive and wheel must come from the exact reviewed commit after
+full source CI, installed-wheel checks, reproducibility and publication-boundary
+validation. Existing releases keep their original bytes. This software update
+does not deploy services, flash devices or qualify sensing accuracy.
+
 ## 0.4.1-beta.2
 
 This candidate distributes the source changes merged after beta.1, including

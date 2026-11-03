@@ -6,6 +6,18 @@ scan, a complete finding disposition, or a claim about every optional upstream
 service. Package-version matches need the affected component and an applicable
 call path; absence from a scanner also does not prove safety.
 
+## 2026-11-03: Python WebSocket runtime correction
+
+The former `websockets==17.2` runtime pin is affected by
+[GHSA-6m5v-9gmr-5665](https://github.com/python-websockets/websockets/security/advisories/GHSA-6m5v-9gmr-5665).
+It is updated to `17.4`, which limits fragmented messages assembled by `recv()`.
+The floorplan client receives whole messages from the configured Home Assistant
+server; a malicious or compromised peer can exercise the affected path. Payload
+size and queue limits alone do not bound the number of empty fragments. The
+runtime observer also uses `recv()`, with an existing five-second receive
+deadline that limits its exposure duration. These source-level findings do not
+establish exploitation or the dependency version deployed at any installation.
+
 ## Firmware SDK correction
 
 The selected ESP32-S3 firmware initializes ESP-NOW after connecting to Wi-Fi.
