@@ -29,10 +29,11 @@ Software tests establish the contracts they exercise. They do not establish reco
 
 ## Software release
 
-The **0.4.1-beta.2** candidate includes the upstream collector corrections,
+The **0.4.1-beta.3** candidate updates the Python WebSocket dependency to reject
+excessive message fragmentation. It retains the beta.2 collector corrections,
 bounded firmware probe waits, reviewed CSI admission profiles and experimental
-shadow telemetry tooling. Its Python package version is `0.4.1b2`.
-See the [candidate notes](docs/release-notes.md#041-beta2) for compatibility and
+shadow telemetry tooling. Its Python package version is `0.4.1b3`.
+See the [candidate notes](docs/release-notes.md#041-beta3) for compatibility and
 validation limits. Published software does not update installation state or
 qualify a model or device.
 
