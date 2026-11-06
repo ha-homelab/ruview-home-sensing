@@ -5,6 +5,18 @@
 The patches expire stale CSI grids, mirror raw samples with bounded queues,
 confine recording names, and replace the public default RuField signing key.
 
+The cross-build toolchain uses the signed Bookworm snapshot dated
+`20260630T000000Z`. `install-system-deps.py` gives APT a 12-minute total
+budget and a fresh private package cache. If authenticated package fetching
+exhausts a transient transport retry or bounded timeout, it may fetch the
+same package paths from the official Debian pool. Version selection stays
+with the snapshot; SHA-256 and size from that selection must match before
+an offline APT install. Signature failures, missing hashes, changed versions
+and other archive roots fail closed. The helper is copied into the Docker
+build context beside `source/`; CI records its digest with the source inputs.
+The pinned runtime/toolchain images, ARM64 OpenSSL hashes and source lock
+remain the build authorities.
+
 `upstream-runtime-fixes.json` records selected fixes reviewed against upstream
 `5728b90949e60e3f908d996997d453147c1794e0`. The base revision stays pinned so
 the local grid, raw-mirror and signing protections retain their reviewed inputs.
