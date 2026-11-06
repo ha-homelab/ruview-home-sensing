@@ -3,11 +3,11 @@
 import copy
 import json
 import os
-from pathlib import Path
 import subprocess
 import sys
 import textwrap
 import unittest
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 EXPECTED = [
