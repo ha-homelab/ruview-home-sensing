@@ -112,8 +112,5 @@
     "managerFilePatterns": [
       "/^mechanical/enclosure/requirements\\.lock$/"
     ]
-  },
-  "vulnerabilityAlerts": {
-    "enabled": false
   }
 }

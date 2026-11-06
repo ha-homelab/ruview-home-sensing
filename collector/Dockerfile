@@ -6,8 +6,8 @@ FROM --platform=linux/arm64 docker.io/ruvnet/wifi-densepose@sha256:29e6b4ce18936
 FROM --platform=linux/amd64 docker.io/library/rust@sha256:d99f7b31f49909348dc59b51f3c95d1efded1701ffb222f095aaab7de3c4abd8 AS toolchain
 RUN rm -f /etc/apt/sources.list.d/debian.sources \
  && printf '%s\n' 'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian/20260630T000000Z bookworm main' > /etc/apt/sources.list \
- && apt-get -o Acquire::Check-Valid-Until=false update \
- && apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu g++-aarch64-linux-gnu pkg-config cmake python3 \
+ && apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 -o Acquire::Check-Valid-Until=false update \
+ && apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends gcc-aarch64-linux-gnu g++-aarch64-linux-gnu pkg-config cmake python3 \
  && rm -rf /var/lib/apt/lists/* \
  && rustup target add --toolchain 1.96.1 aarch64-unknown-linux-gnu
 ENV RUSTUP_TOOLCHAIN=1.96.1 \
