@@ -18,8 +18,10 @@ ENV RUSTUP_TOOLCHAIN=1.96.1 \
     AR_aarch64_unknown_linux_gnu=aarch64-linux-gnu-ar
 RUN mkdir -p /tmp/openssl-arm64 /opt/ruview/openssl-arm64 \
  && cd /tmp/openssl-arm64 \
- && curl --fail --location --retry 3 --connect-timeout 15 --max-time 120 -o libssl-dev.deb https://snapshot.debian.org/archive/debian/20260630T000000Z/pool/main/o/openssl/libssl-dev_3.0.20-1~deb12u1_arm64.deb \
- && curl --fail --location --retry 3 --connect-timeout 15 --max-time 120 -o libssl3.deb https://snapshot.debian.org/archive/debian/20260630T000000Z/pool/main/o/openssl/libssl3_3.0.20-1~deb12u1_arm64.deb \
+ && ( curl --fail --location --retry 3 --connect-timeout 15 --max-time 120 -o libssl-dev.deb https://snapshot.debian.org/archive/debian/20260630T000000Z/pool/main/o/openssl/libssl-dev_3.0.20-1~deb12u1_arm64.deb \
+      || curl --fail --location --retry 3 --connect-timeout 15 --max-time 120 -o libssl-dev.deb https://snapshot-cloudflare.debian.org/archive/debian/20260630T000000Z/pool/main/o/openssl/libssl-dev_3.0.20-1~deb12u1_arm64.deb ) \
+ && ( curl --fail --location --retry 3 --connect-timeout 15 --max-time 120 -o libssl3.deb https://snapshot.debian.org/archive/debian/20260630T000000Z/pool/main/o/openssl/libssl3_3.0.20-1~deb12u1_arm64.deb \
+      || curl --fail --location --retry 3 --connect-timeout 15 --max-time 120 -o libssl3.deb https://snapshot-cloudflare.debian.org/archive/debian/20260630T000000Z/pool/main/o/openssl/libssl3_3.0.20-1~deb12u1_arm64.deb ) \
  && printf '%s\n' '4b80f806af6d297bd9a9771e322c35f040fc473d3afc9cb438412aa17bebcca0  libssl-dev.deb' 'ddee5dde4e755bbefc894ee5776440f30ba6681443124b339140694eac643b6a  libssl3.deb' | sha256sum --check \
  && for package in *.deb; do dpkg-deb --extract "$package" /opt/ruview/openssl-arm64; done \
  && sha256sum *.deb > /opt/ruview/openssl-arm64/packages.sha256 \

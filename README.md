@@ -71,3 +71,9 @@ See [external interfaces](docs/interfaces.md), [test coverage and limitations](d
 ## License
 
 Original code, documentation and CAD are available under the [MIT license](LICENSE). Third-party components retain their own licenses and notices; see [NOTICE](NOTICE). No upstream model weights or household recordings are distributed here.
+
+The collector cross-build downloads its exact ARM64 OpenSSL archives from the
+2026-06-30 Debian Snapshot, with the same timestamped paths on the official
+Snapshot Cloudflare endpoint as a bounded transport fallback. The existing
+hardcoded SHA-256 checks must pass for both archives before either is extracted;
+the version, hashes, and target architecture are unchanged.
