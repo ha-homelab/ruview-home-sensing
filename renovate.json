@@ -18,7 +18,9 @@
     "**/node_modules/**",
     "**/fixtures/**",
     "**/tools/browser-compatibility/**",
-    ".github/cosign/**"
+    ".github/cosign/**",
+    "server-modules/Cargo.toml",
+    "server-modules/Cargo.lock"
   ],
   "packageRules": [
     {
