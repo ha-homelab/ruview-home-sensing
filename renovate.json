@@ -1,0 +1,116 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "local>victron-venus/venus-os-ci-toolkit:renovate-fleet"
+  ],
+  "enabledManagers": [
+    "github-actions",
+    "custom.regex",
+    "custom.jsonata",
+    "cargo",
+    "dockerfile",
+    "pep621",
+    "pip-compile",
+    "pip_requirements"
+  ],
+  "ignorePaths": [
+    "**/vendor/**",
+    "**/node_modules/**",
+    "**/fixtures/**",
+    "**/tools/browser-compatibility/**",
+    ".github/cosign/**"
+  ],
+  "packageRules": [
+    {
+      "matchManagers": [
+        "pep621",
+        "pip_requirements",
+        "pip-compile"
+      ],
+      "matchFileNames": [
+        "/^[^/]+$/"
+      ],
+      "schedule": [
+        "* * * * 1"
+      ]
+    },
+    {
+      "matchManagers": [
+        "pep621",
+        "pip_requirements",
+        "pip-compile"
+      ],
+      "matchFileNames": [
+        "/^inference/[^/]+$/"
+      ],
+      "schedule": [
+        "* * * * 1"
+      ]
+    },
+    {
+      "matchManagers": [
+        "dockerfile"
+      ],
+      "matchFileNames": [
+        "/^[^/]+$/"
+      ],
+      "schedule": [
+        "* * * * 1"
+      ]
+    },
+    {
+      "matchManagers": [
+        "dockerfile"
+      ],
+      "matchFileNames": [
+        "/^assumed_activity/[^/]+$/"
+      ],
+      "schedule": [
+        "* * * * 1"
+      ]
+    },
+    {
+      "description": "Toolkit workflow and composite revisions, plus exact metadata-caller hashes in tools/check_workflows.py, require one independently reviewed qualification.",
+      "matchManagers": [
+        "github-actions",
+        "custom.regex",
+        "custom.jsonata"
+      ],
+      "matchPackageNames": [
+        "victron-venus/venus-os-ci-toolkit",
+        "https://github.com/victron-venus/venus-os-ci-toolkit"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Regenerate compiled locks with their recorded source command; avoid independent edits to inputs or output snapshots.",
+      "matchManagers": [
+        "pip_requirements"
+      ],
+      "matchFileNames": [
+        "mechanical/enclosure/requirements.lock",
+        "mechanical/enclosure/requirements.txt"
+      ],
+      "enabled": false
+    }
+  ],
+  "pip_requirements": {
+    "managerFilePatterns": [
+      "/(^|/)([^/]*[-_])?requirements[^/]*\\.(txt|pip)$/"
+    ],
+    "ignorePaths": [
+      "**/vendor/**",
+      "**/node_modules/**",
+      "**/fixtures/**",
+      "**/tools/browser-compatibility/**",
+      ".github/cosign/**",
+      "mechanical/enclosure/requirements.lock",
+      "mechanical/enclosure/requirements.txt"
+    ]
+  },
+  "pip-compile": {
+    "managerFilePatterns": [
+      "/^mechanical/enclosure/requirements\\.lock$/"
+    ]
+  }
+}

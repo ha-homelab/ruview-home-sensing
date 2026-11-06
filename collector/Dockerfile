@@ -4,11 +4,11 @@ FROM --platform=linux/arm64 docker.io/ruvnet/wifi-densepose@sha256:29e6b4ce18936
 # Cross-build on amd64 for arm64. Keep the Bookworm cross sysroot compatible
 # with the exact original runtime image rather than the build host's Ubuntu.
 FROM --platform=linux/amd64 docker.io/library/rust@sha256:d99f7b31f49909348dc59b51f3c95d1efded1701ffb222f095aaab7de3c4abd8 AS toolchain
+COPY install-system-deps.py /tmp/install-system-deps.py
 RUN rm -f /etc/apt/sources.list.d/debian.sources \
  && printf '%s\n' 'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian/20260630T000000Z bookworm main' > /etc/apt/sources.list \
- && apt-get -o Acquire::Check-Valid-Until=false update \
- && apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu g++-aarch64-linux-gnu pkg-config cmake python3 \
- && rm -rf /var/lib/apt/lists/* \
+ && python3 /tmp/install-system-deps.py gcc-aarch64-linux-gnu g++-aarch64-linux-gnu pkg-config cmake python3 \
+ && rm -rf /var/lib/apt/lists/* /tmp/install-system-deps.py \
  && rustup target add --toolchain 1.96.1 aarch64-unknown-linux-gnu
 ENV RUSTUP_TOOLCHAIN=1.96.1 \
     CARGO_BUILD_JOBS=4 \
@@ -18,8 +18,10 @@ ENV RUSTUP_TOOLCHAIN=1.96.1 \
     AR_aarch64_unknown_linux_gnu=aarch64-linux-gnu-ar
 RUN mkdir -p /tmp/openssl-arm64 /opt/ruview/openssl-arm64 \
  && cd /tmp/openssl-arm64 \
- && curl --fail --location --retry 3 --connect-timeout 15 --max-time 120 -o libssl-dev.deb https://snapshot.debian.org/archive/debian/20260630T000000Z/pool/main/o/openssl/libssl-dev_3.0.20-1~deb12u1_arm64.deb \
- && curl --fail --location --retry 3 --connect-timeout 15 --max-time 120 -o libssl3.deb https://snapshot.debian.org/archive/debian/20260630T000000Z/pool/main/o/openssl/libssl3_3.0.20-1~deb12u1_arm64.deb \
+ && ( curl --fail --location --retry 3 --connect-timeout 15 --max-time 120 -o libssl-dev.deb https://snapshot.debian.org/archive/debian/20260630T000000Z/pool/main/o/openssl/libssl-dev_3.0.20-1~deb12u1_arm64.deb \
+      || curl --fail --location --retry 3 --connect-timeout 15 --max-time 120 -o libssl-dev.deb https://snapshot-cloudflare.debian.org/archive/debian/20260630T000000Z/pool/main/o/openssl/libssl-dev_3.0.20-1~deb12u1_arm64.deb ) \
+ && ( curl --fail --location --retry 3 --connect-timeout 15 --max-time 120 -o libssl3.deb https://snapshot.debian.org/archive/debian/20260630T000000Z/pool/main/o/openssl/libssl3_3.0.20-1~deb12u1_arm64.deb \
+      || curl --fail --location --retry 3 --connect-timeout 15 --max-time 120 -o libssl3.deb https://snapshot-cloudflare.debian.org/archive/debian/20260630T000000Z/pool/main/o/openssl/libssl3_3.0.20-1~deb12u1_arm64.deb ) \
  && printf '%s\n' '4b80f806af6d297bd9a9771e322c35f040fc473d3afc9cb438412aa17bebcca0  libssl-dev.deb' 'ddee5dde4e755bbefc894ee5776440f30ba6681443124b339140694eac643b6a  libssl3.deb' | sha256sum --check \
  && for package in *.deb; do dpkg-deb --extract "$package" /opt/ruview/openssl-arm64; done \
  && sha256sum *.deb > /opt/ruview/openssl-arm64/packages.sha256 \
