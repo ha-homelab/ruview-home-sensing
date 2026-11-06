@@ -11,6 +11,10 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
+  scope:
+    uses: victron-venus/venus-os-ci-toolkit/.github/workflows/change-scope.yml@e71559f44e41f39ad0037bf13c7f43bbbb2ec9af # main
+    with:
+      force-full: false
   public-boundary:
     name: Public source boundary
     runs-on: ubuntu-24.04
@@ -41,8 +45,9 @@ jobs:
       - run: python3 -m unittest discover -s tools/tests -v
       - run: python3 tools/check_workflows.py
   firmware-build:
+    if: ${{ needs.scope.outputs.run == 'true' }}
     name: ESP32-S3 firmware build
-    needs: public-boundary
+    needs: ["public-boundary", "scope"]
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -120,8 +125,9 @@ jobs:
           if-no-files-found: error
           retention-days: 7
   collector-build:
+    if: ${{ needs.scope.outputs.run == 'true' }}
     name: Full collector cross-build
-    needs: public-boundary
+    needs: ["public-boundary", "scope"]
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -319,7 +325,8 @@ jobs:
           if-no-files-found: error
           retention-days: 7
   bridge-container:
-    needs: public-boundary
+    if: ${{ needs.scope.outputs.run == 'true' }}
+    needs: ["public-boundary", "scope"]
     # Native ARM64 validates the documented architecture without emulation.
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
@@ -333,7 +340,8 @@ jobs:
       - name: Build and import the bridge in its native ARM64 container
         run: python3 scripts/test-bridge-container.py
   assumed-activity-container:
-    needs: public-boundary
+    if: ${{ needs.scope.outputs.run == 'true' }}
+    needs: ["public-boundary", "scope"]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -346,7 +354,8 @@ jobs:
       - name: Build and import the activity service in its native AMD64 container
         run: python3 scripts/test-assumed-activity-container.py
   validate:
-    needs: public-boundary
+    if: ${{ needs.scope.outputs.run == 'true' }}
+    needs: ["public-boundary", "scope"]
     runs-on: ubuntu-24.04
     # Cold compilers and complete native regression suites have a bounded budget.
     timeout-minutes: 45
@@ -472,8 +481,9 @@ jobs:
           python tests/fleet_service_smoke.py target/release/ruview-server-modules "$RUNNER_TEMP/ruview-fleet-modules-smoke"
           python tests/capture_service_smoke.py target/release/ruview-server-modules "$RUNNER_TEMP/ruview-capture-modules-smoke"
   packages:
+    if: ${{ needs.scope.outputs.run == 'true' }}
     name: Distribution integrity
-    needs: public-boundary
+    needs: ["public-boundary", "scope"]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -511,7 +521,8 @@ jobs:
           if-no-files-found: error
           retention-days: 7
   enclosure:
-    needs: public-boundary
+    if: ${{ needs.scope.outputs.run == 'true' }}
+    needs: ["public-boundary", "scope"]
     uses: ./.github/workflows/enclosure-cad.yml
   security:
     needs: public-boundary
@@ -529,20 +540,32 @@ jobs:
   gate:
     name: Public CI gate
     if: ${{ always() }}
-    needs: [public-boundary, firmware-build, collector-build, bridge-container, assumed-activity-container, validate, packages, enclosure, security]
+    needs: ["assumed-activity-container", "bridge-container", "collector-build", "enclosure", "firmware-build", "packages", "public-boundary", "scope", "security", "validate"]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Require every validation result
+      - name: Require the exact selected validation path
         env:
           RESULTS: ${{ toJSON(needs) }}
+        shell: python3 {0}
         run: |
-          python3 - <<'PYCODE'
-          import json
-          import os
-          results = json.loads(os.environ["RESULTS"])
-          failed = {name: value["result"] for name, value in results.items() if value["result"] != "success"}
+          import json, os
+          results = json.loads(os.environ['RESULTS'])
+          expected = ['assumed-activity-container', 'bridge-container', 'collector-build', 'enclosure', 'firmware-build', 'packages', 'public-boundary', 'scope', 'security', 'validate']
+          always = ['public-boundary', 'scope', 'security']
+          if set(results) != set(expected):
+              raise SystemExit('Validation job inventory differs')
+          scope = results['scope']
+          outputs = scope.get('outputs', {})
+          run = outputs.get('run')
+          if scope['result'] != 'success' or run not in {'true', 'false'}:
+              raise SystemExit('Change scope did not succeed')
+          if run == 'false' and outputs.get('reason') != 'documentation-only':
+              raise SystemExit('Unproven documentation-only scope')
+          failed = {}
+          for name, value in results.items():
+              wanted = 'success' if run == 'true' or name in always else 'skipped'
+              if value['result'] != wanted:
+                  failed[name] = {'actual': value['result'], 'expected': wanted}
           if failed:
-              raise SystemExit(f"Required validation did not succeed: {failed}")
-          print("All required public source, runtime, firmware, CAD and security checks passed.")
-          PYCODE
+              raise SystemExit(f'Validation did not pass: {failed}')
