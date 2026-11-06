@@ -12,8 +12,8 @@ TOOLKIT_ACTIONS = "21a366f200f0371a10a6de7ad6ca263af230b842"
 # runners. Any byte change needs independent review and an intentional pin update;
 # neither a filename alone nor a privileged event grants an exemption.
 METADATA_CALLERS = {
-    "auto-approve.yml": "64436232f621770b8039c663e82a7e6354bbc49259894cc4ef1b8f6315465598",
-    "auto-merge.yml": "b5b3e3211da2e52f3976b4d47653b8801a1de1030c40078f435f8a8f5dfe70e2",
+    "auto-approve.yml": "aa151712c0d7beb52f1653de9bfebf0ed1c3d48816aaf062d2184d1fdc9ef393",
+    "auto-merge.yml": "4dac083a835091c037ebf6ce526169b67e9d5c1a6f53278462e22e9a3e8facf1",
 }
 
 

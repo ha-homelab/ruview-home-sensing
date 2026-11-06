@@ -70,15 +70,15 @@
       ]
     },
     {
-      "description": "The setup-python composite and tools/check_workflows.py require one reviewed migration.",
+      "description": "Toolkit workflow and composite revisions, plus exact metadata-caller hashes in tools/check_workflows.py, require one independently reviewed qualification.",
       "matchManagers": [
-        "github-actions"
+        "github-actions",
+        "custom.regex",
+        "custom.jsonata"
       ],
       "matchPackageNames": [
-        "victron-venus/venus-os-ci-toolkit"
-      ],
-      "matchJsonata": [
-        "$type(replaceString) = 'string' and $contains(replaceString, '/actions/setup-python@')"
+        "victron-venus/venus-os-ci-toolkit",
+        "https://github.com/victron-venus/venus-os-ci-toolkit"
       ],
       "enabled": false
     },
