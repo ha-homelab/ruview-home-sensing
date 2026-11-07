@@ -30,14 +30,15 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    uses: victron-venus/venus-os-ci-toolkit/.github/workflows/auto-merge.yml@e71559f44e41f39ad0037bf13c7f43bbbb2ec9af # main
+    uses: victron-venus/venus-os-ci-toolkit/.github/workflows/auto-merge.yml@ffa568e48a9510bf66dcfe01d6646f6840382431 # main
     with:
       runner-labels: '["ubuntu-24.04"]'
-      # The reviewer account's merge-author email privacy is not verified.
-      pr-author: 4alvit,dependabot[bot],renovate[bot]
+      # Include the existing owned Renovate account in reviewed merges.
+      pr-author: 4alvit,californiantiramisu,dependabot[bot],renovate[bot]
       reviewed-merge: true
       reviewed-single-pass: true
       allow-dependabot-actions-review: true
+      allow-owned-bot-actions-review: true
       required-status-checks: Public CI gate,CodeQL
     secrets:
       BOT_PAT: ${{ secrets.BOT_PAT }}

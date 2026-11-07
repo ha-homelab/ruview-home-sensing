@@ -31,11 +31,13 @@ jobs:
        github.event.pull_request.base.ref == github.event.repository.default_branch &&
        contains(fromJSON('["4alvit","californiantiramisu","dependabot[bot]","renovate[bot]"]'), github.event.pull_request.user.login) &&
        !github.event.pull_request.draft &&
-       contains(github.event.pull_request.labels.*.name, 'auto-approve'))
+       (contains(github.event.pull_request.labels.*.name, 'auto-approve') ||
+       (github.event.pull_request.head.repo.full_name == github.repository &&
+        contains(fromJSON('["californiantiramisu","renovate[bot]"]'), github.event.pull_request.user.login))))
     permissions:
       contents: read
       pull-requests: write
-    uses: victron-venus/venus-os-ci-toolkit/.github/workflows/auto-approve-reusable.yml@e71559f44e41f39ad0037bf13c7f43bbbb2ec9af # main
+    uses: victron-venus/venus-os-ci-toolkit/.github/workflows/auto-approve-reusable.yml@ffa568e48a9510bf66dcfe01d6646f6840382431 # main
     with:
       runner-labels: '["ubuntu-24.04"]'
       pull-request-number: ${{ inputs.pull-request-number || '' }}
