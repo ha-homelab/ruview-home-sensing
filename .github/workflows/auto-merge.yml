@@ -3,8 +3,6 @@ name: Auto Merge PRs
 on:
   pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled, edited, converted_to_draft]
-  pull_request_review:
-    types: [submitted, dismissed]
   workflow_run:
     workflows: [Public validation, Auto Approve PRs]
     types: [completed]
@@ -19,7 +17,9 @@ permissions:
 jobs:
   auto-merge:
     if: >-
-      ((github.event_name == 'pull_request_target' || github.event_name == 'pull_request_review') &&
+      (github.event_name == 'pull_request_target' &&
+       github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
+       github.event.pull_request.base.ref == github.event.repository.default_branch &&
        github.event.pull_request.head.repo.full_name == github.repository &&
        contains(fromJSON('["4alvit","californiantiramisu","dependabot[bot]","renovate[bot]"]'), github.event.pull_request.user.login)) ||
       (contains(fromJSON('["workflow_run","status","check_run","schedule","workflow_dispatch"]'), github.event_name) &&
@@ -33,11 +33,12 @@ jobs:
     uses: victron-venus/venus-os-ci-toolkit/.github/workflows/auto-merge.yml@e71559f44e41f39ad0037bf13c7f43bbbb2ec9af # main
     with:
       runner-labels: '["ubuntu-24.04"]'
-      # The reviewer account's merge-author email privacy is not verified.
-      pr-author: 4alvit,dependabot[bot],renovate[bot]
+      # Include the existing owned Renovate account in reviewed merges.
+      pr-author: 4alvit,californiantiramisu,dependabot[bot],renovate[bot]
       reviewed-merge: true
       reviewed-single-pass: true
       allow-dependabot-actions-review: true
+      allow-owned-bot-actions-review: true
       required-status-checks: Public CI gate,CodeQL
     secrets:
       BOT_PAT: ${{ secrets.BOT_PAT }}
