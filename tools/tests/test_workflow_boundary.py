@@ -38,7 +38,11 @@ class MetadataCallerTests(unittest.TestCase):
                 + b"\n",
                 "run": raw + b"\n  steps:\n    - run: echo changed\n",
                 "pin": raw.replace(
-                    (WORKFLOWS.MERGE_TOOLKIT if name == "auto-merge.yml" else WORKFLOWS.TOOLKIT).encode(),
+                    (
+                        WORKFLOWS.MERGE_TOOLKIT
+                        if name == "auto-merge.yml"
+                        else WORKFLOWS.TOOLKIT
+                    ).encode(),
                     b"b" * 40,
                 ),
                 "runner": raw.replace(b"ubuntu-24.04", b"self-hosted"),
