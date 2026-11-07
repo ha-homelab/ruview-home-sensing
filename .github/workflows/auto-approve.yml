@@ -1,8 +1,6 @@
 # Metadata only: the pinned workflow never checks out or executes PR code.
 name: Auto Approve PRs
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled, edited, converted_to_draft]
   pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled, edited, converted_to_draft]
   workflow_dispatch:
@@ -26,10 +24,11 @@ jobs:
       (github.event_name == 'workflow_dispatch' &&
        github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) ||
       ((github.event.action != 'edited' || github.event.changes.base) &&
-       ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login != 'dependabot[bot]') ||
-        (github.event_name == 'pull_request_target' && github.event.pull_request.base.ref == github.event.repository.default_branch && (github.event.pull_request.head.repo.full_name != github.repository || github.event.pull_request.user.login == 'dependabot[bot]'))) &&
-       github.event.pull_request.base.ref == github.event.repository.default_branch &&
-       contains(fromJSON('["4alvit","californiantiramisu","dependabot[bot]","renovate[bot]"]'), github.event.pull_request.user.login) &&
+       (github.event_name == 'pull_request_target' &&
+       github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       github.event.pull_request.base.ref == github.event.repository.default_branch) &&
+      contains(fromJSON('["4alvit","californiantiramisu","dependabot[bot]","renovate[bot]"]'), github.event.pull_request.user.login) &&
        !github.event.pull_request.draft &&
        (contains(github.event.pull_request.labels.*.name, 'auto-approve') ||
        (github.event.pull_request.head.repo.full_name == github.repository &&
