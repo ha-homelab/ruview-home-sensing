@@ -6,6 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 TOOLKIT = "e71559f44e41f39ad0037bf13c7f43bbbb2ec9af"
+MERGE_TOOLKIT = "65c3a644c440fcd5f95d94b6c2fa2be1df58249c"
 # Composite actions retain their independently pinned implementation.
 TOOLKIT_ACTIONS = "21a366f200f0371a10a6de7ad6ca263af230b842"
 # These reviewed callers execute only pinned toolkit metadata logic on hosted
@@ -13,7 +14,7 @@ TOOLKIT_ACTIONS = "21a366f200f0371a10a6de7ad6ca263af230b842"
 # neither a filename alone nor a privileged event grants an exemption.
 METADATA_CALLERS = {
     "auto-approve.yml": "dab9f06330ea8cdae34ae96c8b73a51f7088e5c4c32e1a26c8271cd31c0a5a20",
-    "auto-merge.yml": "f3d49c17b6dadfc1b07f06ceaa7238bc6da9138a61bf0bfe6c09cfe70d2814b6",
+    "auto-merge.yml": "70f2b6409a2e21a72ebd832252ec92de02e7a864be303a74a09deec2aebd921d",
 }
 
 
@@ -49,6 +50,14 @@ def workflow_errors(name, raw):
                     if "/venus-os-ci-toolkit/actions/" in match[1]
                     else TOOLKIT
                 )
+                if (
+                    name == "auto-merge.yml"
+                    and reviewed_metadata
+                    and match[1].startswith(
+                        "victron-venus/venus-os-ci-toolkit/.github/workflows/auto-merge.yml@"
+                    )
+                ):
+                    expected_pin = MERGE_TOOLKIT
                 if not match[1].endswith("@" + expected_pin):
                     errors.append(f"{name}:{number}: shared toolkit revisions differ")
         if re.search(

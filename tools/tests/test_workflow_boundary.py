@@ -37,7 +37,10 @@ class MetadataCallerTests(unittest.TestCase):
                 + b"a" * 40
                 + b"\n",
                 "run": raw + b"\n  steps:\n    - run: echo changed\n",
-                "pin": raw.replace(WORKFLOWS.TOOLKIT.encode(), b"b" * 40),
+                "pin": raw.replace(
+                    (WORKFLOWS.MERGE_TOOLKIT if name == "auto-merge.yml" else WORKFLOWS.TOOLKIT).encode(),
+                    b"b" * 40,
+                ),
                 "runner": raw.replace(b"ubuntu-24.04", b"self-hosted"),
                 "inherit": raw + b"\nsecrets: inherit\n",
                 "comment": raw + b"\n# byte changes need review too\n",
@@ -97,7 +100,7 @@ class MetadataCallerTests(unittest.TestCase):
             with self.subTest(path=path):
                 accepted = f"uses: {toolkit}{path}@{expected}\n".encode()
                 self.assertEqual(WORKFLOWS.workflow_errors("ci.yml", accepted), [])
-                for changed in (other, "a" * 40, "main"):
+                for changed in (other, WORKFLOWS.MERGE_TOOLKIT, "a" * 40, "main"):
                     rejected = f"uses: {toolkit}{path}@{changed}\n".encode()
                     self.assertTrue(WORKFLOWS.workflow_errors("ci.yml", rejected))
 
