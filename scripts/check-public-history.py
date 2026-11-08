@@ -23,9 +23,11 @@ NOREPLY = re.compile(
 # One owner-approved historical incident, not an email/actor allowance.
 # Keep it visible in inspect_history and CLI findings; never forgive another ID
 # or a different identity role. See docs/privacy.md.
-ACCEPTED_HISTORICAL_FINDINGS = frozenset({
-    ("1c507290ab8b6f8bbba7f2d9644996a823832c4a", "author"),
-})
+ACCEPTED_HISTORICAL_FINDINGS = frozenset(
+    {
+        ("1c507290ab8b6f8bbba7f2d9644996a823832c4a", "author"),
+    }
+)
 
 
 class HistoryError(Exception):
@@ -100,11 +102,17 @@ def main(argv=None):
     for commit, role in failures:
         print(f"{commit}: {role} email is not a GitHub noreply identity")
     print(f"Checked {count} reachable commits; {len(failures)} identity findings")
-    accepted = [finding for finding in failures if finding in ACCEPTED_HISTORICAL_FINDINGS]
-    unaccepted = [finding for finding in failures if finding not in ACCEPTED_HISTORICAL_FINDINGS]
+    accepted = [
+        finding for finding in failures if finding in ACCEPTED_HISTORICAL_FINDINGS
+    ]
+    unaccepted = [
+        finding for finding in failures if finding not in ACCEPTED_HISTORICAL_FINDINGS
+    ]
     if accepted:
-        print(f"Accepted historical identity incidents: {len(accepted)}; "
-              f"unaccepted identity findings: {len(unaccepted)}")
+        print(
+            f"Accepted historical identity incidents: {len(accepted)}; "
+            f"unaccepted identity findings: {len(unaccepted)}"
+        )
     return int(bool(unaccepted))
 
 
