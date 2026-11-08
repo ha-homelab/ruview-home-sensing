@@ -6,7 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 TOOLKIT = "e71559f44e41f39ad0037bf13c7f43bbbb2ec9af"
-MERGE_TOOLKIT = "65c3a644c440fcd5f95d94b6c2fa2be1df58249c"
+MERGE_TOOLKIT = "0047a13b5eb79dfa770e31070a83e9696ddd36d1"
 # Composite actions retain their independently pinned implementation.
 TOOLKIT_ACTIONS = "21a366f200f0371a10a6de7ad6ca263af230b842"
 # These reviewed callers execute only pinned toolkit metadata logic on hosted
@@ -14,7 +14,7 @@ TOOLKIT_ACTIONS = "21a366f200f0371a10a6de7ad6ca263af230b842"
 # neither a filename alone nor a privileged event grants an exemption.
 METADATA_CALLERS = {
     "auto-approve.yml": "dab9f06330ea8cdae34ae96c8b73a51f7088e5c4c32e1a26c8271cd31c0a5a20",
-    "auto-merge.yml": "70f2b6409a2e21a72ebd832252ec92de02e7a864be303a74a09deec2aebd921d",
+    "auto-merge.yml": "6c8352990277461de22f6d12e454ccdf9ff058c1c5f801f75e0897d6e981dd0b",
 }
 
 
