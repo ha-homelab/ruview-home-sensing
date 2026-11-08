@@ -146,3 +146,72 @@ class PublicHistoryTests(unittest.TestCase):
         ):
             with self.subTest(address=address):
                 self.assertIsNone(history.NOREPLY.fullmatch(address.encode()))
+
+    def test_historical_disposition_keeps_original_violation_visible(self):
+        incident = ("1c507290ab8b6f8bbba7f2d9644996a823832c4a", "author")
+        self.assertEqual(history.ACCEPTED_HISTORICAL_FINDINGS, frozenset({incident}))
+        output = io.StringIO()
+        with (
+            patch.object(history, "inspect_history", return_value=(27, [incident])),
+            contextlib.redirect_stdout(output),
+        ):
+            self.assertEqual(history.main([]), 0)
+        self.assertIn(
+            f"{incident[0]}: author email is not a GitHub noreply identity",
+            output.getvalue(),
+        )
+        self.assertIn("27 reachable commits; 1 identity findings", output.getvalue())
+        self.assertIn(
+            "Accepted historical identity incidents: 1; unaccepted identity findings: 0",
+            output.getvalue(),
+        )
+
+    def test_historical_hash_does_not_accept_another_identity_role(self):
+        incident = ("1c507290ab8b6f8bbba7f2d9644996a823832c4a", "author")
+        output = io.StringIO()
+        with (
+            patch.object(
+                history,
+                "inspect_history",
+                return_value=(27, [incident, (incident[0], "committer")]),
+            ),
+            contextlib.redirect_stdout(output),
+        ):
+            self.assertEqual(history.main([]), 1)
+        self.assertIn("unaccepted identity findings: 1", output.getvalue())
+
+    def test_new_real_bad_commit_is_rejected_without_hiding_history(self):
+        first = self.commit(author=PRIVATE, message="Synthetic prior identity incident")
+        second = self.commit(
+            author=PRIVATE, committer=PRIVATE, message="Synthetic subsequent update"
+        )
+        self.assertNotEqual(first, "1c507290ab8b6f8bbba7f2d9644996a823832c4a")
+        self.assertEqual(
+            set(history.inspect_history(self.repo)[1]),
+            {(first, "author"), (second, "author"), (second, "committer")},
+        )
+        output = io.StringIO()
+        with (
+            patch.object(history, "ROOT", self.repo),
+            contextlib.redirect_stdout(output),
+        ):
+            self.assertEqual(history.main([]), 1)
+        self.assertIn("2 reachable commits; 3 identity findings", output.getvalue())
+        self.assertNotIn("Accepted historical identity incidents", output.getvalue())
+        self.assertNotIn(PRIVATE, output.getvalue())
+
+    def test_accepted_incident_never_masks_a_new_failure(self):
+        incident = ("1c507290ab8b6f8bbba7f2d9644996a823832c4a", "author")
+        for new_finding in [("a" * 40, "author"), ("a" * 40, "committer")]:
+            output = io.StringIO()
+            with (
+                self.subTest(new_finding=new_finding),
+                patch.object(
+                    history,
+                    "inspect_history",
+                    return_value=(28, [incident, new_finding]),
+                ),
+                contextlib.redirect_stdout(output),
+            ):
+                self.assertEqual(history.main([]), 1)
+            self.assertIn("unaccepted identity findings: 1", output.getvalue())
