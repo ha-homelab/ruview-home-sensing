@@ -1,16 +1,16 @@
 # Pinned optional fleet tooling. Install in a private virtual environment.
-bitarray==3.11.0
+bitarray==3.12.3
 bitstring==5.0.0
 cffi==2.1.1
-click==8.5.0
+click==8.5.1
 cryptography==50.0.2
-esp-pylib==1.1.5
+esp-pylib==1.2.1
 esp_idf_nvs_partition_gen==0.3.0
-esptool==5.1.0
+esptool==5.6.0
 intelhex==2.3.0
-markdown-it-py==4.2.0
+markdown-it-py==4.3.0
 mdurl==0.1.2
-pycparser==3.0
+pycparser==3.12
 Pygments==2.21.0
 pyserial==3.5
 PyYAML==6.0.3

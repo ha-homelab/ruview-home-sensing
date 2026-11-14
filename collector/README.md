@@ -5,6 +5,13 @@
 The patches expire stale CSI grids, mirror raw samples with bounded queues,
 confine recording names, and replace the public default RuField signing key.
 
+The collector builder names Rust `1.96.1-bookworm` and pins its exact amd64
+manifest. This matches `RUSTUP_TOOLCHAIN=1.96.1`, the Bookworm cross compiler
+and ARM64 OpenSSL sysroot. Compiler or Debian-family migrations need joint
+qualification; a moving untagged Rust digest must not select a newer Debian
+base while the rest of this profile still targets Bookworm. Digest refreshes
+within the named profile remain subject to the complete collector build.
+
 The cross-build toolchain uses the signed Bookworm snapshot dated
 `20260630T000000Z`. `install-system-deps.py` gives APT a 12-minute total
 budget and a fresh private package cache. If authenticated package fetching
