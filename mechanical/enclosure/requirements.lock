@@ -1636,9 +1636,9 @@ trame-vuetify==3.3.0 \
     --hash=sha256:3a68a8457a439c1f2d456bfa1004091116a4c9988503f594fd44e980222773f2 \
     --hash=sha256:cdef8316d7e7100a6a35aa6d76dd03263956041b534578ba9218f316ffc7d9f9
     # via cadquery
-trimesh==4.12.2 \
-    --hash=sha256:b5b5afa63c5272345f2858f7676bc8c217dc8a89f4fadf6193fe10a81b5ff2aa \
-    --hash=sha256:c8ca31571ac00b112e4e160e66a2d4c3491df321f056bd33806be0485d1af9d9
+trimesh==5.2.1 \
+    --hash=sha256:3719598aea815f47ae2d08d02b8009eba3921f05847332df16a7fffd74dcb08e \
+    --hash=sha256:ba4b5dbdf030bbffbb6337d9c67595435a8d1f224f23eb6500e9662f42a3c5df
     # via -r mechanical/enclosure/requirements.txt
 typing-extensions==4.16.0 \
     --hash=sha256:481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8 \
