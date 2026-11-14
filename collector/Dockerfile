@@ -1,5 +1,5 @@
 # Read the unchanged ARM64 runtime files without executing that architecture.
-FROM --platform=linux/arm64 docker.io/ruvnet/wifi-densepose@sha256:52a2a3dfe1bc2c40251e7ac37f9f339a8dba93d2f479190efdc4b8de947bcf87 AS runtime-base
+FROM --platform=linux/arm64 docker.io/ruvnet/wifi-densepose@sha256:b3fd56cd0c58ad71db783d0f7a36d7dd16ef479b6ccc007b7979b4ddbfa22b6e AS runtime-base
 
 # Cross-build on amd64 for arm64. Keep the Bookworm cross sysroot compatible
 # with the exact original runtime image rather than the build host's Ubuntu.
