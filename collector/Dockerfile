@@ -3,7 +3,7 @@ FROM --platform=linux/arm64 docker.io/ruvnet/wifi-densepose@sha256:52a2a3dfe1bc2
 
 # Cross-build on amd64 for arm64. Keep the Bookworm cross sysroot compatible
 # with the exact original runtime image rather than the build host's Ubuntu.
-FROM --platform=linux/amd64 docker.io/library/rust@sha256:ebc54bef33ec8f9a5cd05799366010f35efbb73b354fb4f2cb086ec6b9460ef5 AS toolchain
+FROM --platform=linux/amd64 docker.io/library/rust:1.96.1-bookworm@sha256:d99f7b31f49909348dc59b51f3c95d1efded1701ffb222f095aaab7de3c4abd8 AS toolchain
 COPY install-system-deps.py /tmp/install-system-deps.py
 RUN rm -f /etc/apt/sources.list.d/debian.sources \
  && printf '%s\n' 'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian/20260630T000000Z bookworm main' > /etc/apt/sources.list \

@@ -21,6 +21,11 @@ docker buildx build --target artifacts \
 
 The upstream source commit and every downloaded file are pinned in
 `upstream-files.json`. The source context includes the upstream MIT license.
+The ESP-IDF 5.4 build profile is coupled to its Python 3.12 environment,
+5.4 constraints, hashed repair wheels and source-verified Wi-Fi patch inputs.
+Renovate may propose 5.4 patch releases and digest refreshes, but every build
+check must pass; a 5.5/6.x migration must qualify all these inputs together.
+
 The Dockerfile pins ESP-IDF, WASM3 and the LED component; vendored Monocypher
 retains its license and provenance manifest. The profile expects an ESP32-S3
 with 16 MiB flash and 8 MiB octal PSRAM. Confirm the actual board before using a
