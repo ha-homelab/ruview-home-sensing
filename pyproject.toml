@@ -7,7 +7,7 @@ license-files = ["LICENSE", "NOTICE"]
 description = "RuView sensing, evidence validation and reproducible hardware tooling"
 dependencies = [
   "ruview-home-assistant @ https://github.com/ha-homelab/ruview-home-assistant/releases/download/v0.1.4-beta.1/ruview_home_assistant-0.1.4b1-py3-none-any.whl#sha256=a9cfb4cf663870379c9a025c0e1247470545d57196d1057537b007bc4a8a8ca0",
-  "paho-mqtt==2.1.0",
+  "paho-mqtt==2.2.0",
   "websockets==17.4",
 ]
 

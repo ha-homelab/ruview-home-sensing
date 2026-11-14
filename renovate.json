@@ -94,6 +94,33 @@
         "mechanical/enclosure/requirements.txt"
       ],
       "enabled": false
+    },
+    {
+      "description": "ESP-IDF 5.4 is coupled to Python 3.12, the hashed repair wheels, constraints and source-verified Wi-Fi patches; qualify a family migration together.",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "espressif/idf"
+      ],
+      "matchFileNames": [
+        "firmware/Dockerfile"
+      ],
+      "allowedVersions": "/^v?5\\.4\\.\\d+$/"
+    },
+    {
+      "description": "The collector compiler and Bookworm cross sysroot are coupled to RUSTUP_TOOLCHAIN and the authenticated Bookworm snapshot; qualify compiler/distro migrations together.",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "docker.io/library/rust",
+        "rust"
+      ],
+      "matchFileNames": [
+        "collector/Dockerfile"
+      ],
+      "allowedVersions": "/^1\\.96\\.1-bookworm$/"
     }
   ],
   "pip_requirements": {
