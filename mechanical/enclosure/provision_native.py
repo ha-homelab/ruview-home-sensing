@@ -66,6 +66,7 @@ def open_archive(request):
             if attempt == 2:
                 raise
         time.sleep(attempt + 1)
+    raise RuntimeError("Native CAD archive connection attempts exhausted")
 
 
 def download(package: dict, destination: Path) -> None:
