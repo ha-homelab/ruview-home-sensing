@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-inference = ["numpy==2.5.4"]
+inference = ["numpy==2.5.5"]
 
 [project.scripts]
 ruview-inference = "inference.__main__:main"

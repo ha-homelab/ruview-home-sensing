@@ -11,6 +11,8 @@ import platform
 import re
 import subprocess
 import sys
+import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -52,13 +54,28 @@ def read_lock(path: Path) -> list[dict]:
     return packages
 
 
+def open_archive(request):
+    """Retry connection timeouts only, before creating any archive file."""
+    for attempt in range(3):
+        try:
+            return open_source(request, timeout=60)
+        except urllib.error.URLError as error:
+            if not isinstance(error.reason, TimeoutError) or attempt == 2:
+                raise
+        except TimeoutError:
+            if attempt == 2:
+                raise
+        time.sleep(attempt + 1)
+    raise RuntimeError("Native CAD archive connection attempts exhausted")
+
+
 def download(package: dict, destination: Path) -> None:
     request = urllib.request.Request(
         package["url"], headers={"User-Agent": "ruview-cad-native-runtime/1"}
     )
     digest = hashlib.sha256()
     count = 0
-    with open_source(request, timeout=60) as response:
+    with open_archive(request) as response:
         if not response.geturl().startswith(ARCHIVE_PREFIX):
             raise ValueError("Native CAD archive redirected outside Ubuntu archive")
         with destination.open("xb") as output:

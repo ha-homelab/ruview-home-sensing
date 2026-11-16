@@ -1,5 +1,5 @@
 # Pinned optional fleet tooling. Install in a private virtual environment.
-bitarray==3.12.3
+bitarray==3.12.4
 bitstring==5.0.0
 cffi==2.1.1
 click==8.5.1
