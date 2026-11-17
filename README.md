@@ -68,6 +68,8 @@ python scripts/check-public-boundary.py
 
 See [external interfaces](docs/interfaces.md), [test coverage and limitations](docs/testing.md), [architecture and release boundaries](docs/architecture.md), [privacy](docs/privacy.md), [contributing](CONTRIBUTING.md), [security reporting](SECURITY.md) and [third-party notices](NOTICE).
 
+Docs index: [docs/README.md](docs/README.md).
+
 ## License
 
 Original code, documentation and CAD are available under the [MIT license](LICENSE). Third-party components retain their own licenses and notices; see [NOTICE](NOTICE). No upstream model weights or household recordings are distributed here.
