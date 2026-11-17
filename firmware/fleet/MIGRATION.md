@@ -15,7 +15,7 @@ memory test. No current node 1/3 migration or blank-board provisioning is implie
 by the synthetic tests.
 
 The current planner and executor require the independently approved private site
-context described in [the operator guide](../../docs/private-site-context.md).
+context, which is kept outside this public repository.
 Changed tool-source hashes intentionally invalidate old reviewed evidence; never
 rewrite hashes in an old receipt to bypass a fresh review.
 
