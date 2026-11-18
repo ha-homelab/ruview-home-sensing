@@ -1,0 +1,12 @@
+**
+!inference/
+!inference/*.py
+!inference/requirements-image.txt
+!inference/tests/
+!inference/tests/*.py
+!scripts/
+!scripts/reference_clock.py
+!server-modules/
+!server-modules/tests/
+!server-modules/tests/fixtures/
+!server-modules/tests/fixtures/capture-v2.synthetic.json
