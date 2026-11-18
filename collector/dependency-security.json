@@ -2,17 +2,18 @@
   "schema": "ruview.collector-dependency-security.v1",
   "upstream_repository": "https://github.com/ruvnet/RuView",
   "original_revision": "7c8aeacea2ad30972070196eb7d8e7200506b742",
-  "upstream_reference": "5728b90949e60e3f908d996997d453147c1794e0",
+  "upstream_reference": "8d1679eb54419abe79ecb0010a73431c37b95afe",
   "upstream_security_commits": [
     "8e846a9a364584c3a7fd8613f886bfa8e11656bc",
-    "3b1479b9a6309e983ecc72cbe0ae11544a8501ec"
+    "3b1479b9a6309e983ecc72cbe0ae11544a8501ec",
+    "8d1679eb54419abe79ecb0010a73431c37b95afe"
   ],
   "patch": "0005-upstream-dependency-security.patch",
-  "patch_sha256": "f626c2e8f2406a6f9094bfa7f00a21b93cb15ab8c91fa272b8c65b7170c291a4",
+  "patch_sha256": "9352bbf3eb02cab9150610a31af9dd199a00e5e85690434ece4b6addfcd60b6d",
   "lock_before_sha256": "0e57e7127e6c5927ee3006e017dd94d0d48c506eb26c221c52de48f471fd394e",
-  "lock_after_sha256": "402558b25a5048ff2ec31511e306582e0b07c77e30c64a81901ca2c41380522a",
+  "lock_after_sha256": "f8a5352f1ef63a69cebadd2550b6888559723997e05aaaba465449e8c47bca77",
   "registry_lock_before_sha256": "f5953f6b547bf89ed54ade28de372bc013418dbdd9e9a541c69bf287bf74d4ff",
-  "registry_lock_after_sha256": "9e7dde6db56ad361ba1b92fcb7bba8e7f8bf6751a42c71a958c4f2ca29fa022b",
+  "registry_lock_after_sha256": "82955130f3912c5c78b2fd42018176be89ba720d0674314e10903a953a0637f8",
   "target": "aarch64-unknown-linux-gnu",
   "features": [
     "mqtt"
@@ -25,7 +26,8 @@
     "rustls": "0.23.46",
     "rustls-webpki": "0.103.16",
     "webpki-roots": "1.0.10",
-    "quinn-proto": "0.11.18"
+    "quinn-proto": "0.11.19",
+    "quinn-udp": "0.5.16"
   },
   "added_or_updated_packages": [
     {
@@ -91,9 +93,9 @@
     },
     {
       "name": "quinn-proto",
-      "version": "0.11.18",
+      "version": "0.11.19",
       "source": "registry+https://github.com/rust-lang/crates.io-index",
-      "checksum": "a9746dbde176634f4f2f1faf2404e30a31b2bc1e9cafb5329c95d8177a18c9fc",
+      "checksum": "0e750cca55fe4f0439a15d0bb529da9651e79993e8e72c61a899a36d462befbe",
       "dependencies": [
         "bytes",
         "fastbloom",
@@ -111,6 +113,20 @@
         "tinyvec",
         "tracing",
         "web-time"
+      ]
+    },
+    {
+      "name": "quinn-udp",
+      "version": "0.5.16",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "af66907df18639dcf4db56ca65490cabc4b27a97dbadd96f2926cca73298f016",
+      "dependencies": [
+        "cfg_aliases",
+        "libc",
+        "once_cell",
+        "socket2 0.6.2",
+        "tracing",
+        "windows-sys 0.60.2"
       ]
     },
     {
@@ -214,6 +230,10 @@
       "version": "0.11.15"
     },
     {
+      "name": "quinn-udp",
+      "version": "0.5.14"
+    },
+    {
       "name": "rustls",
       "version": "0.23.45"
     },
@@ -296,5 +316,5 @@
       "version": "0.54.2"
     }
   ],
-  "scope": "Four selected TLS/QUIC security floors and resolver-required supporting packages only. No application manifest, source revision, submodule, model, firmware or deployed image change. Wasmtime/Zstandard/ZIP/libz-sys are absent from this selected graph."
+  "scope": "Five selected TLS/QUIC security floors and resolver-required supporting packages only. Quinn 0.11.19/UDP 0.5.16 are the reviewed defensive follow-up; existing valid socket2/windows-sys selections are preserved rather than copying unrelated upstream resolver churn. No application manifest, source revision, submodule, model, firmware or deployed image change. Wasmtime/Zstandard/ZIP/libz-sys are absent from the previously qualified selected graph; current graph qualification is separate."
 }

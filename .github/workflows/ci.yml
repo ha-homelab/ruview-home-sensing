@@ -412,6 +412,7 @@ jobs:
       - run: python firmware/tests/test_http_status_result.py "$RUNNER_TEMP/ruview-firmware/source"
       - run: python firmware/tests/test_self_ping_recovery.py "$RUNNER_TEMP/ruview-firmware/source"
       - run: python firmware/tests/test_self_ping_timeout.py "$RUNNER_TEMP/ruview-firmware/source"
+      - run: python firmware/tests/test_edge_current_grid.py "$RUNNER_TEMP/ruview-firmware/source"
       - run: python firmware/tests/test_boot_bound_recovery.py "$RUNNER_TEMP/ruview-firmware/source"
       - run: python firmware/tests/test_csi_sequence_admission.py "$RUNNER_TEMP/ruview-firmware/source"
       - run: |
