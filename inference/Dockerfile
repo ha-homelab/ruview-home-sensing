@@ -22,9 +22,12 @@ COPY server-modules/tests/fixtures/capture-v2.synthetic.json /app/server-modules
 
 # Cache both tested Python modes during the build, never at runtime.
 # Private build contexts may contain mode-0700 directories; this is public code.
-RUN umask 022 && python -m compileall -q -f -j 2 -o 0 -o 1 \
+RUN umask 022 \
+    && stdlib="$(python -c 'import sysconfig; print(sysconfig.get_path("stdlib"))')" \
+    && test -d "$stdlib" \
+    && python -m compileall -q -f -j 2 -o 0 -o 1 \
     --invalidation-mode checked-hash \
-    /usr/local/lib/python3.13 /app \
+    "$stdlib" /app \
     && chmod -R a+rX /app
 
 USER 10001:10001

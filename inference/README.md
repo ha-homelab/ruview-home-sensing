@@ -14,6 +14,16 @@ python -m inference --help
 python -m unittest discover -s inference/tests -v
 ```
 
+To verify the Linux amd64 container with the published dependency lock, run
+these commands from the repository root. CI runs the same offline smoke tests
+in both Python modes after building the image.
+
+```sh
+docker build --platform linux/amd64 -f inference/Dockerfile -t ruview-inference:ci .
+docker run --rm --network none ruview-inference:ci -m inference.image_smoke
+docker run --rm --network none ruview-inference:ci -O -m inference.image_smoke
+```
+
 Use an explicit coordinate frame, units and orientation. Record timestamp origin,
 clock offset/uncertainty, receiver identity and sample completeness. Reject
 mismatched capture/reference identity, stale data, invalid numeric values and
