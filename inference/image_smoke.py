@@ -1,12 +1,37 @@
 """Offline container acceptance: pinned runtime, CLI imports, synthetic suite."""
 
+import importlib.util
 import json
 import os
 import platform
 import subprocess
 import sys
+import sysconfig
 import unittest
 from pathlib import Path
+
+
+def locked_numpy_version():
+    lock = Path(__file__).with_name("requirements-image.txt")
+    (pin,) = (
+        line.split()[0]
+        for line in lock.read_text().splitlines()
+        if line.startswith("numpy==")
+    )
+    return pin.removeprefix("numpy==")
+
+
+def has_checked_hash_caches(source):
+    for optimization in ("", "1"):
+        cache = Path(
+            importlib.util.cache_from_source(str(source), optimization=optimization)
+        )
+        if not cache.is_file():
+            return False
+        with cache.open("rb") as stream:
+            if stream.read(8) != importlib.util.MAGIC_NUMBER + b"\x03\x00\x00\x00":
+                return False
+    return True
 
 
 def main():
@@ -15,10 +40,17 @@ def main():
     from scripts import reference_clock
 
     checks = {
-        "python_3_13": sys.version_info[:2] == (3, 13),
+        "base_python_version": platform.python_version()
+        == os.environ.get("PYTHON_VERSION"),
         "linux_amd64": platform.system() == "Linux" and platform.machine() == "x86_64",
         "nonroot": os.getuid() != 0 and os.getgid() != 0,
-        "numpy_2_5_3": numpy.__version__ == "2.5.3",
+        "locked_numpy_version": numpy.__version__ == locked_numpy_version(),
+        "stdlib_checked_hash_caches": has_checked_hash_caches(
+            Path(sysconfig.get_path("stdlib")) / "json" / "__init__.py"
+        ),
+        "inference_checked_hash_caches": has_checked_hash_caches(
+            Path(__file__).with_name("__init__.py")
+        ),
         "bytecode_disabled": sys.dont_write_bytecode,
         "blas_threads_bounded": all(
             os.environ.get(name) == "1"
