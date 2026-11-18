@@ -163,3 +163,12 @@ pairs without rewriting raw evidence. Adopting the new representation requires
 a coordinated, versioned wire/feature contract and consumer tests, rather than
 widening admission silently. STBC/HE buffer and capture changes likewise remain
 separate from this timeout fix and do not alter the associated-only LLTF profile.
+
+### Top-K selection after a CSI grid shrinks
+
+Patch `0023-current-grid-top-k.patch` refreshes the retained subcarrier selection
+when an index falls outside the current frame. The host regression exercises
+primary and secondary selections on a 128-to-64 subcarrier transition, as well
+as selection cadence, growth and oversized-frame rejection. The regression
+uses the pinned phase and selection code. Full firmware build and device
+qualification are separate. [Upstream fix](https://github.com/ruvnet/RuView/commit/9c277f127b5e8c62e78f73cb7f32c331c8ab875e)
