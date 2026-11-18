@@ -106,7 +106,7 @@ collector binaries. An offline preparation additionally requires
 
 After the ring override, `dependency_security.py` applies the exact lockfile
 delta recorded in `dependency-security.json`: Rustls 0.23.46, rustls-webpki
-0.103.16, webpki-roots 1.0.10 and quinn-proto 0.11.18, with their required
+0.103.16, webpki-roots 1.0.10, quinn-proto 0.11.19 and quinn-udp 0.5.16, with their required
 support packages. The helper checks the patch and both lockfile hashes. This
 retains the application manifests and source pin. Wasmtime, Zstandard, ZIP and
 libz-sys are absent from the selected ARM64 MQTT normal/build dependency graph;

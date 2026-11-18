@@ -36,12 +36,20 @@ for consumer-visible behavior and required startup configuration.
 
 The [dependency security policy](../collector/dependency-security.json) locks
 Rustls 0.23.46, rustls-webpki 0.103.16, webpki-roots 1.0.10 and quinn-proto
-0.11.18, with the supporting package changes required by QUIC. The original
+0.11.19 and quinn-udp 0.5.16, with the supporting package changes required by QUIC. The original
 and resulting dependency graphs were resolved with `--locked` for ARM64 and
 the collector's `mqtt` feature. The selected normal/build graph includes these
 packages; it does not include Wasmtime, Zstandard, ZIP or libz-sys. Their
 upstream monorepo updates are therefore not imported into this collector.
 The existing patched `ring` remains in place.
+
+A separate defensive review on November 17 follows upstream
+[`8d1679eb`](https://github.com/ruvnet/RuView/commit/8d1679eb54419abe79ecb0010a73431c37b95afe)
+for the two Quinn updates. It preserves the existing valid `socket2` and
+`windows-sys` selections instead of copying unrelated upstream resolver changes.
+This narrow lockfile follow-up does not advance the pinned collector source or
+claim a new complete upstream compatibility review. The selected ARM64 `mqtt`
+graph, tests and build remain required validation gates.
 
 The firmware backport bounds the ICMP receive wait to the configured probe
 interval in both legacy and optional recovery paths. This addresses the
