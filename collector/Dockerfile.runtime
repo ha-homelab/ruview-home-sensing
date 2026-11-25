@@ -1,5 +1,5 @@
 # The binary must come from the locked, tested arm64 build described in README.
-FROM --platform=linux/arm64 docker.io/ruvnet/wifi-densepose@sha256:9800d7f15889ba0292199b7c912d6efd1d48d1c8d670a94c6c87823400d227d2
+FROM --platform=linux/arm64 docker.io/ruvnet/wifi-densepose@sha256:7ccb73a2e6eaeea22bd5001f0b338d53776e7de6438dc957a88f4a93cd68cf8c
 COPY sensing-server /app/sensing-server
 COPY ring-licenses/ /app/licenses/ring/
 COPY ring-policy-receipt.json /app/ring-policy-receipt.json
